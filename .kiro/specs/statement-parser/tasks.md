@@ -11,32 +11,32 @@ Rules that apply to every task:
 
 ---
 
-- [ ] 1. Scaffold the workspace and the `@zombills/core` package
-  - [ ] 1.1 Root workspace
+- [x] 1. Scaffold the workspace and the `@zombills/core` package
+  - [x] 1.1 Root workspace
     - Create the root `package.json`: `"private": true`, `"workspaces": ["packages/*", "apps/*"]`, and scripts `test`, `typecheck`, `lint` and `build` that run across workspaces (`npm run <script> --workspaces --if-present`).
     - Create `tsconfig.base.json` with `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`, `target: "ES2022"`, `module: "ESNext"`, `moduleResolution: "Bundler"`, `lib: ["ES2022"]` (no `DOM`), `isolatedModules: true` and `skipLibCheck: true`.
     - Create the root ESLint flat config (`eslint.config.js`) using `typescript-eslint`, with Prettier compatibility (`eslint-config-prettier`), plus `.prettierrc`.
     - In `.gitignore`, add `node_modules/` and `dist/` if they are missing. Do not ignore `.kiro/`.
-  - [ ] 1.2 `packages/core`
+  - [x] 1.2 `packages/core`
     - Create `package.json`: `"name": "@zombills/core"`, `"type": "module"`, `"exports"` pointing at `dist/index.js` and `dist/index.d.ts`, and `"files": ["dist"]`.
       - Scripts: `build` (`tsc -p tsconfig.build.json`), `test` (`vitest run`), `typecheck` (`tsc --noEmit`) and `lint` (`eslint src`).
       - Dependency: `papaparse`.
-      - Dev dependencies: `@types/papaparse`, `typescript`, `vitest`, `fast-check`, `eslint`, `typescript-eslint`, `eslint-config-prettier` and `prettier`.
+      - Dev dependencies: `@types/papaparse`, `vitest`, `fast-check`, plus `vite` and `@types/node` (peers of Vitest, pinned explicitly). `typescript`, `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-config-prettier` and `prettier` live in the root `package.json` because the ESLint config is at the root. All versions are exact (no `^` or `~`). TypeScript is pinned to 6.0.3 because `typescript-eslint` 8.72.2 requires `<6.1.0`.
     - Create `tsconfig.json`, extending the base, with `src` included and `types: []` so no DOM or Node globals leak in.
     - Create `tsconfig.build.json` extending it, with `outDir: "dist"`, `declaration: true`, and `**/*.test.ts`, `**/*.property.test.ts` and `**/test-*.ts` excluded.
     - Create `vitest.config.ts`: `environment: "node"`, `include: ["src/**/*.test.ts"]`, `exclude: ["**/e2e/**", "node_modules", "dist"]`, `passWithNoTests: true`.
     - Create `src/index.ts`, empty for now.
-  - [ ] 1.3 Privacy lint rule for `packages/core/src/**`
+  - [x] 1.3 Privacy lint rule for `packages/core/src/**`
     - Add `no-restricted-globals` for `fetch`, `XMLHttpRequest`, `WebSocket`, `document`, `window` and `navigator`, each with the message "Statement data never leaves the browser (privacy.md)".
     - Add `no-restricted-properties` for `navigator.sendBeacon`, `globalThis.fetch` and `window.fetch`.
-    - Add `no-restricted-syntax` for `MemberExpression[object.name='globalThis']`, so `globalThis.*` cannot bypass the rule.
+    - Add `no-restricted-syntax` for `Identifier[name='globalThis']`, so `globalThis` cannot be used to bypass the rules (including `globalThis["fetch"]` and `(globalThis as T).fetch`).
     - Add `no-console: "error"`.
-  - [ ] 1.4 Sample statements in `samples/`. All data must be fake: invented account numbers, no real people, and each file 15–30 rows long. Include monthly subscription merchants so the files are also useful for the detection demo.
+  - [x] 1.4 Sample statements in `samples/`. All data must be fake: invented account numbers, no real people, and each file 15–30 rows long. Include monthly subscription merchants so the files are also useful for the detection demo.
     - `us-signed.csv`: comma-delimited; headers `Date,Description,Amount`; `mm/dd/yyyy` dates including at least one day above 12; amounts like `-15.49` and `1,250.00`; negative means money out.
     - `uk-debit-credit.csv`: comma-delimited; headers `Transaction Date,Details,Debit,Credit`; `dd/mm/yyyy` dates, where the first rows fall on days 1–12 and a later row's day is above 12; debit and credit in separate columns; at least one `£` amount.
     - `eu-semicolon.csv`: semicolon-delimited, with a UTF-8 BOM; headers `Value Date;Narrative;Amount;Currency`, all on the recognition lists; `dd.mm.yyyy` dates; comma decimals (`-12,99`, `1.234,56`); the currency column set to `EUR`, with at least one row in lower case (`eur`).
     - `with-preamble.csv`: 3–4 account-info lines (account name, a fake IBAN, a statement period) before an ISO-date signed-amount header; one fully blank row in the middle and one trailing blank row.
-  - [ ] 1.5 Check the scaffold: `npm install`, then `npm run typecheck`, `npm run lint` and `npm test` all pass at the root, with no tests yet.
+  - [x] 1.5 Check the scaffold: `npm install`, then `npm run typecheck`, `npm run lint` and `npm test` all pass at the root, with no tests yet.
   - _Requirements: 12.3 (Node environment), 12.4 (lint half); tech.md, structure.md, privacy.md_
 
 - [ ] 2. Public types, internal types and `ParseError`

@@ -7,6 +7,11 @@
 /memory.md
 /hackathondetail.md
 
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
 # Secrets
 .env
 .env.*
