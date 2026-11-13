@@ -6,6 +6,8 @@ The `statement-parser` module lives in `packages/core` (`@zombills/core`) and is
 
 The module is pure TypeScript with no network calls and no DOM access. All monetary values are stored as integer cents: positive values are money out (debits), negative values are money in (credits). Statement data never leaves the browser.
 
+CSV files with no header row are out of scope for this spec. Such files fall through to `status: "mapping-required"` via Requirement 11.3.
+
 ---
 
 ## Glossary
@@ -13,15 +15,17 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 - **Parser**: The `statement-parser` module within `packages/core`.
 - **Transaction**: A single debit or credit row from the statement, typed as `{ date: string; description: string; amountCents: number; currency: string }` where `date` is ISO `yyyy-mm-dd`, `amountCents` is positive for money out (debit) and negative for money in (credit).
 - **ParseResult**: A discriminated union returned by the Parser, with a `status` field of `"mapped"` (all columns resolved, rows parsed), `"mapping-required"` (column mapping absent or incomplete), or `"error"` (statement-level failure that prevents any parsing).
-- **MappedResult**: A `ParseResult` with `status: "mapped"` containing `transactions: Transaction[]`, `rowErrors: RowError[]`, `detectedDateFormat: DateFormatInfo`, and `detectedSignConvention: SignConvention`.
+- **MappedResult**: A `ParseResult` with `status: "mapped"` containing `transactions: Transaction[]`, `rowErrors: RowError[]`, `detectedDateFormat: DateFormatInfo | null`, and `detectedSignConvention: SignConventionInfo | null`. `detectedDateFormat` is `null` only when no date cell matches any supported format (Requirement 3.9). `detectedSignConvention` is `null` for `DebitCreditLayout`, where no sign convention applies.
 - **MappingRequiredResult**: A `ParseResult` with `status: "mapping-required"` containing `columns: string[]`, optional `validationErrors`, and `rowErrors: RowError[]`.
-- **ErrorResult**: A `ParseResult` with `status: "error"` containing `reason: string` describing the statement-level failure. Used for empty input, conflicting separator patterns, and invalid option values. `parseStatement` SHALL NOT throw for these cases.
+- **ErrorResult**: A `ParseResult` with `status: "error"` containing `reason: string` describing the statement-level failure. Used for empty input, conflicting separator patterns, conflicting date formats, and invalid option values. `parseStatement` SHALL NOT throw for these cases.
 - **ColumnMap**: A record specifying how CSV header names map to canonical fields. For `SignedAmountLayout` it must include `date`, `description`, and `amount`. For `DebitCreditLayout` it must include `date`, `description`, `debit`, and `credit`. The `currency` field is optional in both layouts.
 - **RowError**: An object `{ rowIndex: number; rawRow: string; reason: string }` recording a row that could not be parsed. Row numbering is 1-based relative to the header row (first data row = row 1). Each `RowError` SHALL include the 1-based row number and a description identifying which field failed and why.
-- **DecimalSeparator**: Either `"."` or `","`, determined once per statement from the first several amount values before any row is parsed.
-- **DateFormat**: One of `"yyyy-mm-dd"`, `"dd/mm/yyyy"`, or `"mm/dd/yyyy"`, determined once per statement from the first parseable date values before any row is parsed.
+- **Data row**: Any row after the detected header row that is not fully blank. A row is fully blank when every cell is empty or contains only whitespace. Fully blank rows anywhere after the header row are skipped: they produce neither a `Transaction` nor a `RowError` and are not counted as data rows.
+- **DecimalSeparator**: Either `"."` or `","`, determined once per statement from all non-empty amount cells before any row is parsed.
+- **DateFormat**: One of `"yyyy-mm-dd"`, `"dd/mm/yyyy"`, `"mm/dd/yyyy"`, `"dd.mm.yyyy"`, or `"dd-mm-yyyy"`, determined once per statement from all date cells before any row is parsed. The format names describe component order and separator only. In every format, day and month MAY be written with or without zero padding (e.g. `"1/5/2026"`, `"2026-5-1"`). In the four day-first and month-first formats, the year MAY be written with four digits or two digits; a two-digit year `yy` is read as `20yy`. In `"yyyy-mm-dd"` the year is always four digits. `"dd.mm.yyyy"` and `"dd-mm-yyyy"` are always day-first.
 - **DateFormatInfo**: An object `{ format: DateFormat; assumed: boolean }` returned in `MappedResult`. `assumed` is `true` when the format could not be disambiguated from the data and a default was applied.
 - **SignConvention**: Either `"positive-out"` (positive raw value = money out) or `"negative-out"` (negative raw value = money out), determined once per statement for `SignedAmountLayout`.
+- **SignConventionInfo**: An object `{ convention: SignConvention; assumed: boolean }` returned in `MappedResult`. `assumed` is `true` when the convention could not be decided from the data (equal counts of positive and negative non-zero values) and the default `"positive-out"` was applied.
 - **SignedAmountLayout**: A CSV layout where a single column holds positive and negative values representing debits and credits respectively.
 - **DebitCreditLayout**: A CSV layout where separate columns hold debit amounts and credit amounts (one of which is empty per row).
 - **ParseError**: A typed error class used only within the Parser to signal an unparseable value. Never propagated outside a row handler.
@@ -40,8 +44,8 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 2. THE Parser SHALL accept an optional `ParseOptions` object containing: `columnMap?: ColumnMap`, `currency?: string` (default `"USD"`), and `signConvention?: "positive-out" | "negative-out"` (overrides auto-detection for `SignedAmountLayout`).
 3. THE Parser SHALL define `ParseResult` as a discriminated union on `status`: `"mapped"`, `"mapping-required"`, or `"error"`.
 4. IF `csv` is an empty string or contains only whitespace, THEN THE Parser SHALL return a `ParseResult` with `status: "error"` and a `reason` describing the empty input; `parseStatement` SHALL NOT throw.
-5. IF `csv` contains at least one non-empty row and `options.columnMap` is not provided or is missing one or more required field mappings, THEN THE Parser SHALL return a `ParseResult` with `status: "mapping-required"` and a `columns` array containing every header string extracted from the detected header row.
-6. THE Parser SHALL use Papa Parse to split the CSV into rows and cells; no custom CSV tokenizer shall be written.
+5. IF `csv` contains at least one non-empty row, `options.columnMap` is not provided, AND auto-detection (Requirement 2) cannot resolve all required columns, THEN THE Parser SHALL return a `ParseResult` with `status: "mapping-required"` and a `columns` array containing every header string extracted from the detected header row.
+6. THE Parser SHALL use Papa Parse to split the CSV into rows and cells, with Papa Parse delimiter auto-detection enabled for comma (`,`), semicolon (`;`), and tab (`\t`); no custom CSV tokenizer shall be written. Before any header detection, THE Parser SHALL strip a leading UTF-8 byte order mark (U+FEFF) from `csv` if one is present.
 7. THE Parser SHALL be a pure function: given the same `csv` and `options`, it SHALL always return the same `ParseResult`.
 
 ---
@@ -60,7 +64,8 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 6. WHEN auto-detection resolves all required columns (date, description, and either amount or both debit and credit), THE Parser SHALL proceed to parse rows and return a `ParseResult` with `status: "mapped"`.
 7. WHEN auto-detection cannot resolve one or more required columns, THE Parser SHALL return a `ParseResult` with `status: "mapping-required"` containing the full list of detected header names in `columns`.
 8. WHEN `options.columnMap` is provided, THE Parser SHALL use it in place of auto-detection; auto-detection SHALL NOT run.
-9. IF `options.columnMap` references a column name that does not exist in the detected header row, THEN THE Parser SHALL return a `ParseResult` with `status: "error"` and a `reason` identifying the missing column name.
+9. IF `options.columnMap` references a column name that does not exist in the detected header row, THEN THE Parser SHALL return a `ParseResult` with `status: "mapping-required"` and a `validationErrors` array identifying the missing column name, as specified in Requirement 9.4.
+10. WHEN matching header names against the recognition lists in Criteria 1–4, THE Parser SHALL first trim leading and trailing whitespace from each header name and then compare case-insensitively (e.g. `"  Posted Date "` matches `"posted date"`).
 
 ---
 
@@ -70,15 +75,18 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. WHEN date parsing begins, THE Parser SHALL inspect the first up to ten date cells that individually match at least one of the three supported formats (`"yyyy-mm-dd"`, `"dd/mm/yyyy"`, or `"mm/dd/yyyy"`) and use those cells as the candidate set for format determination.
-2. WHEN all candidate date cells match `yyyy-mm-dd` unambiguously (separator is `-`, year component is 4 digits in the leftmost position), THE Parser SHALL record `DateFormat` as `"yyyy-mm-dd"` with `assumed: false`.
-3. WHEN candidate date cells use `/` as a separator and the leftmost numeric component exceeds 12 in at least one candidate cell, THE Parser SHALL record `DateFormat` as `"dd/mm/yyyy"` with `assumed: false` (a day value above 12 can only appear in the leftmost position in `dd/mm/yyyy`).
-4. WHEN candidate date cells use `/` as a separator and the middle numeric component exceeds 12 in at least one candidate cell, THE Parser SHALL record `DateFormat` as `"mm/dd/yyyy"` with `assumed: false` (a month value above 12 is impossible, so a middle component above 12 means the leftmost is the month).
+1. WHEN date parsing begins, THE Parser SHALL inspect ALL date cells in the statement that individually match at least one of the supported formats (`"yyyy-mm-dd"`, `"dd/mm/yyyy"`, `"mm/dd/yyyy"`, `"dd.mm.yyyy"`, or `"dd-mm-yyyy"`) and use those cells as the candidate set for format determination. THE Parser SHALL NOT limit the candidate set to the first N cells (a `dd/mm/yyyy` statement starting on the 1st can contain ten or more rows whose day is ≤ 12).
+2. WHEN all candidate date cells match `yyyy-mm-dd` unambiguously (separator is `-` and the leftmost component has exactly 4 digits), THE Parser SHALL record `DateFormat` as `"yyyy-mm-dd"` with `assumed: false`.
+3. Except as specified in Criterion 10, WHEN candidate date cells use `/` as a separator and the leftmost numeric component exceeds 12 in at least one candidate cell, THE Parser SHALL record `DateFormat` as `"dd/mm/yyyy"` with `assumed: false` (a day value above 12 can only appear in the leftmost position in `dd/mm/yyyy`).
+4. Except as specified in Criterion 10, WHEN candidate date cells use `/` as a separator and the middle numeric component exceeds 12 in at least one candidate cell, THE Parser SHALL record `DateFormat` as `"mm/dd/yyyy"` with `assumed: false` (a month value above 12 is impossible, so a middle component above 12 means the leftmost is the month).
 5. IF the candidate set is non-empty and no component value exceeds 12 in any candidate cell (both `dd/mm/yyyy` and `mm/dd/yyyy` remain possible), THEN THE Parser SHALL default `DateFormat` to `"mm/dd/yyyy"` with `assumed: true`.
 6. WHEN the `DateFormat` is determined, THE Parser SHALL apply it to every subsequent date cell in the statement without re-evaluating per row, and SHALL include a `DateFormatInfo` object `{ format, assumed }` in the `MappedResult`.
 7. THE Parser SHALL output every date as an ISO `yyyy-mm-dd` string regardless of the input format.
-8. IF a date cell does not conform to the resolved `DateFormat`, THEN THE Parser SHALL record a `RowError` for that row and continue parsing remaining rows. *(PBT: round-trip — any date formatted in the detected format then parsed SHALL return the original `yyyy-mm-dd` string.)*
+8. IF a date cell does not conform to the resolved `DateFormat`, THEN THE Parser SHALL record a `RowError` for that row and continue parsing remaining rows. *(PBT: round-trip — for any valid calendar date and any supported `DateFormat`, formatting the date in that format, with any combination of zero-padded or non-padded day and month and, for the four non-ISO formats, either a four-digit year or a two-digit year (two-digit only for years 2000–2099), and then parsing it with that `DateFormat` SHALL return the original `yyyy-mm-dd` string.)*
 9. IF the candidate set contains zero cells (no date cell in the statement matches any supported format), THEN THE Parser SHALL record a `RowError` for every date cell in the statement, leave `DateFormat` unset, and continue parsing non-date fields.
+10. IF, among the `/`-separated candidate cells, at least one cell has a leftmost numeric component greater than 12 AND at least one other cell has a middle numeric component greater than 12, THEN THE Parser SHALL return a `ParseResult` with `status: "error"` and a `reason` indicating conflicting date formats; `parseStatement` SHALL NOT throw.
+11. WHEN candidate date cells use `.` as a separator, THE Parser SHALL record `DateFormat` as `"dd.mm.yyyy"` with `assumed: false`. WHEN candidate date cells use `-` as a separator and the leftmost component has 1 or 2 digits, THE Parser SHALL record `DateFormat` as `"dd-mm-yyyy"` with `assumed: false`. In every supported format THE Parser SHALL accept day and month with or without zero padding (e.g. `"1/5/2026"`), and in the four non-ISO formats SHALL accept a two-digit year `yy` and read it as `20yy` (e.g. `"01.05.26"` → `"2026-05-01"`).
+12. WHEN the candidate set contains cells of more than one shape (ISO `yyyy-mm-dd`; `/`-separated; `.`-separated; `-`-separated with a 1- or 2-digit leftmost component), THE Parser SHALL determine `DateFormat` using only the cells of the most frequent shape, breaking ties in the order ISO, `/`, `.`, `-`. Date cells of any other shape SHALL NOT conform to the resolved `DateFormat` and SHALL produce a `RowError` under Criterion 8.
 
 ---
 
@@ -88,7 +96,7 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. WHEN amount parsing begins, THE Parser SHALL inspect the first up to 10 non-empty amount cells in the statement and determine whether the `DecimalSeparator` is `"."` or `","`.
+1. WHEN amount parsing begins, THE Parser SHALL inspect ALL non-empty amount cells in the statement and determine whether the `DecimalSeparator` is `"."` or `","`; THE Parser SHALL NOT limit inspection to the first N cells.
 2. WHEN at least one candidate cell contains a period that follows a comma (e.g. `"1,234.56"`), THE Parser SHALL record `DecimalSeparator` as `"."`.
 3. WHEN at least one candidate cell contains a comma that follows a period (e.g. `"1.234,56"`), THE Parser SHALL record `DecimalSeparator` as `","`.
 4. WHEN a candidate cell contains a comma or period that is followed by exactly 1 or 2 digits at the end of the cell (e.g. `"9,99"` or `"9.9"`), THE Parser SHALL treat that punctuation character as the decimal separator for that cell; a punctuation character followed by exactly 3 digits at the end of the cell is ambiguous and SHALL NOT by itself determine the separator.
@@ -127,14 +135,14 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. WHEN the layout is `SignedAmountLayout` and no `options.signConvention` is provided, THE Parser SHALL inspect the non-zero amount cells across the statement and record the `SignConvention` as `"positive-out"` if the majority of non-zero raw values are positive, or `"negative-out"` if the majority are negative.
-2. WHEN `options.signConvention` is provided, THE Parser SHALL use it as the `SignConvention` and SHALL NOT perform majority inspection.
+1. WHEN the layout is `SignedAmountLayout` and no `options.signConvention` is provided, THE Parser SHALL inspect the non-zero amount cells across the statement and record the `SignConvention` as `"positive-out"` if the majority of non-zero raw values are positive, or `"negative-out"` if the majority are negative, with `assumed: false` in either case. IF the counts of positive and negative non-zero raw values are equal (including when both are zero), THEN THE Parser SHALL record the `SignConvention` as `"positive-out"` with `assumed: true`.
+2. WHEN `options.signConvention` is provided, THE Parser SHALL use it as the `SignConvention` with `assumed: false` and SHALL NOT perform majority inspection.
 3. WHEN the `SignConvention` is `"positive-out"` and the parsed raw `amountCents` for a row is positive, THE Parser SHALL store `Transaction.amountCents` as a positive value (money out).
 4. WHEN the `SignConvention` is `"positive-out"` and the parsed raw `amountCents` for a row is negative, THE Parser SHALL store `Transaction.amountCents` as a negative value (money in).
 5. WHEN the `SignConvention` is `"negative-out"` and the parsed raw `amountCents` for a row is negative, THE Parser SHALL store `Transaction.amountCents` as a positive value (money out, negated to positive).
 6. WHEN the `SignConvention` is `"negative-out"` and the parsed raw `amountCents` for a row is positive, THE Parser SHALL store `Transaction.amountCents` as a negative value (money in, negated to negative).
 7. WHEN the layout is `SignedAmountLayout` and `amountCents` is zero, THE Parser SHALL include the row as a valid `Transaction` with `amountCents = 0` regardless of `SignConvention`.
-8. THE Parser SHALL include the resolved `SignConvention` in the `MappedResult` so the UI can display it and offer the user an override.
+8. THE Parser SHALL include the resolved `SignConventionInfo` object `{ convention, assumed }` in the `MappedResult` so the UI can display it, flag an assumed convention, and offer the user an override.
 9. IF the layout is `SignedAmountLayout` and an amount cell value cannot be parsed as an integer number of cents (e.g. is empty, non-numeric, or would exceed the magnitude limit), THEN THE Parser SHALL record a `RowError` and SHALL NOT produce a `Transaction` for that row.
 10. WHEN the layout is `SignedAmountLayout` and an amount cell contains more than 2 literal decimal places, THE Parser SHALL record a `RowError` and SHALL NOT produce a `Transaction` for that row.
 
@@ -146,11 +154,12 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. WHEN the layout is `DebitCreditLayout` and the debit cell contains at least one non-whitespace character and the credit cell contains only whitespace or is empty, THE Parser SHALL parse the numeric value from the debit cell and store it as a **positive** `amountCents` integer (money out).
-2. WHEN the layout is `DebitCreditLayout` and the credit cell contains at least one non-whitespace character and the debit cell contains only whitespace or is empty, THE Parser SHALL parse the numeric value from the credit cell and store it as a **negative** `amountCents` integer (money in); if the bank already wrote the credit as a negative number in the column, THE Parser SHALL negate it again so the result is negative.
-3. WHEN the layout is `DebitCreditLayout` and both the debit cell and the credit cell each contain at least one non-whitespace character, THE Parser SHALL record a `RowError` identifying the row index and skip that row without producing a `Transaction`.
-4. WHEN the layout is `DebitCreditLayout` and both the debit cell and the credit cell contain only whitespace or are empty, THE Parser SHALL record a `RowError` identifying the row index and skip that row without producing a `Transaction`.
-5. IF the layout is `DebitCreditLayout` and the non-empty cell designated for parsing contains a value that cannot be converted to a finite numeric amount, THEN THE Parser SHALL record a `RowError` identifying the row index and skip that row without producing a `Transaction`.
+1. WHEN the layout is `DebitCreditLayout` and the debit cell is populated (Criterion 6) and the credit cell is not populated, THE Parser SHALL parse the numeric value from the debit cell and store its absolute value as a **positive** `amountCents` integer (money out); `"50.00"` and `"-50.00"` SHALL both become `5000`.
+2. WHEN the layout is `DebitCreditLayout` and the credit cell is populated (Criterion 6) and the debit cell is not populated, THE Parser SHALL parse the numeric value from the credit cell, and the stored `amountCents` SHALL be the negative of the absolute value of the parsed credit amount (money in); `"50.00"` and `"-50.00"` SHALL both become `-5000`.
+3. WHEN the layout is `DebitCreditLayout` and both the debit cell and the credit cell are populated (Criterion 6), THE Parser SHALL record a `RowError` identifying the row index and skip that row without producing a `Transaction`.
+4. WHEN the layout is `DebitCreditLayout` and neither the debit cell nor the credit cell is populated (Criterion 6), THEN: IF at least one of the two cells contains a literal zero (a value that parses to zero, e.g. `"0.00"`), THE Parser SHALL produce a valid `Transaction` with `amountCents = 0`; otherwise (both cells are empty or contain only whitespace), THE Parser SHALL record a `RowError` identifying the row index and skip that row without producing a `Transaction`.
+5. IF the layout is `DebitCreditLayout` and a populated cell designated for parsing contains a value that cannot be converted to a finite numeric amount, THEN THE Parser SHALL record a `RowError` identifying the row index and skip that row without producing a `Transaction`.
+6. For the purposes of Criteria 1–5, a debit or credit cell is **populated** when it contains at least one non-whitespace character and its value does not parse to zero. A cell whose value parses to zero (e.g. `"0.00"`) SHALL be treated as empty when deciding which of debit or credit is populated. A cell with non-whitespace content that cannot be parsed as an amount SHALL count as populated, so that Criterion 5 applies to it.
 
 ---
 
@@ -164,7 +173,7 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 2. THE Parser SHALL NOT throw an exception for a row-level error; `parseStatement` SHALL only throw if the `csv` argument is not a string (a type contract violation), and SHALL return a `ParseResult` with `status: "error"` for all other failure modes.
 3. WHEN parsing is complete, THE Parser SHALL include all accumulated `RowError` objects in the returned `MappedResult.rowErrors` array.
 4. WHEN no row errors occur, THE Parser SHALL return an empty `rowErrors` array.
-5. WHEN every data row produces a `RowError`, THE Parser SHALL return a `ParseResult` with `status: "mapped"`, an empty `transactions` array, and a fully populated `rowErrors` array. *(PBT: for any CSV input, the count of transactions plus the count of row errors SHALL equal the total number of data rows — rows after the detected header row and before any trailing blank rows.)*
+5. WHEN every data row produces a `RowError`, THE Parser SHALL return a `ParseResult` with `status: "mapped"`, an empty `transactions` array, and a fully populated `rowErrors` array. *(PBT: for any CSV input, the count of transactions plus the count of row errors SHALL equal N, the number of data rows as defined in the Glossary: rows after the detected header row, excluding fully blank rows anywhere after the header, which are skipped and not counted.)*
 
 ---
 
@@ -188,12 +197,12 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. IF `options.currency` is provided and is a valid ISO 4217 alpha-3 code (exactly 3 uppercase ASCII letters), THEN THE Parser SHALL set `Transaction.currency` to that value for every row that does not have a per-row currency column value.
+1. IF `options.currency` is provided and is a valid ISO 4217 alpha-3 code (exactly 3 ASCII letters, matched case-insensitively), THEN THE Parser SHALL normalise it to upper case (e.g. `"usd"` → `"USD"`) and set `Transaction.currency` to the normalised value for every row that does not have a per-row currency column value.
 2. IF `options.currency` is not provided, THEN THE Parser SHALL default `Transaction.currency` to `"USD"` for every row that does not have a per-row currency column value.
-3. IF `options.currency` is provided but is not a valid ISO 4217 alpha-3 code, THEN THE Parser SHALL return a `ParseResult` with `status: "error"` and a `reason` indicating the invalid currency code; `parseStatement` SHALL NOT throw and SHALL NOT process any rows.
-4. IF a CSV column named `"currency"` or `"ccy"` (case-insensitive) is present and a row's currency cell contains a valid ISO 4217 alpha-3 code, THEN THE Parser SHALL set `Transaction.currency` to that cell's value for that row, overriding `options.currency`.
-5. IF a CSV column named `"currency"` or `"ccy"` (case-insensitive) is present and a row's currency cell is empty, THEN THE Parser SHALL set `Transaction.currency` to `options.currency` if provided, or `"USD"` otherwise, and SHALL NOT produce a `RowError` for that row.
-6. IF a CSV column named `"currency"` or `"ccy"` (case-insensitive) is present and a row's currency cell is non-empty but not a valid ISO 4217 alpha-3 code, THEN THE Parser SHALL produce a `RowError` for that row indicating the invalid currency value and SHALL NOT set `Transaction.currency` for that row.
+3. IF `options.currency` is provided but is not a valid ISO 4217 alpha-3 code (it is not exactly 3 ASCII letters in any combination of case), THEN THE Parser SHALL return a `ParseResult` with `status: "error"` and a `reason` indicating the invalid currency code; `parseStatement` SHALL NOT throw and SHALL NOT process any rows.
+4. IF a CSV column named `"currency"` or `"ccy"` (case-insensitive) is present and a row's currency cell, after trimming surrounding whitespace, contains a valid ISO 4217 alpha-3 code (exactly 3 ASCII letters, matched case-insensitively), THEN THE Parser SHALL set `Transaction.currency` to that cell's value normalised to upper case (e.g. `"eur"` → `"EUR"`) for that row, overriding `options.currency`.
+5. IF a CSV column named `"currency"` or `"ccy"` (case-insensitive) is present and a row's currency cell is empty, THEN THE Parser SHALL set `Transaction.currency` to the normalised `options.currency` if provided, or `"USD"` otherwise, and SHALL NOT produce a `RowError` for that row.
+6. IF a CSV column named `"currency"` or `"ccy"` (case-insensitive) is present and a row's currency cell is non-empty but not a valid ISO 4217 alpha-3 code (it is not exactly 3 ASCII letters in any combination of case after trimming), THEN THE Parser SHALL produce a `RowError` for that row indicating the invalid currency value and SHALL NOT set `Transaction.currency` for that row.
 
 ---
 
@@ -203,10 +212,10 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. WHEN the Parser begins processing a CSV, THE Parser SHALL scan the first up to 20 non-empty rows searching for the first row that contains at least one cell case-insensitively matching any known header name from the date, description, amount, debit, or credit recognition lists defined in Requirement 2.
+1. WHEN the Parser begins processing a CSV, THE Parser SHALL scan the first up to 20 non-empty rows searching for the first row that contains at least one cell that, after trimming leading and trailing whitespace, case-insensitively matches any known header name from the date, description, amount, debit, or credit recognition lists defined in Requirement 2.
 2. WHEN a matching row is found within the first 20 non-empty rows, THE Parser SHALL treat that row as the header row and SHALL treat all rows above it as preamble; preamble rows SHALL be ignored and SHALL NOT be counted as data rows.
-3. WHEN no matching row is found within the first 20 non-empty rows, THE Parser SHALL return a `ParseResult` with `status: "mapping-required"` with a `columns` array containing the cells of the first non-empty row, so the user can manually identify which row is the header.
-4. THE Parser SHALL NOT count preamble rows in the data-row total used by the row-count invariant in Requirement 12.
+3. WHEN no matching row is found within the first 20 non-empty rows and `options.columnMap` is not provided, THE Parser SHALL return a `ParseResult` with `status: "mapping-required"` with a `columns` array containing the cells of the first non-empty row, so the user can manually identify which row is the header. WHEN no matching row is found and `options.columnMap` is provided, THE Parser SHALL treat the first non-empty row as the header row and validate the `ColumnMap` against its cells as specified in Requirement 9.
+4. THE Parser SHALL NOT count preamble rows in the data-row total (N, as defined in the Glossary under "Data row") used by the row-count invariant in Requirement 13.
 
 ---
 
@@ -229,11 +238,11 @@ The module is pure TypeScript with no network calls and no DOM access. All monet
 
 #### Acceptance Criteria
 
-1. *(PBT: row-count invariant)* FOR ALL CSV strings that `parseStatement` accepts without returning `status: "error"` — where N is the count of rows after the detected header row — `transactions.length + rowErrors.length` SHALL equal N.
+1. *(PBT: row-count invariant)* FOR ALL CSV strings that `parseStatement` accepts without returning `status: "error"` — where N is the number of data rows as defined in the Glossary (rows after the detected header row, excluding fully blank rows anywhere after the header, which are skipped and not counted) — `transactions.length + rowErrors.length` SHALL equal N.
 2. *(PBT: amount parser never crashes)* FOR ALL arbitrary strings passed to the internal `parseAmountCents` function, the function SHALL either return a finite integer or throw a `ParseError`; it SHALL NOT return `NaN`, `Infinity`, or a non-integer, and SHALL NOT throw any other error type.
 3. *(PBT: US amount round-trip)* FOR ALL integer cent values in the range −999_999_9900 to 999_999_9900, formatting the value as `(cents / 100).toFixed(2)` and then parsing with `DecimalSeparator = "."` SHALL return the original cent value.
 4. *(PBT: European amount round-trip)* FOR ALL integer cent values in the range −999_999_9900 to 999_999_9900, formatting the value European-style (e.g. `"1.234,56"` or `"9,99"`) and then parsing with `DecimalSeparator = ","` SHALL return the original cent value.
-5. *(PBT: date round-trip)* FOR ALL `yyyy-mm-dd` strings representing valid calendar dates, calling the parser's date-parse function with that string as input and `DateFormat = "yyyy-mm-dd"` SHALL return the original `yyyy-mm-dd` string unchanged.
+5. *(PBT: date round-trip)* FOR ALL valid calendar dates and ALL supported `DateFormat` values (`"yyyy-mm-dd"`, `"dd/mm/yyyy"`, `"mm/dd/yyyy"`, `"dd.mm.yyyy"`, `"dd-mm-yyyy"`), formatting the date in that format — with any combination of zero-padded or non-padded day and month, and, for the four non-ISO formats, either a four-digit year or a two-digit year (two-digit only for years 2000–2099) — and then calling the parser's date-parse function with that string and that `DateFormat` SHALL return the original `yyyy-mm-dd` string.
 6. *(PBT: amountCents sign invariant)* FOR ALL `Transaction` objects in any `MappedResult`, `Transaction.amountCents` SHALL be a whole integer; debits SHALL be positive and credits SHALL be negative; `Number.isInteger(transaction.amountCents)` SHALL be `true`.
 7. *(PBT: parser is deterministic)* FOR ALL CSV strings and `ParseOptions` values, calling `parseStatement` twice with identical arguments SHALL return results that are deeply equal — matching transaction count, identical field values in identical order, and an identical error list.
-8. *(PBT: sign convention consistency)* FOR ALL `SignedAmountLayout` statements where the sign convention is auto-detected, every non-zero `Transaction.amountCents` in the result SHALL have a sign consistent with the returned `detectedSignConvention`.
+8. *(PBT: sign convention consistency)* FOR ALL `SignedAmountLayout` statements where the sign convention is auto-detected, every non-zero `Transaction.amountCents` in the result SHALL have a sign consistent with the returned `detectedSignConvention.convention`.

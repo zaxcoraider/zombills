@@ -1,11 +1,11 @@
 # Private planning docs — kept local, not published
-prd.md
-architecture.md
-rules.md
-phases.md
-design.md
-memory.md
-hackathondetail.md
+/prd.md
+/architecture.md
+/rules.md
+/phases.md
+/design.md
+/memory.md
+/hackathondetail.md
 
 # Secrets
 .env
