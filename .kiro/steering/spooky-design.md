@@ -55,9 +55,10 @@ All animation uses **Framer Motion**. No raw CSS `@keyframes` for interactive or
 
 Dry, playful undertaker. The copy treats every subscription like a deceased with a cause of death.
 
-- "Here lies Adobe Creative Cloud. Unopened since August. Cost you $659 a year."
+- "Here lies Adobe Creative Cloud. Fed on you every month since March. Cost you $659 a year."
 - "This one rose from the trial. It's been feeding since March."
 - Keep sentences short. No exclamation points. Wry, not goofy.
+- Copy only states facts found in the statement. Never claim usage ("unopened", "forgotten", "last used") the app cannot know.
 
 ## What not to do
 

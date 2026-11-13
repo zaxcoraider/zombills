@@ -25,7 +25,7 @@ Convert to cents immediately on parse, before the value enters any data structur
 
 Instead, parse directly from the string:
 
-1. **Determine the decimal separator once per statement** (not per row). Inspect the first several amount values: if commas appear after a period they are thousands separators; if a comma appears as the last separator before 1–2 digits it is the decimal separator. Store this as statement-level config and apply it consistently to every row.
+1. **Determine the decimal separator once per statement** (not per row). Inspect all non-empty amount values in the statement (not just the first few): if commas appear after a period they are thousands separators; if a comma appears as the last separator before 1–2 digits it is the decimal separator. Store this as statement-level config and apply it consistently to every row.
 
 2. **Strip non-numeric characters** in this order:
    - Detect and record sign: leading/trailing `-`, or parentheses `(…)` → negative.
@@ -33,32 +33,13 @@ Instead, parse directly from the string:
    - Remove thousands separators (the non-decimal one identified in step 1).
    - Replace the decimal separator with `.` if it is a comma.
 
-3. **Split on `.`** to get integer and fractional parts. The fractional part must be exactly 0, 1, or 2 digits; pad or truncate to 2.
+3. **Split on `.`** to get integer and fractional parts. The fractional part must be 0, 1, or 2 digits; pad to 2 digits. More than 2 fractional digits is a row error, never truncated or rounded.
 
 4. **Combine**: `cents = integerPart * 100 + fractionalPart`, then apply sign.
 
 5. **Reject unparseable values**: if the result is not a finite integer after the above steps, report it as a **row error** and skip the row. Never silently coerce to `0` or `NaN`.
 
-```ts
-// Sketch — implement as a tested utility in core/parse
-function parseAmountCents(raw: string, decimalSep: "." | ","): number {
-  const isNegative = raw.trim().startsWith("(") || raw.trim().startsWith("-")
-                   || raw.trim().endsWith("-");
-  const stripped = raw.replace(/[^0-9.,]/g, "");        // keep digits and separators
-  const thouSep  = decimalSep === "." ? "," : ".";
-  const normalised = stripped.replaceAll(thouSep, "")   // drop thousands sep
-                              .replace(decimalSep, "."); // normalise decimal
-  const [intPart = "0", fracPart = "00"] = normalised.split(".");
-  if (!/^\d+$/.test(intPart) || !/^\d{0,2}$/.test(fracPart)) {
-    throw new ParseError(`Unparseable amount: ${JSON.stringify(raw)}`);
-  }
-  const cents = parseInt(intPart, 10) * 100
-              + parseInt(fracPart.padEnd(2, "0"), 10);
-  return isNegative ? -cents : cents;
-}
-```
-
-This sketch is intentionally incomplete — the real implementation lives in `core/parse` and must be covered by property tests (see below).
+The authoritative behaviour is defined in .kiro/specs/statement-parser/requirements.md (Requirements 4 and 5); implement from the spec, not from an example here.
 
 ## Computing yearly cost
 
