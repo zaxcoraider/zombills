@@ -70,13 +70,13 @@ Rules that apply to every task:
   - Property tests (`amount.property.test.ts`): **P2**, **P3** and **P4**.
   - _Requirements: 5.1–5.13, 13.2, 13.3, 13.4, 4.8; money.md_
 
-- [ ] 5. Decimal-separator detection (`decimal-separator.ts`)
+- [x] 5. Decimal-separator detection (`decimal-separator.ts`)
   - Write `detectDecimalSeparator(cells)` using the indicator table in the design. Before classifying a cell, strip outer whitespace, sign characters and currency symbols. Use every cell passed in.
   - Unit tests (`decimal-separator.test.ts`): `"1,234.56"` → `.`; `"1.234,56"` → `,`; `"9,99"` → `,`; `"9.9"` → `.`; `"1,234"` alone → default `.`; digits only → default `.`; a `.` indicator and a `,` indicator in different cells → conflict; a deciding cell placed after ten cells that don't decide is still found.
   - Property test (`decimal-separator.property.test.ts`): **P10**.
   - _Requirements: 4.1–4.7_
 
-- [ ] 6. Date parsing (`date-format.ts`, part 1)
+- [x] 6. Date parsing (`date-format.ts`, part 1)
   - Write the four shape regexes, `daysInMonth` with the Gregorian leap-year rule, and `parseDate(raw, format)`.
     - Accept unpadded day and month.
     - Expand a two-digit year to `20yy` in the non-ISO formats.
@@ -87,7 +87,7 @@ Rules that apply to every task:
   - Property test (`date-format.property.test.ts`): **P5**.
   - _Requirements: 3.7, 3.8, 3.11 (parsing half), 13.5_
 
-- [ ] 7. Date-format detection (`date-format.ts`, part 2)
+- [x] 7. Date-format detection (`date-format.ts`, part 2)
   - Write `detectDateFormat(cells)`, following the design's decision procedure:
     - the candidate filter (Req 3.1);
     - grouping by shape, where the most frequent shape wins and ties go ISO > Slash > Dot > Dash (Req 3.12);

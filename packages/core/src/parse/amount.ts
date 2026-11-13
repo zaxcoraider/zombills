@@ -45,35 +45,23 @@ function trimOuter(text: string): string {
   return text.slice(start, end);
 }
 
-/**
- * Returns the digits of an unsigned amount, with at most one currency symbol removed.
- * Grammar: `SYM NUMBER | NUMBER SYM | NUMBER`, where NUMBER is one or more of `0-9 . ,`.
- */
-function unsignedNumber(text: string, raw: string): string {
-  const match = UNSIGNED.exec(text);
-  if (match === null) {
-    return fail(raw, "Unparseable amount");
-  }
-  return match[2] ?? match[3] ?? match[5] ?? fail(raw, "Unparseable amount");
-}
+/** The sign and digits of an amount cell, or why the cell is not an amount. */
+type ScannedAmount = { ok: true; negative: boolean; number: string } | { ok: false; why: string };
 
 /**
- * Parses one amount cell into integer cents without ever going through floating point.
+ * Splits an amount cell into its sign and its NUMBER text (one or more of `0-9 . ,`), with the
+ * outer whitespace, the sign indicator and at most one currency symbol removed (Req 5.1-5.3, 5.9, 5.10).
  *
- * Accepted shapes (after outer whitespace is stripped): `-5`, `5-`, `(5)`, `$5`, `5$`, `-$5`,
- * `$-5`, `($5)` and plain numbers, where the number may use thousands separators.
- *
- * @throws ParseError for anything else. No other error type is thrown for string input.
+ * Accepted shapes: `-5`, `5-`, `(5)`, `$5`, `5$`, `-$5`, `$-5`, `($5)` and plain numbers.
  */
-export function parseAmountCents(raw: string, separator: DecimalSeparator): number {
-  // Req 5.1 and 5.9: strip outer whitespace; an empty cell is an error.
+function scanAmount(raw: string): ScannedAmount {
   const trimmed = trimOuter(raw);
   if (trimmed === "") {
-    return fail(raw, "Empty amount");
+    return { ok: false, why: "Empty amount" };
   }
   // Req 5.10: whitespace between components is an error.
   if (INNER_WHITESPACE.test(trimmed)) {
-    return fail(raw, "Whitespace inside amount");
+    return { ok: false, why: "Whitespace inside amount" };
   }
 
   // Req 5.2 and 5.3: exactly one sign indicator, at most one currency symbol.
@@ -82,7 +70,7 @@ export function parseAmountCents(raw: string, separator: DecimalSeparator): numb
   const symbolThenMinus = SYMBOL_THEN_MINUS.exec(trimmed);
   if (trimmed.startsWith("(")) {
     if (!trimmed.endsWith(")") || trimmed.length < 3) {
-      return fail(raw, "Unbalanced parentheses in amount");
+      return { ok: false, why: "Unbalanced parentheses in amount" };
     }
     negative = true;
     body = trimmed.slice(1, -1);
@@ -96,7 +84,36 @@ export function parseAmountCents(raw: string, separator: DecimalSeparator): numb
     negative = true;
     body = `${symbolThenMinus[1] ?? ""}${symbolThenMinus[2] ?? ""}`;
   }
-  const number = unsignedNumber(body, raw);
+
+  // Grammar of the unsigned part: `SYM NUMBER | NUMBER SYM | NUMBER`.
+  const match = UNSIGNED.exec(body);
+  const number = match === null ? undefined : (match[2] ?? match[3] ?? match[5]);
+  if (number === undefined) {
+    return { ok: false, why: "Unparseable amount" };
+  }
+  return { ok: true, negative, number };
+}
+
+/**
+ * The NUMBER text of an amount cell (digits, `.` and `,` only), or null when the cell is not
+ * shaped like an amount. Used to look at separators before the decimal separator is known.
+ */
+export function extractNumberText(raw: string): string | null {
+  const scanned = scanAmount(raw);
+  return scanned.ok ? scanned.number : null;
+}
+
+/**
+ * Parses one amount cell into integer cents without ever going through floating point.
+ *
+ * @throws ParseError for anything that is not an amount. No other error type is thrown for string input.
+ */
+export function parseAmountCents(raw: string, separator: DecimalSeparator): number {
+  const scanned = scanAmount(raw);
+  if (!scanned.ok) {
+    return fail(raw, scanned.why);
+  }
+  const { negative, number } = scanned;
 
   // Req 5.4 and 5.5: drop thousands separators, then split on the decimal separator.
   const thousands = separator === "." ? "," : ".";
