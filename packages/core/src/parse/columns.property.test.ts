@@ -10,7 +10,16 @@ import {
   DESCRIPTION_HEADERS,
 } from "./header-names";
 import type { ResolvedColumns } from "./internal-types";
-import { headerSpellingArbitrary, unrecognisedHeaderCellArbitrary } from "./test-arbitraries";
+import { parseStatement } from "./parse-statement";
+import {
+  expectedFromModel,
+  headerSpellingArbitrary,
+  parseOptionsOf,
+  renderStatement,
+  statementModelArbitrary,
+  unrecognisedHeaderCellArbitrary,
+  withCanonicalHeaders,
+} from "./test-arbitraries";
 import type { ColumnMap, ColumnMapValidationError } from "./types";
 
 type DetectedRole = "date" | "description" | "amount" | "debit" | "credit" | "currency";
@@ -121,6 +130,24 @@ describe("column resolution properties", () => {
         const canonical = header.map((cell) => cell.trim().toLowerCase());
         expect(autoDetectColumns(header)).toEqual(autoDetectColumns(canonical));
       }),
+    );
+  });
+
+  it("P14: random case and whitespace on header names leave the parseStatement result unchanged (Req 2.10)", () => {
+    fc.assert(
+      fc.property(statementModelArbitrary(), (model) => {
+        const options = parseOptionsOf(model);
+        const decorated = parseStatement(renderStatement(model), options);
+        const canonical = parseStatement(renderStatement(withCanonicalHeaders(model)), options);
+        expect(decorated).toStrictEqual(canonical);
+
+        // And it is the statement the model describes, so the header never went wrong silently.
+        expect(decorated.status).toBe("mapped");
+        if (decorated.status === "mapped") {
+          expect(decorated.transactions).toEqual(expectedFromModel(model).transactions);
+        }
+      }),
+      { numRuns: 400 },
     );
   });
 

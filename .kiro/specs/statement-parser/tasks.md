@@ -143,13 +143,13 @@ Rules that apply to every task:
   - P8 and P18 need a full parse, so they are written in task 14.4.
   - _Requirements: 6.1, 6.3–6.7_
 
-- [ ] 12. Debit/credit combination (`debit-credit.ts`)
+- [x] 12. Debit/credit combination (`debit-credit.ts`)
   - Write `classifyCell` (empty, zero or populated, where a cell that fails to parse counts as populated) and `combineDebitCredit`, following the design's table.
   - Unit tests (`debit-credit.test.ts`): every row of the combination table, plus `"0.00"` next to `"12.00"`, `"0.00"`/`""` → 0, `""`/`""` → error, `"abc"`/`""` → debit parse error, and `"-0.00"` counted as zero.
   - Property test (`debit-credit.property.test.ts`): **P13**.
   - _Requirements: 7.1–7.6_
 
-- [ ] 13. Row builder (`build-rows.ts`)
+- [x] 13. Row builder (`build-rows.ts`)
   - Write `buildRows`:
     - treat missing trailing cells as `""`;
     - check every field: date, description, amount, currency;
@@ -165,8 +165,8 @@ Rules that apply to every task:
     - a per-row currency overrides the fallback.
   - _Requirements: 3.8, 3.9, 5.x (via cached outcomes), 6.3–6.7, 6.9, 6.10, 7.1–7.5, 8.1, 10.4–10.6_
 
-- [ ] 14. `parseStatement` orchestration, statement model and end-to-end properties
-  - [ ] 14.1 Pipeline (`parse-statement.ts`)
+- [x] 14. `parseStatement` orchestration, statement model and end-to-end properties
+  - [x] 14.1 Pipeline (`parse-statement.ts`)
     - Implement pipeline steps 0–13 from the design, in order:
       - throw `TypeError` for a non-string `csv`;
       - strip the BOM, then run the empty check;
@@ -190,16 +190,16 @@ Rules that apply to every task:
       - a date conflict and a separator conflict each give an `ErrorResult`.
     - Unit tests (`header-detect.test.ts`, end-to-end cases): a header that isn't recognised gives `mapping-required` with the first-row cells; the same file with a `columnMap` naming those cells gives `mapped`, and its first-row cells are not counted as data.
     - _Requirements: 1.1–1.7, 2.6–2.9, 3.6, 4.7, 6.2, 6.8, 8.2–8.5, 9.2, 9.4, 9.5, 10.1–10.3, 11.2, 11.3, 11.4_
-  - [ ] 14.2 Statement model in `test-arbitraries.ts`
+  - [x] 14.2 Statement model in `test-arbitraries.ts`
     - Write the generator for the statement model described in design "Test oracle": transactions with direction, layout, date format, decimal separator, sign convention, header spellings, preamble rows, blank-row positions, delimiter, optional BOM and optional currency column.
     - Write a serializer that renders the model to CSV, and an arbitrary that injects malformed cells.
     - The model also reports its expected N, the sign each row should have, and the expected transactions.
     - Self-test: for any model, serializing and then tokenizing gives the cells the model intended.
-  - [ ] 14.3 End-to-end properties (`parse-statement.property.test.ts`): **P1**, **P6**, **P7**, **P9**, **P15** and **P16**.
+  - [x] 14.3 End-to-end properties (`parse-statement.property.test.ts`): **P1**, **P6**, **P7**, **P9**, **P15** and **P16**.
     - _Requirements: 13.1, 13.6, 13.7, 1.6, 1.7, 8.2, 8.5; glossary Data row_
-  - [ ] 14.4 Sign-convention properties (`sign-convention.property.test.ts`): **P8** and **P18**, run through `parseStatement` against the model.
+  - [x] 14.4 Sign-convention properties (`sign-convention.property.test.ts`): **P8** and **P18**, run through `parseStatement` against the model.
     - _Requirements: 13.8, 6.1, 6.3–6.6_
-  - [ ] 14.5 Full-parse halves of P14 and P17
+  - [x] 14.5 Full-parse halves of P14 and P17
     - Extend `columns.property.test.ts` so **P14** also checks that the `parseStatement` result is unchanged.
     - Extend `header-detect.property.test.ts` so **P17** also checks that the `parseStatement` result is unchanged.
     - _Requirements: 2.10, 11.1, 11.2, 11.4_

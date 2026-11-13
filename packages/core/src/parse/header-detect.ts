@@ -6,7 +6,7 @@ import {
   DESCRIPTION_HEADERS,
   isHeaderIn,
 } from "./header-names";
-import { isBlankRow } from "./tokenize";
+import { isBlankRow } from "./blank-row";
 
 /** How many non-blank rows are searched for the header row (Req 11.1). */
 export const HEADER_SEARCH_LIMIT = 20;

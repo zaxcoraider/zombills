@@ -9,6 +9,7 @@ import {
   DESCRIPTION_HEADERS,
   normalizeHeader,
 } from "./header-names";
+import { parseStatement } from "./parse-statement";
 
 /** A non-blank row that no recognition list matches. */
 function preambleRow(n: number): string[] {
@@ -209,5 +210,56 @@ describe("firstNonBlankRow", () => {
     const result = firstNonBlankRow([row]);
     expect(result).toEqual(row);
     expect(result).not.toBe(row);
+  });
+});
+
+describe("header row end to end (Req 11.2, 11.3, 11.4)", () => {
+  const csv = [
+    "Booked,Text,Sum",
+    "2026-01-02,ACME,-5.00",
+    "2026-01-03,BETA,-6.00",
+    "2026-01-04,GAMMA,7.00",
+  ].join("\n");
+
+  it("asks for a mapping, giving the first row's cells, when no header is recognised", () => {
+    expect(parseStatement(csv)).toEqual({
+      status: "mapping-required",
+      columns: ["Booked", "Text", "Sum"],
+      rowErrors: [],
+    });
+  });
+
+  it("maps the same file when a column map names the first row's cells", () => {
+    const result = parseStatement(csv, {
+      columnMap: { date: "Booked", description: "Text", amount: "Sum" },
+    });
+    expect(result.status).toBe("mapped");
+    if (result.status === "mapped") {
+      expect(result.transactions.map((t) => t.description)).toEqual(["ACME", "BETA", "GAMMA"]);
+      expect(result.rowErrors).toEqual([]);
+    }
+  });
+
+  it("does not count the first row as data (Req 11.4)", () => {
+    const result = parseStatement(csv, {
+      columnMap: { date: "Booked", description: "Text", amount: "Sum" },
+    });
+    expect(result.status === "mapped" && result.transactions.length + result.rowErrors.length).toBe(
+      3,
+    );
+  });
+
+  it("does not count preamble rows above a recognised header as data (Req 11.2, 11.4)", () => {
+    const withPreamble = [
+      "Account,SAMPLE",
+      "",
+      "Period,2026-Q1",
+      "Date,Description,Amount",
+      "2026-01-02,A,-1.00",
+    ];
+    const result = parseStatement(withPreamble.join("\n"));
+    expect(result.status === "mapped" && result.transactions.length + result.rowErrors.length).toBe(
+      1,
+    );
   });
 });

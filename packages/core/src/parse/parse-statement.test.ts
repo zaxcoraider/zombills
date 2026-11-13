@@ -1,0 +1,515 @@
+import { describe, expect, it } from "vitest";
+import { parseStatement } from "./index";
+import type { MappedResult, MappingRequiredResult, ParseResult } from "./types";
+
+const US_SIGNED = [
+  "Date,Description,Amount",
+  "01/02/2026,NETFLIX.COM,-15.49",
+  '01/15/2026,PAYROLL ACME,"1,250.00"',
+  "02/02/2026,NETFLIX.COM,-15.49",
+].join("\n");
+
+function mapped(result: ParseResult): MappedResult {
+  if (result.status !== "mapped") {
+    throw new Error(`Expected a mapped result but got ${JSON.stringify(result)}`);
+  }
+  return result;
+}
+
+function mappingRequired(result: ParseResult): MappingRequiredResult {
+  if (result.status !== "mapping-required") {
+    throw new Error(`Expected mapping-required but got ${JSON.stringify(result)}`);
+  }
+  return result;
+}
+
+describe("parseStatement: a clean statement", () => {
+  it("maps a signed statement into transactions with no row errors", () => {
+    const result = mapped(parseStatement(US_SIGNED));
+    expect(result.rowErrors).toEqual([]);
+    expect(result.transactions).toEqual([
+      { date: "2026-01-02", description: "NETFLIX.COM", amountCents: 1549, currency: "USD" },
+      { date: "2026-01-15", description: "PAYROLL ACME", amountCents: -125_000, currency: "USD" },
+      { date: "2026-02-02", description: "NETFLIX.COM", amountCents: 1549, currency: "USD" },
+    ]);
+    expect(result.detectedDateFormat).toEqual({ format: "mm/dd/yyyy", assumed: false });
+    expect(result.detectedSignConvention).toEqual({ convention: "negative-out", assumed: false });
+  });
+
+  it("accepts the options argument being left out, undefined or empty", () => {
+    const expected = parseStatement(US_SIGNED, {});
+    expect(parseStatement(US_SIGNED)).toEqual(expected);
+    expect(parseStatement(US_SIGNED, undefined)).toEqual(expected);
+  });
+
+  it("reads LF, CRLF and a trailing newline the same way", () => {
+    const expected = parseStatement(US_SIGNED);
+    expect(parseStatement(US_SIGNED.replaceAll("\n", "\r\n") + "\r\n")).toEqual(expected);
+    expect(parseStatement(`${US_SIGNED}\n`)).toEqual(expected);
+  });
+});
+
+describe("parseStatement: the only throw (Req 8.2)", () => {
+  it.each([undefined, null, 42, {}, [], ["a,b"], true, Symbol("csv")])(
+    "throws a TypeError when csv is %s",
+    (value) => {
+      expect(() => parseStatement(value as unknown as string)).toThrow(TypeError);
+    },
+  );
+});
+
+describe("parseStatement: empty input (Req 1.4)", () => {
+  it.each([
+    ["an empty string", ""],
+    ["spaces", "   "],
+    ["whitespace and newlines", "   \n \r\n\t "],
+    ["only a byte order mark", "\uFEFF"],
+    ["a byte order mark and whitespace", "\uFEFF  \n"],
+  ])("returns an error for %s", (_name, csv) => {
+    const result = parseStatement(csv);
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.reason).toMatch(/empty/i);
+    }
+  });
+});
+
+describe("parseStatement: options (Req 10.1-10.3)", () => {
+  it("uses USD when no currency is given", () => {
+    const result = mapped(parseStatement(US_SIGNED));
+    expect(new Set(result.transactions.map((t) => t.currency))).toEqual(new Set(["USD"]));
+  });
+
+  it("normalises options.currency to upper case, so 'usd' gives 'USD' on every transaction", () => {
+    const result = mapped(parseStatement(US_SIGNED, { currency: "usd" }));
+    expect(result.transactions.length).toBeGreaterThan(0);
+    expect(result.transactions.every((t) => t.currency === "USD")).toBe(true);
+    expect(mapped(parseStatement(US_SIGNED, { currency: "gBp" })).transactions[0]?.currency).toBe(
+      "GBP",
+    );
+  });
+
+  it.each(["US", "EURO", "", "U$D", " USD", "123"])(
+    "returns an error for options.currency %j",
+    (currency) => {
+      const result = parseStatement(US_SIGNED, { currency });
+      expect(result.status).toBe("error");
+      if (result.status === "error") {
+        expect(result.reason).toMatch(/currency/i);
+      }
+    },
+  );
+
+  it("does not process any rows when the currency is invalid", () => {
+    expect(parseStatement("not,a,statement\n1,2,3", { currency: "US" }).status).toBe("error");
+  });
+
+  it("returns an error for an invalid signConvention option", () => {
+    const result = parseStatement(US_SIGNED, { signConvention: "sideways" as never });
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.reason).toMatch(/signConvention/);
+    }
+  });
+
+  it("checks the options before the CSV contents", () => {
+    expect(parseStatement("", { currency: "US" })).toEqual(parseStatement("", {}));
+  });
+});
+
+describe("parseStatement: sign convention (Req 6.1, 6.2, 6.8)", () => {
+  it("overrides auto-detection with options.signConvention and reports it as not assumed", () => {
+    const result = mapped(parseStatement(US_SIGNED, { signConvention: "positive-out" }));
+    expect(result.detectedSignConvention).toEqual({ convention: "positive-out", assumed: false });
+    expect(result.transactions.map((t) => t.amountCents)).toEqual([-1549, 125_000, -1549]);
+  });
+
+  it("assumes positive-out and says so on a tie", () => {
+    const csv = ["Date,Description,Amount", "2026-01-02,A,5.00", "2026-01-03,B,-5.00"].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.detectedSignConvention).toEqual({ convention: "positive-out", assumed: true });
+  });
+
+  it("assumes positive-out when every amount is zero", () => {
+    const csv = ["Date,Description,Amount", "2026-01-02,A,0.00", "2026-01-03,B,0.00"].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.detectedSignConvention).toEqual({ convention: "positive-out", assumed: true });
+    expect(result.transactions.map((t) => t.amountCents)).toEqual([0, 0]);
+  });
+
+  it("counts rows that fail for other reasons when detecting the convention", () => {
+    // Two negative amounts on rows with a bad date still count as evidence for negative-out.
+    const csv = ["Date,Description,Amount", "2026-01-02,A,5.00", "bad,B,-5.00", "bad,C,-6.00"].join(
+      "\n",
+    );
+    expect(mapped(parseStatement(csv)).detectedSignConvention?.convention).toBe("negative-out");
+  });
+
+  it("returns a null sign convention for a debit/credit statement, ignoring options.signConvention", () => {
+    const csv = [
+      "Date,Details,Debit,Credit",
+      "2026-01-02,TESCO,38.64,",
+      "2026-01-03,SALARY,,2100.00",
+    ].join("\n");
+    for (const options of [{}, { signConvention: "negative-out" as const }]) {
+      const result = mapped(parseStatement(csv, options));
+      expect(result.detectedSignConvention).toBeNull();
+      expect(result.transactions.map((t) => t.amountCents)).toEqual([3864, -210_000]);
+    }
+  });
+});
+
+describe("parseStatement: mapping required (Req 1.5, 2.7, 9.1)", () => {
+  it("asks for a mapping when the headers are not recognised, listing every header", () => {
+    const csv = ["Booked,Text,Sum", "2026-01-02,ACME,-5.00"].join("\n");
+    // "Booked", "Text" and "Sum" are not on the recognition lists, and no row contains a known name.
+    const result = mappingRequired(parseStatement(csv));
+    expect(result.columns).toEqual(["Booked", "Text", "Sum"]);
+    expect(result.rowErrors).toEqual([]);
+    expect(result.validationErrors).toBeUndefined();
+  });
+
+  it("asks for a mapping when a recognised header leaves a required column unresolved", () => {
+    const csv = ["Date,Reference,Balance", "2026-01-02,X,100.00"].join("\n");
+    const result = mappingRequired(parseStatement(csv));
+    expect(result.columns).toEqual(["Date", "Reference", "Balance"]);
+  });
+
+  it("keeps blank and duplicate header cells, in order, untrimmed", () => {
+    const csv = ["Date, Ref ,,Ref,Ref", "2026-01-02,a,b,c,d"].join("\n");
+    const result = mappingRequired(parseStatement(csv));
+    expect(result.columns).toEqual(["Date", " Ref ", "", "Ref", "Ref"]);
+  });
+
+  it("never reads data rows before mapping is resolved", () => {
+    const csv = ["Date,Reference", "garbage,garbage", "more,garbage"].join("\n");
+    expect(mappingRequired(parseStatement(csv)).rowErrors).toEqual([]);
+  });
+});
+
+describe("parseStatement: column map (Req 2.8, 2.9, 9.2-9.5)", () => {
+  const csv = ["Booked,Text,Sum,Out,In", "01/02/2026,ACME,-5.00,,", "01/15/2026,BETA,-6.00,,"].join(
+    "\n",
+  );
+
+  it("returns mapping-required with validation errors for a map naming a missing column (Req 2.9, 9.4)", () => {
+    const result = mappingRequired(
+      parseStatement(csv, { columnMap: { date: "Booked", description: "Memo", amount: "Sum" } }),
+    );
+    expect(result.columns).toEqual(["Booked", "Text", "Sum", "Out", "In"]);
+    expect(result.validationErrors).toEqual([
+      { role: "description", column: "Memo", problem: "unknown-column" },
+    ]);
+  });
+
+  it("returns mapping-required for a map that leaves out a required role", () => {
+    const result = mappingRequired(parseStatement(csv, { columnMap: { date: "Booked" } }));
+    expect(result.validationErrors?.map((e) => [e.role, e.problem])).toEqual([
+      ["description", "missing-mapping"],
+      ["amount", "missing-mapping"],
+    ]);
+  });
+
+  it("never returns status error for a bad column map", () => {
+    expect(parseStatement(csv, { columnMap: {} }).status).toBe("mapping-required");
+  });
+
+  it("maps the same CSV once the map is corrected (Req 9.2)", () => {
+    const bad = parseStatement(csv, {
+      columnMap: { date: "Booked", description: "Memo", amount: "Sum" },
+    });
+    expect(bad.status).toBe("mapping-required");
+    const good = mapped(
+      parseStatement(csv, { columnMap: { date: "Booked", description: "Text", amount: "Sum" } }),
+    );
+    expect(good.rowErrors).toEqual([]);
+    expect(good.transactions.map((t) => t.description)).toEqual(["ACME", "BETA"]);
+  });
+
+  it("maps a debit/credit layout from the map", () => {
+    const dc = ["Booked,Text,Out,In", "2026-01-02,ACME,5.00,", "2026-01-03,PAY,,9.00"].join("\n");
+    const result = mapped(
+      parseStatement(dc, {
+        columnMap: { date: "Booked", description: "Text", debit: "Out", credit: "In" },
+      }),
+    );
+    expect(result.transactions.map((t) => t.amountCents)).toEqual([500, -900]);
+    expect(result.detectedSignConvention).toBeNull();
+  });
+
+  it("uses the map in place of auto-detection", () => {
+    const swapped = ["Date,Description,Amount", "2026-01-02,5.00,ACME"].join("\n");
+    const result = mapped(
+      parseStatement(swapped, {
+        columnMap: { date: "Date", description: "Amount", amount: "Description" },
+      }),
+    );
+    expect(result.rowErrors).toEqual([]);
+    // "Amount" is the description column here, and "Description" holds the amount.
+    expect(result.transactions[0]).toMatchObject({ description: "ACME", amountCents: 500 });
+  });
+
+  it("is a pure function of its arguments: a rejected map changes nothing for the next call (Req 9.5)", () => {
+    const first = parseStatement(csv, { columnMap: { date: "Nope" } });
+    const second = parseStatement(csv, { columnMap: { date: "Nope" } });
+    expect(first).toEqual(second);
+    expect(
+      parseStatement(csv, { columnMap: { date: "Booked", description: "Text", amount: "Sum" } })
+        .status,
+    ).toBe("mapped");
+  });
+});
+
+describe("parseStatement: header row and preamble (Req 11)", () => {
+  it("ignores preamble rows and does not count them as data", () => {
+    const csv = [
+      "Account Name,SAMPLE",
+      "Statement Period,2026-01-01 to 2026-03-31",
+      "Date,Description,Amount",
+      "2026-01-03,A,-5.00",
+    ].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions).toHaveLength(1);
+    expect(result.rowErrors).toEqual([]);
+  });
+
+  it("returns mapping-required with the first row's cells when no header is recognised (Req 11.3)", () => {
+    const csv = ["Booked,Text,Sum", "2026-01-02,ACME,-5.00"].join("\n");
+    expect(mappingRequired(parseStatement(csv)).columns).toEqual(["Booked", "Text", "Sum"]);
+  });
+
+  it("skips leading blank rows when it takes the first non-blank row", () => {
+    const csv = ["", "  ", "Booked,Text,Sum", "2026-01-02,ACME,-5.00"].join("\n");
+    expect(mappingRequired(parseStatement(csv)).columns).toEqual(["Booked", "Text", "Sum"]);
+  });
+
+  it("treats the first non-blank row as the header when a column map is given and none is recognised", () => {
+    const csv = ["", "Booked,Text,Sum", "2026-01-02,ACME,-5.00", "2026-01-03,BETA,-6.00"].join(
+      "\n",
+    );
+    const result = mapped(
+      parseStatement(csv, { columnMap: { date: "Booked", description: "Text", amount: "Sum" } }),
+    );
+    expect(result.transactions.map((t) => t.description)).toEqual(["ACME", "BETA"]);
+    expect(result.rowErrors).toEqual([]);
+  });
+
+  it("finds a header after as many as 19 non-blank preamble rows", () => {
+    const preamble = Array.from({ length: 19 }, (_, i) => `Note ${i},x`);
+    const csv = [...preamble, "Date,Description,Amount", "2026-01-03,A,-5.00"].join("\n");
+    expect(mapped(parseStatement(csv)).transactions).toHaveLength(1);
+  });
+
+  it("does not find a header after 20 non-blank preamble rows", () => {
+    const preamble = Array.from({ length: 20 }, (_, i) => `Note ${i},x`);
+    const csv = [...preamble, "Date,Description,Amount", "2026-01-03,A,-5.00"].join("\n");
+    expect(parseStatement(csv).status).toBe("mapping-required");
+  });
+});
+
+describe("parseStatement: row errors never abort the parse (Req 8)", () => {
+  it("returns mapped with every row as an error when every row fails (Req 8.5)", () => {
+    const csv = [
+      "Date,Description,Amount",
+      "2026-01-02,A,abc",
+      "2026-01-03,B,def",
+      "2026-01-04,C,",
+    ].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions).toEqual([]);
+    expect(result.rowErrors.map((e) => e.rowIndex)).toEqual([1, 2, 3]);
+  });
+
+  it("returns an empty rowErrors array when nothing fails (Req 8.4)", () => {
+    expect(mapped(parseStatement(US_SIGNED)).rowErrors).toEqual([]);
+  });
+
+  it("returns every error with its row number, raw row and reason (Req 8.1, 8.3)", () => {
+    const csv = ["Date,Description,Amount", "01/02/2026,OK,-1.00", 'bad,"A, B",x'].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions).toHaveLength(1);
+    expect(result.rowErrors).toHaveLength(1);
+    const [error] = result.rowErrors;
+    expect(error?.rowIndex).toBe(2);
+    expect(error?.rawRow).toBe('bad,"A, B",x');
+    expect(error?.reason).toMatch(/^date: .*; amount: /);
+  });
+
+  it("skips fully blank rows anywhere after the header and does not count them (glossary Data row)", () => {
+    const csv = [
+      "Date,Description,Amount",
+      "",
+      "2026-01-02,A,-1.00",
+      "  ,  ,  ",
+      ",,",
+      "2026-01-03,B,x",
+      "",
+      "2026-01-04,C,-3.00",
+      "",
+      "",
+    ].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions.map((t) => t.description)).toEqual(["A", "C"]);
+    expect(result.rowErrors.map((e) => e.rowIndex)).toEqual([2]);
+    expect(result.transactions.length + result.rowErrors.length).toBe(3);
+  });
+
+  it("returns mapped with nothing in it for a header and no rows", () => {
+    expect(parseStatement("Date,Description,Amount")).toEqual({
+      status: "mapped",
+      transactions: [],
+      rowErrors: [],
+      detectedDateFormat: null,
+      detectedSignConvention: { convention: "positive-out", assumed: true },
+    });
+  });
+
+  it("reports every row when no date has a recognisable format, and keeps checking other fields (Req 3.9)", () => {
+    const csv = ["Date,Description,Amount", "yesterday,A,-1.00", "today,,-2.00"].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.detectedDateFormat).toBeNull();
+    expect(result.rowErrors).toHaveLength(2);
+    expect(result.rowErrors[0]?.reason).toBe("date: no recognisable date format in the statement");
+    expect(result.rowErrors[1]?.reason).toContain("description: missing required cell");
+  });
+});
+
+describe("parseStatement: statement-level conflicts become errors, never throws", () => {
+  it("returns an error for a date conflict (Req 3.10)", () => {
+    const csv = ["Date,Description,Amount", "13/05/2026,A,-1.00", "05/13/2026,B,-2.00"].join("\n");
+    const result = parseStatement(csv);
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.reason).toMatch(/conflicting date formats/i);
+    }
+  });
+
+  it("returns an error for a decimal separator conflict (Req 4.5)", () => {
+    const csv = ["Date,Description,Amount", '2026-01-02,A,"1,234.56"', '2026-01-03,B,"9,99"'].join(
+      "\n",
+    );
+    const result = parseStatement(csv);
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.reason).toMatch(/conflicting decimal separator/i);
+    }
+  });
+
+  it("reports the date conflict before the decimal conflict", () => {
+    const csv = ["Date,Description,Amount", '13/05/2026,A,"1,234.56"', '05/13/2026,B,"9,99"'].join(
+      "\n",
+    );
+    const result = parseStatement(csv);
+    expect(result.status === "error" && result.reason).toMatch(/date/i);
+  });
+});
+
+describe("parseStatement: dates and separators (Req 3.6, 4.7)", () => {
+  it("settles a dd/mm statement from a deciding row that comes after ten ambiguous rows (Req 3.1)", () => {
+    const rows = Array.from(
+      { length: 10 },
+      (_, i) => `${String(i + 1).padStart(2, "0")}/01/2026,R${i},-1.00`,
+    );
+    const csv = ["Date,Description,Amount", ...rows, "13/01/2026,LAST,-1.00"].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.detectedDateFormat).toEqual({ format: "dd/mm/yyyy", assumed: false });
+    expect(result.transactions[0]?.date).toBe("2026-01-01");
+    expect(result.transactions.at(-1)?.date).toBe("2026-01-13");
+  });
+
+  it("reports an assumed date format when nothing decides it", () => {
+    const csv = ["Date,Description,Amount", "01/02/2026,A,-1.00"].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.detectedDateFormat).toEqual({ format: "mm/dd/yyyy", assumed: true });
+    expect(result.transactions[0]?.date).toBe("2026-01-02");
+  });
+
+  it("reads comma decimals once one amount shows them, in every row", () => {
+    const csv = [
+      "Date,Description,Amount",
+      '2026-01-02,A,"1.234"',
+      '2026-01-03,B,"9,99"',
+      "2026-01-04,C,-2",
+    ].join("\n");
+    const result = mapped(parseStatement(csv, { signConvention: "positive-out" }));
+    expect(result.transactions.map((t) => t.amountCents)).toEqual([123_400, 999, -200]);
+  });
+
+  it("reads a minority date shape as a row error (Req 3.12)", () => {
+    const csv = [
+      "Date,Description,Amount",
+      "2026-01-02,A,-1.00",
+      "2026-01-03,B,-1.00",
+      "13/01/2026,C,-1.00",
+    ].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions.map((t) => t.description)).toEqual(["A", "B"]);
+    expect(result.rowErrors.map((e) => e.rowIndex)).toEqual([3]);
+  });
+});
+
+describe("parseStatement: delimiters and byte order mark (Req 1.6)", () => {
+  const rows = [
+    ["Date", "Description", "Amount"],
+    ["2026-01-02", "NETFLIX", "-15.49"],
+    ["2026-01-03", "PAYROLL", "1250.00"],
+  ];
+  const expected = parseStatement(rows.map((r) => r.join(",")).join("\n"));
+
+  it.each([",", ";", "\t"])("reads %j-separated text", (delimiter) => {
+    expect(parseStatement(rows.map((r) => r.join(delimiter)).join("\n"))).toEqual(expected);
+  });
+
+  it("strips a leading byte order mark", () => {
+    expect(parseStatement(`\uFEFF${rows.map((r) => r.join(",")).join("\n")}`)).toEqual(expected);
+  });
+
+  it("reads a semicolon file with comma decimals", () => {
+    const csv = [
+      "Value Date;Narrative;Amount",
+      "02.01.2026;GEHALT;1.234,56",
+      "03.01.2026;STREAMING;-12,99",
+      "04.01.2026;MUSIK;-9,99",
+    ].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions.map((t) => t.amountCents)).toEqual([-123_456, 1299, 999]);
+    expect(result.detectedDateFormat).toEqual({ format: "dd.mm.yyyy", assumed: false });
+    expect(result.detectedSignConvention).toEqual({ convention: "negative-out", assumed: false });
+  });
+});
+
+describe("parseStatement: currency column (Req 10.4-10.6)", () => {
+  it("takes the per-row currency, upper-cased, and falls back for empty cells", () => {
+    const csv = [
+      "Date,Description,Amount,Currency",
+      "2026-01-02,A,-1.00,eur",
+      "2026-01-03,B,-2.00,",
+      "2026-01-04,C,-3.00,GBP",
+    ].join("\n");
+    const result = mapped(parseStatement(csv, { currency: "usd" }));
+    expect(result.transactions.map((t) => t.currency)).toEqual(["EUR", "USD", "GBP"]);
+  });
+
+  it("reports an invalid per-row currency as a row error", () => {
+    const csv = [
+      "Date,Description,Amount,Ccy",
+      "2026-01-02,A,-1.00,EURO",
+      "2026-01-03,B,-2.00,EUR",
+    ].join("\n");
+    const result = mapped(parseStatement(csv));
+    expect(result.transactions).toHaveLength(1);
+    expect(result.rowErrors[0]?.reason).toMatch(/^currency: /);
+  });
+});
+
+describe("parseStatement: determinism (Req 1.7)", () => {
+  it("returns equal results for equal arguments", () => {
+    for (const options of [
+      undefined,
+      { currency: "eur" },
+      { signConvention: "positive-out" as const },
+    ]) {
+      expect(parseStatement(US_SIGNED, options)).toEqual(parseStatement(US_SIGNED, options));
+    }
+  });
+});

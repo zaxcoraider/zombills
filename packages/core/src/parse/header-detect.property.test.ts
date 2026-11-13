@@ -8,7 +8,15 @@ import {
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
 } from "./header-names";
-import { headerSpellingArbitrary, unrecognisedHeaderCellArbitrary } from "./test-arbitraries";
+import { parseStatement } from "./parse-statement";
+import {
+  headerSpellingArbitrary,
+  parseOptionsOf,
+  renderStatement,
+  statementModelArbitrary,
+  unrecognisedHeaderCellArbitrary,
+  withPreamble,
+} from "./test-arbitraries";
 
 const RECOGNISED_NAMES = [
   ...DATE_HEADERS,
@@ -99,6 +107,49 @@ describe("header detection properties", () => {
           }
           const rows = [...withBlanks, header];
           expect(detectHeaderRow(rows)).toBe(rows.length - 1);
+        },
+      ),
+    );
+  });
+
+  it("P17: prepending preamble rows leaves the parseStatement result unchanged (Req 11.1, 11.2, 11.4)", () => {
+    // The extra rows come from a second model whose text has no delimiter or tab in it, so they
+    // are often single-cell rows, which is the hardest case for the delimiter guess.
+    fc.assert(
+      fc.property(
+        statementModelArbitrary(),
+        statementModelArbitrary({ delimiterInText: false, noTabs: true, maxRows: 0 }),
+        fc.array(fc.constantFrom<string[]>([""], ["  ", ""]), { maxLength: 4 }),
+        (model, source, blanks) => {
+          // Together with the model's own preamble there are at most 19 non-blank rows above the header.
+          const extra = [...source.preamble.slice(0, 6), ...blanks];
+          const options = parseOptionsOf(model);
+          const plain = parseStatement(renderStatement(model), options);
+          const prepended = parseStatement(
+            renderStatement(withPreamble(model, [...extra, ...model.preamble])),
+            options,
+          );
+          expect(prepended).toStrictEqual(plain);
+        },
+      ),
+      { numRuns: 400 },
+    );
+  });
+
+  it("P17: ten or more single-cell preamble lines above the header change nothing, in any delimiter", () => {
+    const note = fc
+      .string({ unit: fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz0123456789 "), maxLength: 20 })
+      .map((text) => [`Note ${text}`]);
+    fc.assert(
+      fc.property(
+        statementModelArbitrary({ delimiterInText: false, noTabs: true }),
+        fc.array(note, { minLength: 10, maxLength: 19 }),
+        (model, notes) => {
+          const bare = withPreamble(model, []);
+          const options = parseOptionsOf(model);
+          const plain = parseStatement(renderStatement(bare), options);
+          const prepended = parseStatement(renderStatement(withPreamble(bare, notes)), options);
+          expect(prepended).toStrictEqual(plain);
         },
       ),
     );

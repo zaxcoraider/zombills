@@ -69,6 +69,68 @@ describe("tokenize: delimiter detection", () => {
   });
 });
 
+describe("tokenize: delimiter detection on awkward files", () => {
+  it("keeps the comma when a narrow preamble row with a quote sits above a wide header whose cell holds a tab", () => {
+    // Papa Parse alone picks tab here: with tab as delimiter the quote in row 1 makes the parser
+    // swallow the file into one consistent row, which beats the comma's uneven row widths.
+    const csv = '"a""",a\na,date,description,debit,a,a,credit,debit," \t description"';
+    const table = tokenize(csv);
+    expect(table.delimiter).toBe(",");
+    expect(table.rows).toEqual([
+      ['a"', "a"],
+      ["a", "date", "description", "debit", "a", "a", "credit", "debit", " \t description"],
+    ]);
+  });
+
+  it("finds the semicolon when ten single-cell preamble lines come first", () => {
+    const preamble = Array.from({ length: 12 }, (_, i) => `Account note ${i}`);
+    const csv = [
+      ...preamble,
+      "Date;Description;Amount",
+      "2026-01-02;ACME;-5,00",
+      "2026-01-03;BETA;-6,00",
+    ].join("\n");
+    const table = tokenize(csv);
+    expect(table.delimiter).toBe(";");
+    expect(table.rows.at(-3)).toEqual(["Date", "Description", "Amount"]);
+  });
+
+  it("finds the tab when preamble lines have fewer cells than the header", () => {
+    const csv = [
+      "Account\tSAMPLE",
+      "Period\t2026-Q1",
+      "Date\tDescription\tAmount\tCurrency",
+      "2026-01-02\tACME\t-5.00\tEUR",
+    ].join("\n");
+    expect(tokenize(csv).delimiter).toBe("\t");
+  });
+
+  it("prefers the semicolon over the comma that decimal commas put in every data row", () => {
+    const csv = [
+      "Value Date;Narrative;Amount;Currency",
+      "02.01.2026;GEHALT;1.234,56;EUR",
+      "03.01.2026;STREAMING;-12,99;EUR",
+      "04.01.2026;MUSIK;-9,99;EUR",
+    ].join("\n");
+    expect(tokenize(csv).delimiter).toBe(";");
+  });
+
+  it("prefers the comma over a semicolon that occurs once in every description", () => {
+    const csv = [
+      "Date,Description,Amount",
+      "2026-01-02,A; B,-5.00",
+      "2026-01-03,C; D,-6.00",
+      "2026-01-04,E; F,-7.00",
+    ].join("\n");
+    expect(tokenize(csv).delimiter).toBe(",");
+  });
+
+  it("falls back to the comma when no delimiter splits any row", () => {
+    expect(tokenize("one\ntwo\nthree").delimiter).toBe(",");
+    expect(tokenize("").delimiter).toBe(",");
+  });
+});
+
 describe("tokenize: cells and rows", () => {
   it("keeps delimiters, doubled quotes and newlines inside quoted cells", () => {
     const table = tokenize(
