@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "core-tests-on-save",
+      "description": "Re-runs the @zombills/core unit and property tests after every agent edit to packages/core/src/**/*.ts.",
+      "trigger": "PostFileSave",
+      "matcher": "packages/core/src/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "npm test --workspace @zombills/core --silent"
+      }
+    }
+  ]
+}

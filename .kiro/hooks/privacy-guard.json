@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "privacy-guard",
+      "description": "Enforces privacy.md on every agent edit to packages/core/src/**/*.ts. ESLint bans fetch, XMLHttpRequest, WebSocket, sendBeacon, document, window, navigator, globalThis and console in core.",
+      "trigger": "PostFileSave",
+      "matcher": "packages/core/src/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "npm run lint --workspace @zombills/core --silent"
+      }
+    }
+  ]
+}

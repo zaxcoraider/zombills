@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "spec-task-gate",
+      "description": "After a spec task finishes, the whole workspace must type-check, lint and pass tests before the task counts as done.",
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "command",
+        "command": "npm run typecheck --silent && npm run lint --silent && npm test --silent"
+      }
+    }
+  ]
+}
