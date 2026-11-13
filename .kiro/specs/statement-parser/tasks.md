@@ -39,13 +39,13 @@ Rules that apply to every task:
   - [x] 1.5 Check the scaffold: `npm install`, then `npm run typecheck`, `npm run lint` and `npm test` all pass at the root, with no tests yet.
   - _Requirements: 12.3 (Node environment), 12.4 (lint half); tech.md, structure.md, privacy.md_
 
-- [ ] 2. Public types, internal types and `ParseError`
+- [x] 2. Public types, internal types and `ParseError`
   - In `types.ts`, write every public type exactly as specified in design "Public types". This includes the nullable `detectedDateFormat` and `detectedSignConvention`, and `ColumnMapValidationError`.
   - In `internal-types.ts`, write `DecimalSeparator`, `Layout`, `ParsedTable`, `ResolvedColumns`, `DataRow`, `AmountOutcome`, `DateDetection` and `SeparatorDetection`.
   - In `parse-error.ts`, write the `ParseError` class, which carries a `field` property. Unit test: it is an `instanceof Error` and keeps `field` and the message.
   - _Requirements: 1.2, 1.3; glossary (Transaction, ParseResult, MappedResult, MappingRequiredResult, ErrorResult, ColumnMap, RowError, DateFormatInfo, SignConventionInfo, ParseError)_
 
-- [ ] 3. Tokenizer (`tokenize.ts`)
+- [x] 3. Tokenizer (`tokenize.ts`)
   - Write `stripBom`, `tokenize`, `isBlankRow` and `serializeRow`.
   - Call Papa Parse with `delimiter: ""`, `delimitersToGuess: [",", ";", "\t"]`, `header: false`, `dynamicTyping: false`, `skipEmptyLines: false`, `worker: false` and `download: false`.
   - Unit tests (`tokenize.test.ts`):
@@ -57,7 +57,7 @@ Rules that apply to every task:
     - `serializeRow` round-trips through `tokenize`.
   - _Requirements: 1.6; glossary Data row_
 
-- [ ] 4. Amount parser (`amount.ts`)
+- [x] 4. Amount parser (`amount.ts`)
   - Write `parseAmountCents`, `tryParseAmount` and `negate`, following the 8 steps in design "Amount parser".
     - Use the sign and currency grammar from the design.
     - Remove leading zeros, then reject more than 8 integer digits before any numeric conversion.
