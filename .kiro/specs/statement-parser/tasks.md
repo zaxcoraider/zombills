@@ -102,7 +102,7 @@ Rules that apply to every task:
   - Property tests (`date-format.property.test.ts`): **P11** and **P12**.
   - _Requirements: 3.1–3.6, 3.9, 3.10, 3.11 (detection half), 3.12_
 
-- [ ] 8. Header names and header-row detection (`header-names.ts`, `header-detect.ts`)
+- [x] 8. Header names and header-row detection (`header-names.ts`, `header-detect.ts`)
   - Write the six recognition-list constants from Req 2 and Req 10.4, and `normalizeHeader`, which trims and lower-cases.
   - Write `detectHeaderRow(rows)` and `firstNonBlankRow(rows)`:
     - scan up to 20 non-blank rows;
@@ -112,7 +112,7 @@ Rules that apply to every task:
   - Property test (`header-detect.property.test.ts`): **P17**, component half. Prepending preamble rows with no recognised names, keeping the header within 20 non-blank rows, leaves the header cells that `detectHeaderRow` finds unchanged.
   - _Requirements: 2.10, 11.1, 11.2, 11.3 (detection half)_
 
-- [ ] 9. Column resolution (`columns.ts`)
+- [x] 9. Column resolution (`columns.ts`)
   - Write `autoDetectColumns(header)`: the leftmost match per role, debit/credit preferred over amount, and `null` when a required role is missing.
   - Write `resolveColumnMap(header, map)`:
     - pick the layout from which roles are set;
@@ -127,7 +127,7 @@ Rules that apply to every task:
   - Property test (`columns.property.test.ts`): **P14**, component half. Random surrounding whitespace and random casing on recognised header names leave `autoDetectColumns` output unchanged.
   - _Requirements: 2.1–2.10, 9.1–9.5, 10.4 (column lookup)_
 
-- [ ] 10. Currency (`currency.ts`)
+- [x] 10. Currency (`currency.ts`)
   - Write `isCurrencyCode` (`/^[A-Za-z]{3}$/`), `normalizeCurrency` (upper-case) and `resolveRowCurrency(cell, fallback)`.
     - Trim the cell first.
     - An empty cell returns the fallback.
@@ -136,7 +136,7 @@ Rules that apply to every task:
   - Unit tests (`currency.test.ts`): `"usd"`, `"Usd"` and `"USD"` all normalise to `"USD"`; `" eur "` → `"EUR"`; `""` and `"   "` return the fallback; `"US"`, `"EURO"`, `"U$D"` and `"12A"` throw `ParseError`.
   - _Requirements: 10.1–10.6 (cell-level rules)_
 
-- [ ] 11. Sign convention (`sign-convention.ts`)
+- [x] 11. Sign convention (`sign-convention.ts`)
   - Write `detectSignConvention(nonZeroRawCents)`: a strict majority decides with `assumed: false`, and a tie (including 0 versus 0) gives `positive-out` with `assumed: true`.
   - Write `applySignConvention(raw, convention)` using `negate`.
   - Unit tests (`sign-convention.test.ts`): majority positive; majority negative; a tie gives assumed; an empty input gives assumed; `applySignConvention` maps 0 to 0 under both conventions, never `-0`; all four sign × convention combinations.

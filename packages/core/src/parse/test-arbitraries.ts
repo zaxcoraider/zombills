@@ -2,6 +2,15 @@
 // Test support only: excluded from the build by tsconfig.build.json (`**/test-*.ts`).
 
 import fc from "fast-check";
+import {
+  AMOUNT_HEADERS,
+  CREDIT_HEADERS,
+  CURRENCY_HEADERS,
+  DATE_HEADERS,
+  DEBIT_HEADERS,
+  DESCRIPTION_HEADERS,
+  normalizeHeader,
+} from "./header-names";
 import type { DateFormat } from "./types";
 
 /**
@@ -338,3 +347,55 @@ export function slashCellArbitrary(kind: SlashKind): fc.Arbitrary<string> {
       return `${a}/${b}/${y}`;
     });
 }
+
+// ---------------------------------------------------------------------------
+// Headers
+// ---------------------------------------------------------------------------
+
+const ALL_RECOGNISED_HEADERS = new Set<string>([
+  ...DATE_HEADERS,
+  ...DESCRIPTION_HEADERS,
+  ...AMOUNT_HEADERS,
+  ...DEBIT_HEADERS,
+  ...CREDIT_HEADERS,
+  ...CURRENCY_HEADERS,
+]);
+
+/**
+ * A recognised header name written with random upper/lower case and random whitespace around it
+ * (Req 2.10). `names` are the lower-case spellings from the recognition lists.
+ */
+export function headerSpellingArbitrary(names: readonly string[]): fc.Arbitrary<string> {
+  const padding = fc.constantFrom("", "", " ", "  ", "\t", "\u00a0", " \t ");
+  return fc
+    .tuple(fc.constantFrom(...names), fc.integer({ min: 0, max: 2 ** 30 - 1 }), padding, padding)
+    .map(([name, mask, before, after]) => {
+      const cased = [...name]
+        .map((character, index) =>
+          (mask >> index) & 1 ? character.toUpperCase() : character.toLowerCase(),
+        )
+        .join("");
+      return `${before}${cased}${after}`;
+    });
+}
+
+/** A header cell that is not on any recognition list, after trimming and lower-casing. */
+export const unrecognisedHeaderCellArbitrary: fc.Arbitrary<string> = fc
+  .oneof(
+    fc.string({ maxLength: 16 }),
+    fc.constantFrom(
+      "",
+      "Account Name",
+      "IBAN",
+      "Statement Period",
+      "Opening Balance",
+      "Statement date: 01/05/2026",
+      "Date posted",
+      "Dates",
+      "Amounts",
+      "Reference",
+      "Balance",
+      "Category",
+    ),
+  )
+  .filter((cell) => !ALL_RECOGNISED_HEADERS.has(normalizeHeader(cell)));

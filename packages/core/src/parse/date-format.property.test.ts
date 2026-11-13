@@ -229,6 +229,30 @@ describe("date format detection properties", () => {
     );
   });
 
+  it("P12: contradicting slash cells in the minority do not cause a conflict (Req 3.10, 3.12)", () => {
+    const mixedCells = fc
+      .tuple(
+        fc.array(slashCellArbitrary("ambiguous"), { maxLength: 4 }),
+        slashCellArbitrary("day-first"),
+        slashCellArbitrary("month-first"),
+        fc.array(datesWrittenIn("yyyy-mm-dd", validDateArbitrary), { minLength: 7, maxLength: 12 }),
+      )
+      .chain(([ambiguous, dayFirst, monthFirst, iso]) => {
+        const all = [...ambiguous, dayFirst, monthFirst, ...iso];
+        return fc.shuffledSubarray(all, { minLength: all.length, maxLength: all.length });
+      });
+    fc.assert(
+      fc.property(mixedCells, (cells) => {
+        // At most 6 slash cells against at least 7 ISO cells: ISO wins and the slash cells
+        // are left to fail as row errors.
+        expect(detectDateFormat(cells)).toEqual({
+          kind: "detected",
+          info: { format: "yyyy-mm-dd", assumed: false },
+        });
+      }),
+    );
+  });
+
   it("P12: without both a day-first and a month-first cell there is no conflict", () => {
     fc.assert(
       fc.property(
