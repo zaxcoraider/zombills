@@ -1,0 +1,19 @@
+# Private planning docs — kept local, not published
+prd.md
+architecture.md
+rules.md
+phases.md
+design.md
+memory.md
+hackathondetail.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# IMPORTANT: never add .kiro/ or anything under it to this file.
+# The hackathon rules require /.kiro at the repo root; ignoring it can disqualify the submission.
