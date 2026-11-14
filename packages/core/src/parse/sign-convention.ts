@@ -1,5 +1,5 @@
-import { negate } from "./amount";
-import type { SignConvention, SignConventionInfo } from "./types";
+import { negate } from "./amount.js";
+import type { SignConvention, SignConventionInfo } from "./types.js";
 
 /**
  * Decides which sign means "money out" in a signed-amount statement, by majority (Req 6.1).

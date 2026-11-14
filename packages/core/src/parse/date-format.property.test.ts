@@ -1,8 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { CalendarDate } from "./test-arbitraries";
-import type { DateFormat } from "./types";
-import { daysInMonth, detectDateFormat, parseDate } from "./date-format";
+import type { CalendarDate } from "./test-arbitraries.js";
+import type { DateFormat } from "./types.js";
+import { daysInMonth, detectDateFormat, parseDate } from "./date-format.js";
 import {
   ALL_DATE_FORMATS,
   dateWritingCaseArbitrary,
@@ -12,7 +12,7 @@ import {
   toIso,
   validDateArbitrary,
   withPermutation,
-} from "./test-arbitraries";
+} from "./test-arbitraries.js";
 
 describe("date parsing properties", () => {
   it("P5: round-trip, parseDate(formatDate(d, fmt, writing), fmt) is d as yyyy-mm-dd", () => {

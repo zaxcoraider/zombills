@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Delimiter } from "./internal-types";
-import { isBlankRow, serializeRow, stripBom, tokenize } from "./tokenize";
+import type { Delimiter } from "./internal-types.js";
+import { isBlankRow, serializeRow, stripBom, tokenize } from "./tokenize.js";
 
 describe("stripBom", () => {
   it("removes a leading byte order mark", () => {

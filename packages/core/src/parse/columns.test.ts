@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { autoDetectColumns, findCurrencyColumn, resolveColumnMap } from "./columns";
-import type { ColumnMap } from "./types";
+import { autoDetectColumns, findCurrencyColumn, resolveColumnMap } from "./columns.js";
+import type { ColumnMap } from "./types.js";
 
 // The recognised spellings are written out here, independently of header-names.ts.
 const DATE_NAMES = ["date", "transaction date", "posted date", "value date", "trans. date"];

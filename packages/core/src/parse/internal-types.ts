@@ -1,6 +1,6 @@
 // Types used inside the parser only. Not exported from the package entry point.
 
-import type { DateFormatInfo } from "./types";
+import type { DateFormatInfo } from "./types.js";
 
 export type DecimalSeparator = "." | ",";
 

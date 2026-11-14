@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySignConvention, detectSignConvention } from "./sign-convention";
+import { applySignConvention, detectSignConvention } from "./sign-convention.js";
 
 describe("detectSignConvention (Req 6.1)", () => {
   it("chooses positive-out when most values are positive", () => {

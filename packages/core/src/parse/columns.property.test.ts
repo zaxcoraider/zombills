@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { autoDetectColumns, resolveColumnMap } from "./columns";
+import { autoDetectColumns, resolveColumnMap } from "./columns.js";
 import {
   AMOUNT_HEADERS,
   CREDIT_HEADERS,
@@ -8,9 +8,9 @@ import {
   DATE_HEADERS,
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
-} from "./header-names";
-import type { ResolvedColumns } from "./internal-types";
-import { parseStatement } from "./parse-statement";
+} from "./header-names.js";
+import type { ResolvedColumns } from "./internal-types.js";
+import { parseStatement } from "./parse-statement.js";
 import {
   expectedFromModel,
   headerSpellingArbitrary,
@@ -19,8 +19,8 @@ import {
   statementModelArbitrary,
   unrecognisedHeaderCellArbitrary,
   withCanonicalHeaders,
-} from "./test-arbitraries";
-import type { ColumnMap, ColumnMapValidationError } from "./types";
+} from "./test-arbitraries.js";
+import type { ColumnMap, ColumnMapValidationError } from "./types.js";
 
 type DetectedRole = "date" | "description" | "amount" | "debit" | "credit" | "currency";
 

@@ -1,5 +1,5 @@
-import { extractNumberText } from "./amount";
-import type { DecimalSeparator, SeparatorDetection } from "./internal-types";
+import { extractNumberText } from "./amount.js";
+import type { DecimalSeparator, SeparatorDetection } from "./internal-types.js";
 
 const CONFLICT_REASON =
   'Conflicting decimal separator patterns: some amounts use "." as the decimal separator and others use ","';

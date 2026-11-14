@@ -1,6 +1,6 @@
-import { negate } from "./amount";
-import type { AmountOutcome } from "./internal-types";
-import { ParseError } from "./parse-error";
+import { negate } from "./amount.js";
+import type { AmountOutcome } from "./internal-types.js";
+import { ParseError } from "./parse-error.js";
 
 /**
  * How a debit or credit cell counts when deciding which of the two holds the amount (Req 7.6).

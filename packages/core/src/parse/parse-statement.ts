@@ -1,22 +1,20 @@
-import { tryParseAmount } from "./amount";
-import { buildRows } from "./build-rows";
-import { autoDetectColumns, resolveColumnMap } from "./columns";
-import { isCurrencyCode, normalizeCurrency } from "./currency";
-import { detectDateFormat } from "./date-format";
-import { detectDecimalSeparator } from "./decimal-separator";
-import { detectHeaderRow, firstNonBlankRow } from "./header-detect";
-import type { AmountOutcome, DataRow, ResolvedColumns } from "./internal-types";
-import { detectSignConvention } from "./sign-convention";
-import { isBlankRow, stripBom, tokenize } from "./tokenize";
+import { tryParseAmount } from "./amount.js";
+import { buildRows } from "./build-rows.js";
+import { autoDetectColumns, resolveColumnMap } from "./columns.js";
+import { decideStatementCurrency, isCurrencyCode, normalizeCurrency } from "./currency.js";
+import { detectDateFormat } from "./date-format.js";
+import { detectDecimalSeparator } from "./decimal-separator.js";
+import { detectHeaderRow, firstNonBlankRow } from "./header-detect.js";
+import type { AmountOutcome, DataRow, ResolvedColumns } from "./internal-types.js";
+import { detectSignConvention } from "./sign-convention.js";
+import { isBlankRow, stripBom, tokenize } from "./tokenize.js";
 import type {
   ErrorResult,
   MappingRequiredResult,
   ParseOptions,
   ParseResult,
   SignConventionInfo,
-} from "./types";
-
-const DEFAULT_CURRENCY = "USD";
+} from "./types.js";
 
 const MAX_QUOTED_LENGTH = 40;
 
@@ -68,14 +66,14 @@ export function parseStatement(csv: string, optionsArgument?: ParseOptions): Par
   }
 
   // Step 3: validate the options before touching any row (Req 10.1-10.3).
-  let currencyFallback = DEFAULT_CURRENCY;
+  let optionCurrency: string | null = null;
   if (options.currency !== undefined) {
     if (typeof options.currency !== "string" || !isCurrencyCode(options.currency)) {
       return error(
         `Invalid currency option ${describeOption(options.currency)}: expected a 3-letter ISO 4217 code such as "USD"`,
       );
     }
-    currencyFallback = normalizeCurrency(options.currency);
+    optionCurrency = normalizeCurrency(options.currency);
   }
   const { signConvention: signOption } = options;
   if (signOption !== undefined && signOption !== "positive-out" && signOption !== "negative-out") {
@@ -150,6 +148,13 @@ export function parseStatement(csv: string, optionsArgument?: ParseOptions): Par
     ]),
   );
 
+  // Step 10a: one currency for the rows that have none of their own (Req 10).
+  const detectedCurrency = decideStatementCurrency({
+    option: optionCurrency,
+    currencyCells: columns.currency === null ? null : cellsOf(columns.currency),
+    amountCells: amountColumns.flatMap(cellsOf),
+  });
+
   // Step 11: the sign convention, for the signed layout only (Req 6.1, 6.2).
   let signConvention: SignConventionInfo | null = null;
   if (columns.layout === "signed-amount") {
@@ -170,7 +175,7 @@ export function parseStatement(csv: string, optionsArgument?: ParseOptions): Par
     dateFormat: dateDetection.kind === "detected" ? dateDetection.info.format : null,
     amounts,
     signConvention: signConvention === null ? null : signConvention.convention,
-    currencyFallback,
+    currencyFallback: detectedCurrency.code,
     delimiter,
   });
   return {
@@ -179,5 +184,6 @@ export function parseStatement(csv: string, optionsArgument?: ParseOptions): Par
     rowErrors,
     detectedDateFormat: dateDetection.kind === "detected" ? dateDetection.info : null,
     detectedSignConvention: signConvention,
+    detectedCurrency,
   };
 }

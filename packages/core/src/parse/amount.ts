@@ -1,5 +1,5 @@
-import type { AmountOutcome, DecimalSeparator } from "./internal-types";
-import { ParseError } from "./parse-error";
+import type { AmountOutcome, DecimalSeparator } from "./internal-types.js";
+import { ParseError } from "./parse-error.js";
 
 /** Largest accepted absolute value in cents: 99,999,999.00 in major units (Req 5.11). */
 export const MAX_AMOUNT_CENTS = 9_999_999_900;
@@ -46,7 +46,9 @@ function trimOuter(text: string): string {
 }
 
 /** The sign and digits of an amount cell, or why the cell is not an amount. */
-type ScannedAmount = { ok: true; negative: boolean; number: string } | { ok: false; why: string };
+type ScannedAmount =
+  | { ok: true; negative: boolean; number: string; symbol: string | null }
+  | { ok: false; why: string };
 
 /**
  * Splits an amount cell into its sign and its NUMBER text (one or more of `0-9 . ,`), with the
@@ -88,10 +90,10 @@ function scanAmount(raw: string): ScannedAmount {
   // Grammar of the unsigned part: `SYM NUMBER | NUMBER SYM | NUMBER`.
   const match = UNSIGNED.exec(body);
   const number = match === null ? undefined : (match[2] ?? match[3] ?? match[5]);
-  if (number === undefined) {
+  if (match === null || number === undefined) {
     return { ok: false, why: "Unparseable amount" };
   }
-  return { ok: true, negative, number };
+  return { ok: true, negative, number, symbol: match[1] ?? match[4] ?? null };
 }
 
 /**
@@ -101,6 +103,16 @@ function scanAmount(raw: string): ScannedAmount {
 export function extractNumberText(raw: string): string | null {
   const scanned = scanAmount(raw);
   return scanned.ok ? scanned.number : null;
+}
+
+/**
+ * The currency symbol (Unicode category Sc) of an amount cell, or null when the cell has none or
+ * is not shaped like an amount at all. A cell that is shaped like an amount counts even if its
+ * value is later rejected, for example for having three decimals.
+ */
+export function extractCurrencySymbol(raw: string): string | null {
+  const scanned = scanAmount(raw);
+  return scanned.ok ? scanned.symbol : null;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ColumnMap, ParseOptions, ParseResult } from "./types";
+import type { ColumnMap, ParseOptions, ParseResult } from "./types.js";
 
 // These tests mostly check at compile time (`npm run typecheck`) that the public types
 // have the shapes the design specifies. The runtime assertions confirm the narrowing works.
@@ -7,7 +7,7 @@ import type { ColumnMap, ParseOptions, ParseResult } from "./types";
 function describeResult(result: ParseResult): string {
   switch (result.status) {
     case "mapped":
-      return `mapped:${result.transactions.length}:${result.detectedDateFormat?.format ?? "none"}`;
+      return `mapped:${result.transactions.length}:${result.detectedDateFormat?.format ?? "none"}:${result.detectedCurrency.code}`;
     case "mapping-required":
       return `mapping-required:${result.columns.join("|")}:${result.validationErrors?.length ?? 0}`;
     case "error":
@@ -25,6 +25,7 @@ describe("public types", () => {
       rowErrors: [],
       detectedDateFormat: { format: "dd/mm/yyyy", assumed: false },
       detectedSignConvention: null,
+      detectedCurrency: { code: "USD", source: "default" },
     };
     const mappingRequired: ParseResult = {
       status: "mapping-required",
@@ -34,7 +35,7 @@ describe("public types", () => {
     };
     const error: ParseResult = { status: "error", reason: "empty input" };
 
-    expect(describeResult(mapped)).toBe("mapped:1:dd/mm/yyyy");
+    expect(describeResult(mapped)).toBe("mapped:1:dd/mm/yyyy:USD");
     expect(describeResult(mappingRequired)).toBe("mapping-required:Booked|Text:1");
     expect(describeResult(error)).toBe("error:empty input");
   });

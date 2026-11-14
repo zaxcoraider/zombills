@@ -1,6 +1,6 @@
-import type { DateDetection } from "./internal-types";
-import { ParseError } from "./parse-error";
-import type { DateFormat } from "./types";
+import type { DateDetection } from "./internal-types.js";
+import { ParseError } from "./parse-error.js";
+import type { DateFormat } from "./types.js";
 
 /**
  * The four ways a date cell can be written, told apart by separator and by how many digits come

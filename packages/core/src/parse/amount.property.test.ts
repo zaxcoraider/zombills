@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { parseAmountCents, tryParseAmount } from "./amount";
-import { ParseError } from "./parse-error";
+import { parseAmountCents, tryParseAmount } from "./amount.js";
+import { ParseError } from "./parse-error.js";
 import {
   AMOUNT_RANGE_CENTS,
   amountFormatArbitrary,
@@ -11,7 +11,7 @@ import {
   formatAmount,
   formatEu,
   formatUs,
-} from "./test-arbitraries";
+} from "./test-arbitraries.js";
 
 describe("amount parser properties", () => {
   // The input space of P2 is wide and each run is cheap, so it runs 1000 times instead of 100.

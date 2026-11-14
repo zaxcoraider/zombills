@@ -204,26 +204,54 @@ Rules that apply to every task:
     - Extend `header-detect.property.test.ts` so **P17** also checks that the `parseStatement` result is unchanged.
     - _Requirements: 2.10, 11.1, 11.2, 11.4_
 
-- [ ] 15. Privacy and environment checks
+- [x] 14A. Plain Node ESM build (design "Packaging")
+  - `packages/core/tsconfig.json`: set `module: "NodeNext"` and `moduleResolution: "NodeNext"`; keep `types: []`; exclude `**/*.test.ts` and `**/test-*.ts`. `tsconfig.base.json` is left alone for the web app.
+  - Add `packages/core/tsconfig.test.json`: extends `tsconfig.json`, `types: ["node"]`, includes every file under `src`, so tests can use `node:fs` and `node:child_process`. Change the `typecheck` script to run both projects.
+  - Write `.js` on every relative import and re-export under `packages/core/src` (`from "./amount.js"`, `export * from "./parse/index.js"`), tests included.
+  - Add `packages/core/src/build.test.ts`:
+    - run `npm run build` in the package and expect exit code 0;
+    - expect `dist` to hold no `*.test.*` file and no `test-arbitraries` output, and no relative import in `dist/**/*.js` without a `.js` extension;
+    - run `node --input-type=module` with no loader to import `dist/index.js` by path, then `@zombills/core` by package name, and call `parseStatement` on `samples/us-signed.csv`; expect `mapped`, no row errors, 26 transactions and the first one equal to the sample's first row.
+  - Done when `npm run typecheck`, `npm run lint` and `npm test` pass and the built package loads in plain Node.
+  - _Requirements: 12.3 (runs in plain Node); design Packaging_
+
+- [x] 14B. Statement currency and `detectedCurrency` (Req 10.1, 10.2, 10.5, 10.7–10.10, 13.9; P19)
+  - [x] 14B.1 Types and decision
+    - `types.ts`: add `CurrencySource`, `CurrencyInfo` and `MappedResult.detectedCurrency`; export the new types from `index.ts`.
+    - `amount.ts`: make the cell scanner also return the cell's currency symbol and export `extractCurrencySymbol(raw)` (null unless the cell has the amount shape and a symbol).
+    - `currency.ts`: add `inferCurrencyFromSymbols(amountCells)` (£ only → GBP, € only → EUR, else null) and `decideStatementCurrency({ option, currencyCells, amountCells })` with the order option, column, symbol, default.
+    - `parse-statement.ts`: decide the statement currency in step 10a from the normalised option, the currency column's cells and the amount cells of all data rows; pass its code to `buildRows` as `currencyFallback`; add `detectedCurrency` to the `MappedResult`.
+  - [x] 14B.2 Unit tests
+    - `currency.test.ts`: the inference cases listed for `currency.test.ts` in the design, and `decideStatementCurrency` for each source.
+    - `amount.test.ts`: `extractCurrencySymbol` for symbols before, after and inside a sign, no symbol, a second symbol, and cells that are not amounts.
+    - `parse-statement.test.ts`: `detectedCurrency` for each source; the UK-style statement reads as GBP; an option, a currency column or a valid per-row cell beats the symbols; a currency column with one code gives that code to rows with an empty cell.
+    - Fix the existing tests that expect `"USD"` for statements that now infer a currency, and add `detectedCurrency` to the result literals.
+  - [x] 14B.3 Model and property
+    - `test-arbitraries.ts`: give the statement model a symbol style (none, pound, euro, dollar, yen, mixed) that fixes which symbols its amount cells carry, an oracle `statementCurrencyOf(model)` that works out the expected `detectedCurrency` from the model's own cells, and make `expectedFromModel` use it. Options to fix the currency option and the currency column.
+    - `parse-statement.property.test.ts`: P1 and the other model-based tests also check `detectedCurrency`.
+    - `currency.property.test.ts`: **P19**, in the three parts of Req 13.9.
+  - _Requirements: 10.1, 10.2, 10.4–10.10, 13.9; glossary MappedResult, CurrencyInfo, Statement currency_
+
+- [x] 15. Privacy and environment checks
   - `no-network.test.ts`:
-    - read every non-test `.ts` file under `src/parse` and strip comments;
-    - fail on any word-boundary match of `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `document`, `window` or `navigator`, naming the file, line and identifier;
-    - include a self-test that feeds the scanner a fixture string containing `fetch(` and expects that identifier to be reported.
-  - `node-env.test.ts`: import from the package entry (`../index`) under the Node environment and call `parseStatement` on a small CSV, with no `ReferenceError`.
-  - Confirm that `npm run lint -w @zombills/core` fails when a temporary file contains `fetch("x")`, then delete that file.
+    - read every non-test `.ts` file under `src` and look at its syntax tree, so comments are never scanned;
+    - fail on any word-boundary match of `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `document`, `window` or `navigator` in an identifier, string or regular expression, naming the file, line and identifier;
+    - include a self-test that feeds the scanner a fixture string containing `fetch(` and expects that identifier to be reported, and fixtures that must not be reported (a comment, `prefetchAll`).
+  - `node-env.test.ts`: import from the package entry (`../index.js`) under the Node environment and call `parseStatement` on a small CSV, with no `ReferenceError`; check that `window`, `document` and `navigator` are undefined in the test environment.
+  - Confirm that `npm run lint -w @zombills/core` fails when a snippet contains `fetch("x")`. The check runs ESLint on the snippet from standard input, so no temporary file is created, and it is kept as a test in `no-network.test.ts`.
   - _Requirements: 12.1–12.4; privacy.md_
 
-- [ ] 16. Sample fixture tests
+- [x] 16. Sample fixture tests
   - In `parse-statement.test.ts`, read each file in `samples/` with `node:fs`. The import is allowed only in test files, because the build excludes them.
-  - Assert that each file gives `status: "mapped"`, no `rowErrors`, and the expected layout, date format, separator and sign convention.
+  - Assert that each file gives `status: "mapped"`, no `rowErrors`, and the expected layout, date format, separator, sign convention and `detectedCurrency`.
   - Snapshot each result.
-  - `uk-debit-credit.csv` must be detected as `dd/mm/yyyy` even though its first rows are ambiguous. `eu-semicolon.csv` must give `EUR` and comma decimals. `with-preamble.csv` must ignore the preamble and the blank rows.
-  - _Requirements: 1.6, 2.1–2.5, 3.1, 3.3, 3.11, 4.3, 7.1, 7.2, 10.4, 11.1, 11.2_
+  - `uk-debit-credit.csv` must be detected as `dd/mm/yyyy` even though its first rows are ambiguous, and must come out as `GBP` with `source: "symbol"`. `eu-semicolon.csv` must give `EUR` with `source: "column"` and comma decimals. `us-signed.csv` and `with-preamble.csv` give `USD` with `source: "default"`; `with-preamble.csv` must ignore the preamble and the blank rows.
+  - _Requirements: 1.6, 2.1–2.5, 3.1, 3.3, 3.11, 4.3, 7.1, 7.2, 10.4, 10.7–10.9, 11.1, 11.2_
 
-- [ ] 17. Checkpoint: run the whole suite
+- [x] 17. Checkpoint: run the whole suite
   - From the repo root, run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass with no skipped or `.only` tests.
-  - Check that `packages/core/dist` contains no test files, no `test-arbitraries` output and no `node:fs` import.
-  - Check that every property P1–P18 has a passing `it`/`test` whose name starts with its ID (e.g. `"P5: date round-trip"`), and that `grep -rE 'parseFloat|console\.' packages/core/src/parse` finds nothing outside test files.
+  - Check that `packages/core/dist` contains no test files, no `test-arbitraries` output and no `node:fs` import, and that `dist/index.js` imports in plain Node (`build.test.ts` covers this).
+  - Check that every property P1–P19 has a passing `it`/`test` whose name starts with its ID (e.g. `"P5: date round-trip"`), and that `grep -rE 'parseFloat|console\.' packages/core/src/parse` finds nothing outside test files.
   - Check traceability: every acceptance criterion in `requirements.md` appears in at least one task's `_Requirements_` line above.
   - Stop and report results. Do not start other specs.
 
@@ -251,3 +279,4 @@ Rules that apply to every task:
 | P16 delimiter and BOM invariance | 14.3 |
 | P17 preamble invariance | 8 (component), 14.5 (full parse) |
 | P18 sign flip | 14.4 |
+| P19 currency precedence | 14B.3 |

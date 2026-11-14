@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectHeaderRow, firstNonBlankRow, HEADER_SEARCH_LIMIT } from "./header-detect";
+import { detectHeaderRow, firstNonBlankRow, HEADER_SEARCH_LIMIT } from "./header-detect.js";
 import {
   AMOUNT_HEADERS,
   CREDIT_HEADERS,
@@ -8,8 +8,8 @@ import {
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
   normalizeHeader,
-} from "./header-names";
-import { parseStatement } from "./parse-statement";
+} from "./header-names.js";
+import { parseStatement } from "./parse-statement.js";
 
 /** A non-blank row that no recognition list matches. */
 function preambleRow(n: number): string[] {

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { detectDecimalSeparator } from "./decimal-separator";
+import { detectDecimalSeparator } from "./decimal-separator.js";
 import {
   amountFormatArbitrary,
   anyAmountStringArbitrary,
@@ -8,7 +8,7 @@ import {
   decimalSeparatorArbitrary,
   formatAmount,
   withPermutation,
-} from "./test-arbitraries";
+} from "./test-arbitraries.js";
 
 /** A cell written in a given style, formatted with the generator from the amount tests. */
 function styledAmountCell(decimal: "." | ","): fc.Arbitrary<string> {

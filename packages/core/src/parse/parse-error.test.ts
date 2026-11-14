@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ParseError } from "./parse-error";
+import { ParseError } from "./parse-error.js";
 
 describe("ParseError", () => {
   it("is an Error and a ParseError", () => {

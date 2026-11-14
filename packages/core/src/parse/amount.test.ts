@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { MAX_AMOUNT_CENTS, negate, parseAmountCents, tryParseAmount } from "./amount";
-import type { DecimalSeparator } from "./internal-types";
-import { ParseError } from "./parse-error";
-import { AMOUNT_RANGE_CENTS } from "./test-arbitraries";
+import {
+  extractCurrencySymbol,
+  MAX_AMOUNT_CENTS,
+  negate,
+  parseAmountCents,
+  tryParseAmount,
+} from "./amount.js";
+import type { DecimalSeparator } from "./internal-types.js";
+import { ParseError } from "./parse-error.js";
+import { AMOUNT_RANGE_CENTS } from "./test-arbitraries.js";
 
 function expectParseError(raw: string, separator: DecimalSeparator): ParseError {
   try {
@@ -223,5 +229,51 @@ describe("tryParseAmount", () => {
 
   it("does not swallow errors that are not ParseError", () => {
     expect(() => tryParseAmount(undefined as unknown as string, ".")).toThrow(TypeError);
+  });
+});
+
+describe("extractCurrencySymbol", () => {
+  it.each([
+    ["£5.00", "£"],
+    ["5.00£", "£"],
+    ["€9,99", "€"],
+    ["$1,234.56", "$"],
+    ["¥1500", "¥"],
+    ["-£5.00", "£"],
+    ["£-5.00", "£"],
+    ["(€5,00)", "€"],
+    ["5,00€-", "€"],
+    ["  £5.00  ", "£"],
+    ["£1.050", "£"],
+  ])("finds the symbol of %j", (raw, symbol) => {
+    expect(extractCurrencySymbol(raw)).toBe(symbol);
+  });
+
+  it.each(["5.00", "-5.00", "(5.00)", "0", ""])("gives null for %j, which has no symbol", (raw) => {
+    expect(extractCurrencySymbol(raw)).toBeNull();
+  });
+
+  it.each(["£abc", "£ 5.00", "££5", "£5.00x", "£", "£-", "(£5.00", "n/a", "USD5"])(
+    "gives null for %j, which is not shaped like an amount",
+    (raw) => {
+      expect(extractCurrencySymbol(raw)).toBeNull();
+    },
+  );
+
+  it("agrees with parseAmountCents about what an amount is", () => {
+    for (const raw of ["£5.00", "5.00€", "£abc", "$$5", "1 234", "£1.050"]) {
+      const shaped = extractCurrencySymbol(raw) !== null;
+      let parses = true;
+      try {
+        parseAmountCents(raw, ".");
+      } catch {
+        parses = false;
+      }
+      // A cell that parses and has a symbol is shaped like an amount; the reverse need not hold
+      // (£1.050 is shaped like an amount but has too many decimals).
+      if (parses && /\p{Sc}/u.test(raw)) {
+        expect(shaped, raw).toBe(true);
+      }
+    }
   });
 });

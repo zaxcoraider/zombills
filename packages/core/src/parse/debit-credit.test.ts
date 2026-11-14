@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { tryParseAmount } from "./amount";
-import { classifyCell, combineDebitCredit } from "./debit-credit";
-import type { DecimalSeparator } from "./internal-types";
-import { ParseError } from "./parse-error";
+import { tryParseAmount } from "./amount.js";
+import { classifyCell, combineDebitCredit } from "./debit-credit.js";
+import type { DecimalSeparator } from "./internal-types.js";
+import { ParseError } from "./parse-error.js";
 
 function cell(raw: string, separator: DecimalSeparator = ".") {
   return { raw, outcome: tryParseAmount(raw, separator) };

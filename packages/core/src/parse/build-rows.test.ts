@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { tryParseAmount } from "./amount";
-import { buildRows, type BuildRowsInput } from "./build-rows";
-import type { DataRow, DecimalSeparator, ResolvedColumns } from "./internal-types";
-import type { DateFormat, SignConvention } from "./types";
+import { tryParseAmount } from "./amount.js";
+import { buildRows, type BuildRowsInput } from "./build-rows.js";
+import type { DataRow, DecimalSeparator, ResolvedColumns } from "./internal-types.js";
+import type { DateFormat, SignConvention } from "./types.js";
 
 const SIGNED: ResolvedColumns = {
   layout: "signed-amount",

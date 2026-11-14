@@ -24,6 +24,9 @@ This split is what the requirements demand (Req 3.6, 4.7, 6.1). It also makes ro
 | `RowError.rowIndex` | 1-based ordinal among data rows (blank rows not counted) | Literal reading of the glossary ("first data row = row 1") combined with the Data row definition. Confirmed in design review. |
 | `-0` | Every negation goes through `negate(x) = x === 0 ? 0 : -x`, and `parseAmountCents` never returns `-0` | `-0` breaks deep equality (`Object.is`) in the determinism and round-trip properties. |
 | Locale | Only `toLowerCase()` and explicit regexes; no `Intl`, no `toLocale*` | Results must not depend on the user's machine (Req 1.7). |
+| Statement currency | Decided once per statement from the option, then the currency column, then the amount symbols (£ → GBP, € → EUR), else USD; reported as `detectedCurrency { code, source }` | A GBP statement must not come out as dollars (Req 10.7–10.10). `$` and other symbols stay USD because they are ambiguous. |
+| Module format | ES modules under `module: NodeNext`, with explicit `.js` extensions on relative imports | `dist/index.js` must load in plain Node, outside a bundler, for the Reaper. Under NodeNext the compiler rejects a missing extension, so the build cannot regress. |
+| Type checking | Non-test code is type-checked with `types: []`; test code in a second project with `types: ["node"]` | A reference to `process`, `fetch` or `document` in non-test code is a compile error, not only a lint error. Tests may use `node:fs` and `node:child_process`. |
 
 ---
 
@@ -54,7 +57,8 @@ flowchart TD
     L --> N[detect decimal separator]
     N -- conflict --> E4[ErrorResult]
     N --> O[pre-parse amount cells]
-    O --> P[resolve sign convention, signed layout only]
+    O --> O2[decide statement currency]
+    O2 --> P[resolve sign convention, signed layout only]
     P --> Q[build rows]
     Q --> R[MappedResult]
 ```
@@ -69,7 +73,7 @@ Each step runs only if the previous one did not return. The order is fixed, so t
 | 1 | Strip one leading U+FEFF | none | 1.6 |
 | 2 | Empty / whitespace-only check | `error`: empty input | 1.4 |
 | 3 | Validate `options.currency` (`/^[A-Za-z]{3}$/`, then upper-cased) and `options.signConvention` (`"positive-out"` or `"negative-out"`) | `error`: invalid option | 10.1, 10.3, glossary ErrorResult |
-| 4 | Tokenize with Papa Parse (delimiter guessed among `,` `;` `\t`) | none: Papa Parse problems such as unbalanced quotes show up later as row errors | 1.6 |
+| 4 | Tokenize with Papa Parse (delimiter chosen among `,` `;` `\t` over the whole file, see Tokenizer) | none: Papa Parse problems such as unbalanced quotes show up later as row errors | 1.6 |
 | 5 | Header-row detection over the first 20 non-blank rows. If none matches and `columnMap` is given, the first non-blank row becomes the header. | `mapping-required` with `columns` from the first non-blank row (only when no `columnMap`) | 11.1–11.3 |
 | 6a | If `columnMap` is given: validate it against the header cells | `mapping-required` with `validationErrors` | 2.8, 2.9, 9.3–9.5 |
 | 6b | Otherwise: auto-detect columns | `mapping-required` with `columns` | 1.5, 2.1–2.7, 2.10 |
@@ -77,9 +81,10 @@ Each step runs only if the previous one did not return. The order is fixed, so t
 | 8 | Date-format detection over all date cells | `error`: conflicting date formats | 3.1–3.5, 3.9–3.11 |
 | 9 | Decimal-separator detection over all non-empty amount cells | `error`: conflicting decimal separator patterns | 4.1–4.6 |
 | 10 | Parse every amount cell once with the chosen separator and cache the results | none (failures are cached) | 4.7, 5.x |
+| 10a | Decide the statement currency: the option; else the currency column; else the amount symbols; else USD | none | 10.1, 10.2, 10.7–10.10 |
 | 11 | Sign convention (signed layout only): from the option, or by majority of cached non-zero values | none | 6.1, 6.2 |
-| 12 | Build rows | `RowError` per failing row | 3.6–3.8, 5.x, 6.3–6.10, 7.x, 8.1, 10.x |
-| 13 | Assemble `MappedResult` | none | 8.3–8.5 |
+| 12 | Build rows, with the statement currency as the fallback for rows without a currency of their own | `RowError` per failing row | 3.6–3.8, 5.x, 6.3–6.10, 7.x, 8.1, 10.x |
+| 13 | Assemble `MappedResult` (including `detectedCurrency`) | none | 8.3–8.5, 10.7 |
 
 ---
 
@@ -94,22 +99,25 @@ All paths are relative to `packages/core/src/parse/`. File names are kebab-case,
 | `internal-types.ts` | `ParsedTable`, `ResolvedColumns`, `DataRow`, `AmountOutcome`, detection result unions | no |
 | `parse-error.ts` | `ParseError` class | no |
 | `parse-statement.ts` | Orchestrates the pipeline above | yes (`parseStatement`) |
-| `tokenize.ts` | BOM strip, Papa Parse call, `isBlankRow` | no |
+| `tokenize.ts` | BOM strip, Papa Parse calls, delimiter choice, `serializeRow` | no |
+| `blank-row.ts` | `isBlankRow` (shared by the tokenizer and header detection) | no |
 | `header-names.ts` | Recognition lists and `normalizeHeader` | no |
 | `header-detect.ts` | Finds the header row | no |
 | `columns.ts` | Auto-detects columns, validates `ColumnMap`, finds the currency column | no |
 | `date-format.ts` | `detectDateFormat`, `parseDate`, calendar check | no |
 | `decimal-separator.ts` | `detectDecimalSeparator` | no |
-| `amount.ts` | `parseAmountCents`, `tryParseAmount`, `negate` | no |
+| `amount.ts` | `parseAmountCents`, `tryParseAmount`, `negate`, `extractNumberText`, `extractCurrencySymbol` | no |
 | `sign-convention.ts` | `detectSignConvention`, `applySignConvention` | no |
 | `debit-credit.ts` | Classifies cells as populated, zero or empty; combines debit and credit | no |
-| `currency.ts` | `isCurrencyCode`, `resolveRowCurrency` | no |
+| `currency.ts` | `isCurrencyCode`, `normalizeCurrency`, `resolveRowCurrency`, `inferCurrencyFromSymbols`, `decideStatementCurrency` | no |
 | `build-rows.ts` | Row pass: `Transaction` or `RowError` per data row | no |
 | `test-arbitraries.ts` | Shared fast-check generators and the statement model used by property tests | no; excluded from the build |
 | `*.test.ts`, `*.property.test.ts` | Co-located tests (see Testing strategy) | no; excluded from the build |
-| `no-network.test.ts` | Static analysis check for Req 12.4 | no |
+| `no-network.test.ts` | Static analysis check for Req 12.4, and a check that the ESLint guard rejects `fetch` | no |
+| `node-env.test.ts` | Req 12.3: the entry point runs in plain Node with no browser globals | no |
+| `../build.test.ts` | Builds the package and imports `dist/index.js` from plain Node (Req 12.3, packaging) | no |
 
-Internal functions are exported from their own files so tests can import them directly (Req 13.2 tests `parseAmountCents`). They are not re-exported from `index.ts`. The build `tsconfig` excludes `**/*.test.ts`, `**/*.property.test.ts` and `**/test-*.ts`, so none of the test code reaches `dist`.
+Internal functions are exported from their own files so tests can import them directly (Req 13.2 tests `parseAmountCents`). They are not re-exported from `index.ts`. The build `tsconfig` excludes `**/*.test.ts`, `**/*.property.test.ts` and `**/test-*.ts`, so none of the test code reaches `dist`. Every relative import carries a `.js` extension (see Packaging).
 
 ---
 
@@ -186,6 +194,15 @@ export interface ParseOptions {
   signConvention?: SignConvention;
 }
 
+/** How the statement currency was decided (Req 10.7-10.9). */
+export type CurrencySource = "option" | "column" | "symbol" | "default";
+
+export interface CurrencyInfo {
+  /** Upper-case ISO 4217 alpha-3 code: the currency of every row without one of its own */
+  code: string;
+  source: CurrencySource;
+}
+
 export interface MappedResult {
   status: "mapped";
   transactions: Transaction[];
@@ -194,6 +211,8 @@ export interface MappedResult {
   detectedDateFormat: DateFormatInfo | null;
   /** null for DebitCreditLayout, where no sign convention applies */
   detectedSignConvention: SignConventionInfo | null;
+  /** Always present: lets the UI say where the currency came from and offer an override */
+  detectedCurrency: CurrencyInfo;
 }
 
 export interface MappingRequiredResult {
@@ -212,7 +231,7 @@ export interface ErrorResult {
 export type ParseResult = MappedResult | MappingRequiredResult | ErrorResult;
 ```
 
-Both nullable fields match the glossary entry for `MappedResult`: `detectedDateFormat` is `null` when Req 3.9 leaves the format unset, and `detectedSignConvention` is `null` for the debit/credit layout.
+The nullable fields match the glossary entry for `MappedResult`: `detectedDateFormat` is `null` when Req 3.9 leaves the format unset, and `detectedSignConvention` is `null` for the debit/credit layout. `detectedCurrency` is never null.
 
 ## Internal types (`internal-types.ts`)
 
@@ -298,6 +317,7 @@ export function parseDate(raw: string, format: DateFormat): string; // throws Pa
 export function detectDecimalSeparator(cells: readonly string[]): SeparatorDetection;
 
 // amount.ts
+export function extractCurrencySymbol(raw: string): string | null; // the one Sc symbol of an amount-shaped cell
 export function parseAmountCents(raw: string, separator: DecimalSeparator): number; // throws ParseError
 export function tryParseAmount(raw: string, separator: DecimalSeparator): AmountOutcome;
 export function negate(cents: number): number;
@@ -318,6 +338,13 @@ export function combineDebitCredit(
 export function isCurrencyCode(value: string): boolean; // /^[A-Za-z]{3}$/
 export function normalizeCurrency(value: string): string; // upper-case
 export function resolveRowCurrency(cell: string | undefined, fallback: string): string; // throws ParseError
+/** "GBP" or "EUR" when every symbol found is a pound or euro sign, otherwise null (Req 10.9). */
+export function inferCurrencyFromSymbols(amountCells: readonly string[]): "GBP" | "EUR" | null;
+export function decideStatementCurrency(input: {
+  option: string | null; // normalised options.currency
+  currencyCells: readonly string[] | null; // the currency column's cells, null when the statement has none
+  amountCells: readonly string[];
+}): CurrencyInfo;
 
 // build-rows.ts
 export function buildRows(input: {
@@ -340,7 +367,7 @@ The exact shape of the cached `amounts` input is an implementation detail; the r
 ### Tokenizer (`tokenize.ts`)
 
 - `stripBom` removes one leading `\uFEFF`. It runs before the empty check, so a file containing only a BOM is reported as empty.
-- `Papa.parse(csv, { delimiter: "", delimitersToGuess: [",", ";", "\t"], header: false, dynamicTyping: false, skipEmptyLines: false, worker: false, download: false })`. If Papa Parse cannot guess, it falls back to `,`, which is the correct default.
+- `Papa.parse(csv, { delimiter: "", delimitersToGuess: [",", ";", "\t"], header: false, dynamicTyping: false, skipEmptyLines: false, worker: false, download: false })` gives Papa Parse's own guess. That guess looks only at the first ten rows and prefers consistent row widths, so a file with narrow preamble lines above a wide header can be misread. The guess is therefore checked against the whole file: each of the three delimiters is tried with Papa Parse, and the one that splits the file best wins, comparing (1) whether a known header name shows up in the first 20 rows, (2) how many non-blank rows have the most common width, (3) how many rows are split into two or more cells. Papa Parse's own guess wins ties; comma is the fallback.
 - Papa Parse `errors` (for example unbalanced quotes) are not fatal. The affected rows usually have the wrong cell count and fail field checks in the row pass.
 - `isBlankRow`: every cell is `""` or whitespace only. This also covers the trailing `[""]` row Papa Parse produces for a final newline.
 - `serializeRow` uses `Papa.unparse([cells], { delimiter })` to build `RowError.rawRow`.
@@ -467,9 +494,16 @@ Thousands separators are not checked for position, so `"1,2,3"` parses as `123`.
 
 ### Currency (`currency.ts`)
 
-- The fallback currency is `normalizeCurrency(options.currency)` when the option is set, otherwise `"USD"`. It is validated and upper-cased in pipeline step 3 (Req 10.1–10.3), so `"usd"` becomes `"USD"` and `"US"` is an `ErrorResult`.
 - `isCurrencyCode(value)` tests `/^[A-Za-z]{3}$/`. `normalizeCurrency(value)` returns `value.toUpperCase()`; it is only called on values that passed `isCurrencyCode`, so the result is always 3 ASCII capitals.
-- `resolveRowCurrency(cell, fallback)` trims the cell. It returns the fallback when there is no currency column or the trimmed cell is empty (Req 10.5). A trimmed cell that passes `isCurrencyCode` is returned upper-cased, so `"eur"` becomes `"EUR"` (Req 10.4). Anything else throws `ParseError("currency")` (Req 10.6).
+- `options.currency` is validated and upper-cased in pipeline step 3 (Req 10.1–10.3), so `"usd"` becomes `"USD"` and `"US"` is an `ErrorResult`.
+- `resolveRowCurrency(cell, fallback)` trims the cell. It returns the fallback when there is no currency column or the trimmed cell is empty (Req 10.5). A trimmed cell that passes `isCurrencyCode` is returned upper-cased, so `"eur"` becomes `"EUR"` (Req 10.4). Anything else throws `ParseError("currency")` (Req 10.6). The fallback is the statement currency below.
+- `decideStatementCurrency` runs once, in step 10a, and picks the first rule that applies (Req 10.7–10.9):
+  1. **Option.** `options.currency` was given: `{ code: <normalised option>, source: "option" }`.
+  2. **Column.** The statement has a currency column: collect the trimmed, upper-cased cells of all data rows that pass `isCurrencyCode`. If they all hold the same code, that is the code; with no such cell, or with two or more different codes, the code is `"USD"`. `source: "column"` either way. The symbols are not looked at.
+  3. **Symbol.** Otherwise `inferCurrencyFromSymbols` looks at the amount cells of all data rows (the amount column, or the debit and credit columns). `extractCurrencySymbol` returns the one `\p{Sc}` symbol of a cell that has the amount shape, and null for any other cell, so garbage cells and cells without a symbol are ignored. If at least one symbol is found, all of them are the same, and it is `£` (U+00A3) the result is `GBP`; if it is `€` (U+20AC) it is `EUR`. Then `source: "symbol"`.
+  4. **Default.** Anything else (no symbol, `$`, `¥` or another symbol, or mixed symbols): `{ code: "USD", source: "default" }`. `$` and `¥` are ambiguous (USD, CAD, AUD; JPY, CNY), so they do not name a currency.
+- The statement currency is the `currencyFallback` of the row builder. Precedence (Req 10.10) follows from the order: the option beats the column beats the symbols, and a valid per-row cell is resolved in `resolveRowCurrency` before any fallback is used.
+- Because the amount shape is checked with the same scanner as `parseAmountCents`, a symbol counts even when its row fails for another reason (a bad date, say). Only cells that are not shaped like amounts are ignored.
 
 ### Row builder (`build-rows.ts`)
 
@@ -480,7 +514,7 @@ For each `DataRow`, missing trailing cells are treated as `""` and extra cells a
 | `date` | No format detected → fail with "no recognisable date format in statement" (Req 3.9). Otherwise `parseDate` (Req 3.8). |
 | `description` | Trimmed. Empty → fail ("missing required cell", Req 8.1). |
 | amount | Signed layout: cached outcome, then `applySignConvention` (Req 6.3–6.10). Debit/credit layout: `combineDebitCredit` (Req 7). |
-| `currency` | `resolveRowCurrency` (Req 10.4–10.6). |
+| `currency` | `resolveRowCurrency` with the statement currency as fallback (Req 10.4–10.6). |
 
 If any field failed, the builder pushes one `RowError { rowIndex: ordinal, rawRow: serializeRow(cells), reason }`, where `reason` joins the `"<field>: <message>"` entries with `"; "`. Otherwise it pushes the `Transaction`. Output order follows input order.
 
@@ -509,6 +543,18 @@ The `reason` strings are plain English with fixed wording, so they are determini
   1. `no-network.test.ts` reads every non-test `.ts` file under `src/parse` and fails, naming the file, line and identifier, on any word-boundary match of `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `document`, `window` or `navigator`. Comments are stripped first so the rule can be documented in prose.
   2. ESLint `no-restricted-globals` and `no-restricted-properties` rules for the same identifiers in `packages/core`, which give editor feedback.
 - The existing `privacy-guard` hook stays as a third check on file save.
+- Non-test code is type-checked by `tsconfig.json` with `types: []`, so there are no Node or DOM globals to reference. A second project, `tsconfig.test.json`, adds `types: ["node"]` for test files only. `npm run typecheck` runs both. This is also what lets tests import `node:fs` and `node:child_process`, which the build never ships.
+- `no-network.test.ts` reads the TypeScript syntax tree of each non-test file rather than stripping comments with a pattern, so a string or a regular expression cannot be mistaken for a comment. It also runs ESLint over a snippet containing `fetch("x")` and expects the run to fail, so the guard cannot be weakened unnoticed.
+
+---
+
+## Packaging
+
+`@zombills/core` is imported outside a bundler by the Reaper, so `dist/index.js` must load in plain Node.
+
+- `packages/core/tsconfig.json` sets `module: "NodeNext"` and `moduleResolution: "NodeNext"`. With `"type": "module"` in `package.json`, the compiler then rejects a relative import without a file extension, and every relative import in the sources is written with `.js` (`from "./amount.js"`, `export * from "./parse/index.js"`). Vite and Vitest map `./amount.js` back to `amount.ts`. The shared `tsconfig.base.json` keeps `moduleResolution: "Bundler"` for the web app.
+- `package.json` keeps `exports` pointing at `dist/index.js` and `dist/index.d.ts`.
+- `build.test.ts` builds the package with `npm run build`, checks that `dist` holds no test files and that no relative import in `dist` lacks `.js`, and then runs `node` with no loader to import `dist/index.js` by path and `@zombills/core` by name and call `parseStatement` on `samples/us-signed.csv`.
 
 ---
 
@@ -542,6 +588,7 @@ Tools: Vitest for unit tests and fast-check for property tests (`tech.md`). Test
 | P16 | Delimiter and BOM invariance: the same model serialized with `,`, `;` or tab, with or without a leading BOM, gives identical `transactions` | `parse-statement.property.test.ts` | 1.6 |
 | P17 | Preamble invariance: prepending preamble rows that contain no recognized header name, keeping the header within the first 20 non-blank rows, does not change the result | `header-detect.property.test.ts` | 11.1, 11.2, 11.4 |
 | P18 | Sign flip: negating every amount in a signed statement without a tie flips `detectedSignConvention.convention` and leaves `transactions` unchanged | `sign-convention.property.test.ts` | 6.1, 6.3–6.6 |
+| P19 | Currency precedence: whatever symbols the amount cells hold, an explicit `options.currency` gives `detectedCurrency { option }` and is the currency of every row without a valid currency cell, a valid per-row currency cell always wins, and with neither an option nor a currency column `detectedCurrency` equals the symbol rule (£ only → GBP, € only → EUR, otherwise USD) | `currency.property.test.ts` | 10.1, 10.4, 10.7–10.10, 13.9 |
 
 ### Example-based unit tests
 
@@ -556,14 +603,14 @@ Tools: Vitest for unit tests and fast-check for property tests (`tech.md`). Test
 | `amount.test.ts` | `$1,234.56`; `(9.99)`; `9.99-`; `€9,99`; `--5`, `(-5)`, `(5`, `5)`; `"1 234.56"` rejected; `1.050` rejected; `""` rejected; `"abc"` rejected; just above and just below 999_999_9900; `-0.00` → `0` | 5.1–5.12 |
 | `sign-convention.test.ts` | Majority positive; majority negative; tie → assumed; option overrides; zero amounts kept | 6.1–6.8 |
 | `debit-credit.test.ts` | Every row of the combination table, including `"0.00"` beside `"12.00"`, `"0.00"`/`""`, `""`/`""`, `"abc"`/`""` | 7.1–7.6 |
-| `currency.test.ts` | Option used; `options.currency: "usd"` → every row `"USD"`; default USD; per-row override; per-row `"eur"` and `" Eur "` → `"EUR"`; empty cell falls back to the normalised option; `"US"`, `"EURO"`, `"U$D"` → row error | 10.1–10.6 |
+| `currency.test.ts` | Option used; `options.currency: "usd"` → every row `"USD"`; default USD; per-row override; per-row `"eur"` and `" Eur "` → `"EUR"`; empty cell falls back to the statement currency; `"US"`, `"EURO"`, `"U$D"` → row error. Inference: all `£` → GBP, all `€` → EUR, `£` next to plain cells → GBP, `£` with `€`, `£` with `$`, `$` alone, `¥`, no symbol → USD; `£` before, after or inside parentheses or a minus sign; cells that are not amounts are ignored; the column rule (one code, several codes, no valid cell) and the option rule beat the symbols | 10.1–10.10 |
 | `build-rows.test.ts` | Multi-field failure gives one `RowError` with both reasons; `rowIndex` skips blank rows; ragged rows | 3.9, 8.1 |
 | `no-network.test.ts` | Static scan passes on the real sources; a fixture string containing `fetch(` is reported with the identifier named | 12.1, 12.2, 12.4 |
 | `node-env.test.ts` | Importing `@zombills/core` and calling `parseStatement` under the Node environment does not throw | 12.3 |
 
 ### Fixture tests
 
-`parse-statement.test.ts` also parses each CSV in `samples/` and snapshots the result. This covers real-world layouts (US signed, UK debit/credit, European semicolon with comma decimals, preamble lines) end to end. Sample files must stay fake and anonymised (`structure.md`).
+`parse-statement.test.ts` also parses each CSV in `samples/` and snapshots the result. This covers real-world layouts (US signed, UK debit/credit, European semicolon with comma decimals, preamble lines) end to end. The UK sample must come out as `GBP` with `source: "symbol"`, the European sample as `EUR` with `source: "column"`, and the US and preamble samples as `USD` with `source: "default"`. Sample files must stay fake and anonymised (`structure.md`).
 
 ---
 
@@ -576,3 +623,5 @@ Tools: Vitest for unit tests and fast-check for property tests (`tech.md`). Test
 5. **`money.md`:** step 1 now says to inspect all non-empty amount values, matching Req 4.1.
 6. **Empty description:** stays a `RowError`.
 7. **Currency case:** codes are matched case-insensitively and upper-cased, for both `options.currency` and the per-row currency column (Req 10.1, 10.3–10.6 amended).
+8. **Currency inference (added after reviewing the sample output):** a statement whose amounts carry only `£` or only `€` and that has no currency option and no currency column is read as GBP or EUR, and `MappedResult.detectedCurrency { code, source }` says how the currency was decided (new Req 10.7–10.10, 13.9, P19). With a currency column the code is the column's single code, or USD when the column is empty or mixed, and rows with an empty cell use that code (Req 10.5 amended).
+9. **Plain Node ESM:** the package builds with `module: NodeNext` and explicit `.js` extensions on relative imports, and a test imports the built `dist/index.js` from plain Node (see Packaging).

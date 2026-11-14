@@ -1,8 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { negate } from "./amount";
-import { applySignConvention, detectSignConvention } from "./sign-convention";
-import { parseStatement } from "./parse-statement";
+import { negate } from "./amount.js";
+import { applySignConvention, detectSignConvention } from "./sign-convention.js";
+import { parseStatement } from "./parse-statement.js";
 import {
   centsArbitrary,
   expectedFromModel,
@@ -12,8 +12,8 @@ import {
   statementModelArbitrary,
   withFlippedSignConvention,
   withPermutation,
-} from "./test-arbitraries";
-import type { MappedResult, ParseResult, SignConventionInfo } from "./types";
+} from "./test-arbitraries.js";
+import type { MappedResult, ParseResult, SignConventionInfo } from "./types.js";
 
 // P8 and P18 are checked twice: on the detector alone (first describe) and through parseStatement
 // against the statement model (second describe).

@@ -11,8 +11,8 @@ import {
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
   normalizeHeader,
-} from "./header-names";
-import type { DateFormat, ParseOptions, Transaction } from "./types";
+} from "./header-names.js";
+import type { CurrencyInfo, DateFormat, ParseOptions, Transaction } from "./types.js";
 
 /**
  * The largest amount in cents the parser accepts (Req 5.11, written 999_999_9900 there).
@@ -121,18 +121,19 @@ export function formatEu(cents: number, withThousands: boolean): string {
   return formatAmount(cents, { ...PLAIN_US, decimal: ",", grouped: withThousands });
 }
 
-const CURRENCY_SYMBOLS = ["", "", "$", "£", "€", "¥"] as const;
+const CURRENCY_SYMBOLS: readonly string[] = ["", "", "$", "£", "€", "¥"];
 const PADDINGS = ["", "", " ", "\t", "\u00a0", "\u2003", "\n"] as const;
 
 /** A random but valid way of writing an amount, for decorated round-trip tests. */
 export function amountFormatArbitrary(
   decimal: "." | ",",
   allowTab = true,
+  symbols: readonly string[] = CURRENCY_SYMBOLS,
 ): fc.Arbitrary<AmountFormat> {
   return fc.record({
     decimal: fc.constant(decimal),
     grouped: fc.boolean(),
-    symbol: fc.constantFrom(...CURRENCY_SYMBOLS),
+    symbol: fc.constantFrom(...symbols),
     symbolAfter: fc.boolean(),
     negativeStyle: fc.constantFrom<NegativeStyle>("leading", "trailing", "parentheses", "inside"),
     padding: fc.constantFrom(...PADDINGS.filter((padding) => allowTab || padding !== "\t")),
@@ -487,6 +488,8 @@ export interface StatementModel {
   blanksBefore: BlankKind[][];
   /** True when no free text in the model contains a delimiter character */
   delimiterFreeText: boolean;
+  /** Which currency symbols the amount cells carry */
+  symbolStyle: SymbolStyle;
 }
 
 const DATE_DEFECTS = [
@@ -511,14 +514,38 @@ function defectText(row: ModelRow, texts: readonly string[]): string {
   return texts[row.defectIndex % texts.length] ?? "";
 }
 
-function zeroLiterals(decimal: "." | ","): string[] {
+/** Ways to write a zero amount; the ones with a symbol only use symbols the statement already uses. */
+function zeroLiterals(decimal: "." | ",", symbols: readonly string[]): string[] {
   const d = decimal;
-  return [`0${d}00`, `-0${d}00`, `(0${d}00)`, "0", `0${d}0`, `$0${d}00`];
+  return [
+    `0${d}00`,
+    `-0${d}00`,
+    `(0${d}00)`,
+    "0",
+    `0${d}0`,
+    ...symbols.filter((symbol) => symbol !== "").map((symbol) => `${symbol}0${d}00`),
+  ];
 }
 
-function nonPopulatedCells(decimal: "." | ",", allowTab: boolean): string[] {
-  return ["", "", "   ", ...(allowTab ? ["\t"] : []), "\u00a0", ...zeroLiterals(decimal)];
+function nonPopulatedCells(
+  decimal: "." | ",",
+  allowTab: boolean,
+  symbols: readonly string[],
+): string[] {
+  return ["", "", "   ", ...(allowTab ? ["\t"] : []), "\u00a0", ...zeroLiterals(decimal, symbols)];
 }
+
+/** Which currency symbols the amount cells of a statement may carry. */
+export type SymbolStyle = "none" | "pound" | "euro" | "dollar" | "yen" | "mixed";
+
+const SYMBOLS_OF_STYLE: Record<SymbolStyle, readonly string[]> = {
+  none: [""],
+  pound: ["", "£"],
+  euro: ["", "€"],
+  dollar: ["", "$"],
+  yen: ["", "¥"],
+  mixed: CURRENCY_SYMBOLS,
+};
 
 const BASE_TEXT_CHARACTERS = [
   ..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
@@ -615,6 +642,7 @@ interface RowContext {
   defects: boolean;
   /** Tab characters in padding and blank cells; off for files that are not tab-separated */
   allowTab: boolean;
+  symbols: readonly string[];
 }
 
 function modelRowArbitrary(context: RowContext): fc.Arbitrary<ModelRow> {
@@ -636,10 +664,12 @@ function modelRowArbitrary(context: RowContext): fc.Arbitrary<ModelRow> {
       description: descriptionArbitrary(context.characters),
       cents: magnitudeArbitrary,
       direction: fc.constantFrom<Direction>("out", "in"),
-      amountFormat: amountFormatArbitrary(context.decimal, context.allowTab),
+      amountFormat: amountFormatArbitrary(context.decimal, context.allowTab, context.symbols),
       negativeSpelling: fc.boolean(),
-      otherCell: fc.constantFrom(...nonPopulatedCells(context.decimal, context.allowTab)),
-      zeroText: fc.constantFrom(...zeroLiterals(context.decimal)),
+      otherCell: fc.constantFrom(
+        ...nonPopulatedCells(context.decimal, context.allowTab, context.symbols),
+      ),
+      zeroText: fc.constantFrom(...zeroLiterals(context.decimal, context.symbols)),
       currencyCell: context.hasCurrencyColumn
         ? currencyCellArbitrary(context.allowTab)
         : fc.constant(""),
@@ -679,6 +709,12 @@ export interface StatementModelOptions {
   minRows?: number;
   /** Fix the date format instead of choosing one. */
   dateFormat?: DateFormat;
+  /** Fix whether `options.currency` is passed: "set" always, "none" never. Default: either. */
+  currencyOption?: "set" | "none";
+  /** Fix whether the statement has a currency column. Default: either. */
+  currencyColumn?: boolean;
+  /** Fix the currency symbols in the amount cells. Default: any style. */
+  symbolStyle?: SymbolStyle;
   /**
    * For dd/mm/yyyy and mm/dd/yyyy: make the last row the only one with a day above 12, so the
    * format cannot be settled from the early rows (Req 3.1).
@@ -737,8 +773,17 @@ export function statementModelArbitrary(
       signMode: options.signMode
         ? fc.constant(options.signMode)
         : fc.constantFrom<SignMode>("majority", "explicit"),
-      optionCurrency: fc.oneof(fc.constant<string | null>(null), currencyCodeArbitrary),
-      hasCurrencyColumn: fc.boolean(),
+      optionCurrency:
+        options.currencyOption === "set"
+          ? currencyCodeArbitrary
+          : options.currencyOption === "none"
+            ? fc.constant<string | null>(null)
+            : fc.oneof(fc.constant<string | null>(null), currencyCodeArbitrary),
+      hasCurrencyColumn:
+        options.currencyColumn === undefined ? fc.boolean() : fc.constant(options.currencyColumn),
+      symbolStyle: options.symbolStyle
+        ? fc.constant(options.symbolStyle)
+        : fc.constantFrom<SymbolStyle>("none", "pound", "euro", "dollar", "yen", "mixed"),
       delimiter: fc.constantFrom<ModelDelimiter>(",", ";", "\t"),
       newline: fc.constantFrom<"\n" | "\r\n">("\n", "\r\n"),
       bom: fc.boolean(),
@@ -785,6 +830,7 @@ export function statementModelArbitrary(
         characters,
         defects,
         allowTab: context.delimiter === "\t" && !noTabs,
+        symbols: SYMBOLS_OF_STYLE[context.symbolStyle],
       };
       const headerSpellings = fc.tuple(
         ...rolesOfLayout.map((role) =>
@@ -889,6 +935,7 @@ export function statementModelArbitrary(
                   rows,
                   blanksBefore: Array.from({ length: rows.length + 1 }, () => []),
                   delimiterFreeText: !delimiterInText,
+                  symbolStyle: context.symbolStyle,
                 };
               });
           },
@@ -1068,6 +1115,68 @@ export interface ModelExpectation {
 }
 
 /**
+ * The currency symbols in the amount cells that the parser can read as amounts. Cells that are
+ * deliberately malformed, or blank, are left out, because they are not shaped like amounts.
+ */
+export function statementAmountSymbols(model: StatementModel): Set<string> {
+  const symbols = new Set<string>();
+  const addFrom = (text: string): void => {
+    for (const match of text.matchAll(/\p{Sc}/gu)) {
+      symbols.add(match[0]);
+    }
+  };
+  for (const row of model.rows) {
+    if (model.layout === "signed-amount") {
+      if (row.defect !== "amount-garbage") {
+        addFrom(formatAmount(rawSignedCents(row, model.signConvention), row.amountFormat));
+      }
+      continue;
+    }
+    const { debit, credit } = debitCreditCells(row);
+    if (row.defect === "amount-neither") {
+      continue;
+    }
+    // A garbage cell is the populated one; the other cell is still an amount or a blank.
+    const garbage =
+      row.defect === "amount-garbage" ? (row.direction === "out" ? "debit" : "credit") : null;
+    if (garbage !== "debit") {
+      addFrom(debit);
+    }
+    if (garbage !== "credit") {
+      addFrom(credit);
+    }
+  }
+  return symbols;
+}
+
+/** The `detectedCurrency` the parser must report for the model (Req 10.7-10.9). */
+export function statementCurrencyOf(model: StatementModel): CurrencyInfo {
+  if (model.optionCurrency !== null) {
+    return { code: model.optionCurrency.toUpperCase(), source: "option" };
+  }
+  if (model.hasCurrencyColumn) {
+    const codes = new Set<string>();
+    for (const row of model.rows) {
+      const cell = row.defect === "currency" ? defectText(row, CURRENCY_DEFECTS) : row.currencyCell;
+      if (/^[A-Za-z]{3}$/.test(cell.trim())) {
+        codes.add(cell.trim().toUpperCase());
+      }
+    }
+    const [only] = codes;
+    return { code: codes.size === 1 && only !== undefined ? only : "USD", source: "column" };
+  }
+  const symbols = statementAmountSymbols(model);
+  const [only] = symbols;
+  if (symbols.size === 1 && only === "£") {
+    return { code: "GBP", source: "symbol" };
+  }
+  if (symbols.size === 1 && only === "€") {
+    return { code: "EUR", source: "symbol" };
+  }
+  return { code: "USD", source: "default" };
+}
+
+/**
  * What the parser must return for the model. For the signed layout the stored sign depends on
  * the convention the parser used, which defaults to the model's own.
  */
@@ -1075,7 +1184,7 @@ export function expectedFromModel(
   model: StatementModel,
   convention: "positive-out" | "negative-out" = model.signConvention,
 ): ModelExpectation {
-  const fallback = model.optionCurrency === null ? "USD" : model.optionCurrency.toUpperCase();
+  const fallback = statementCurrencyOf(model).code;
   const transactions: Transaction[] = [];
   const rowErrorOrdinals: number[] = [];
   model.rows.forEach((row, index) => {

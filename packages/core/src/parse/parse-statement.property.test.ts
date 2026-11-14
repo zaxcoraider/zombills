@@ -1,14 +1,15 @@
 import fc from "fast-check";
 import Papa from "papaparse";
 import { describe, expect, it } from "vitest";
-import { isBlankRow } from "./blank-row";
-import { detectHeaderRow } from "./header-detect";
-import { parseStatement } from "./parse-statement";
+import { isBlankRow } from "./blank-row.js";
+import { detectHeaderRow } from "./header-detect.js";
+import { parseStatement } from "./parse-statement.js";
 import {
   currencyCodeArbitrary,
   expectedFromModel,
   parseOptionsOf,
   renderStatement,
+  statementCurrencyOf,
   statementModelArbitrary,
   withBlankRows,
   withBom,
@@ -17,9 +18,9 @@ import {
   type BlankKind,
   type ModelDelimiter,
   type StatementModel,
-} from "./test-arbitraries";
-import { stripBom, tokenize } from "./tokenize";
-import type { ColumnMap, MappedResult, ParseOptions, ParseResult } from "./types";
+} from "./test-arbitraries.js";
+import { stripBom, tokenize } from "./tokenize.js";
+import type { ColumnMap, MappedResult, ParseOptions, ParseResult } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Generators for arbitrary input
@@ -194,6 +195,7 @@ describe("parseStatement properties: row counts (P1)", () => {
         expect(result.transactions.length + result.rowErrors.length).toBe(expected.dataRowCount);
         expect(result.transactions).toEqual(expected.transactions);
         expect(ordinals(result)).toEqual(expected.rowErrorOrdinals);
+        expect(result.detectedCurrency).toEqual(statementCurrencyOf(model));
       }),
       { numRuns: 400 },
     );

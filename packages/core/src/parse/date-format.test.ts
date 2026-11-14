@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { daysInMonth, detectDateFormat, isLeapYear, parseDate } from "./date-format";
-import { ParseError } from "./parse-error";
-import type { DateFormat } from "./types";
+import { daysInMonth, detectDateFormat, isLeapYear, parseDate } from "./date-format.js";
+import { ParseError } from "./parse-error.js";
+import type { DateFormat } from "./types.js";
 
 function expectDateError(raw: string, format: DateFormat): ParseError {
   try {

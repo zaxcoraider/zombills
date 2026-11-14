@@ -8,13 +8,14 @@ import {
   parseOptionsOf,
   renderStatement,
   statementMatrix,
+  statementCurrencyOf,
   statementModelArbitrary,
   withBlankRows,
   withCanonicalHeaders,
   withFlippedSignConvention,
   type StatementModel,
-} from "./test-arbitraries";
-import { isBlankRow, stripBom, tokenize } from "./tokenize";
+} from "./test-arbitraries.js";
+import { isBlankRow, stripBom, tokenize } from "./tokenize.js";
 
 function expectSameRows(actual: string[][], intended: string[][]): void {
   expect(actual).toHaveLength(intended.length);
@@ -194,6 +195,48 @@ describe("statement model: coverage of the generator", () => {
     expect(samples.some((s) => s.rows.length === 0)).toBe(true);
     expect(samples.some((s) => s.rows.some((r) => r.cents === 0))).toBe(true);
     expect(samples.some((s) => s.rows.some((r) => r.ragged))).toBe(true);
+  });
+
+  it("produces every way of deciding the currency, and GBP and EUR from symbols", () => {
+    const decided = samples.map(statementCurrencyOf);
+    expect(new Set(decided.map((info) => info.source))).toEqual(
+      new Set(["option", "column", "symbol", "default"]),
+    );
+    const symbolCodes = new Set(
+      decided.filter((info) => info.source === "symbol").map((info) => info.code),
+    );
+    expect(symbolCodes).toEqual(new Set(["GBP", "EUR"]));
+    expect(new Set(samples.map((s) => s.symbolStyle)).size).toBe(6);
+  });
+
+  it("works out the currency from the model's own cells, in the cases it is built for", () => {
+    const base = fc.sample(
+      statementModelArbitrary({
+        layout: "signed-amount",
+        currencyOption: "none",
+        currencyColumn: false,
+        symbolStyle: "pound",
+        defects: false,
+        minRows: 2,
+      }),
+      40,
+    );
+    const carrying = base.filter((m) => m.rows.some((r) => r.amountFormat.symbol === "£"));
+    expect(carrying.length).toBeGreaterThan(0);
+    for (const model of carrying) {
+      expect(statementCurrencyOf(model)).toEqual({ code: "GBP", source: "symbol" });
+    }
+    const dollar = fc.sample(
+      statementModelArbitrary({
+        currencyOption: "none",
+        currencyColumn: false,
+        symbolStyle: "dollar",
+      }),
+      40,
+    );
+    for (const model of dollar) {
+      expect(statementCurrencyOf(model)).toEqual({ code: "USD", source: "default" });
+    }
   });
 
   it("produces extra columns that must be ignored", () => {

@@ -1,14 +1,14 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { tryParseAmount } from "./amount";
-import { combineDebitCredit } from "./debit-credit";
-import { ParseError } from "./parse-error";
+import { tryParseAmount } from "./amount.js";
+import { combineDebitCredit } from "./debit-credit.js";
+import { ParseError } from "./parse-error.js";
 import {
   AMOUNT_RANGE_CENTS,
   amountFormatArbitrary,
   decimalSeparatorArbitrary,
   formatAmount,
-} from "./test-arbitraries";
+} from "./test-arbitraries.js";
 
 /** Any non-zero amount in the supported range. */
 const nonZeroCents: fc.Arbitrary<number> = fc.oneof(

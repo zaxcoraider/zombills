@@ -1,4 +1,12 @@
-import { ParseError } from "./parse-error";
+import { extractCurrencySymbol } from "./amount.js";
+import { ParseError } from "./parse-error.js";
+import type { CurrencyInfo } from "./types.js";
+
+/** The currency when nothing else says otherwise (Req 10.2, 10.9). */
+export const DEFAULT_CURRENCY = "USD";
+
+const POUND_SIGN = "\u00a3";
+const EURO_SIGN = "\u20ac";
 
 const CURRENCY_CODE = /^[A-Za-z]{3}$/;
 
@@ -42,4 +50,66 @@ export function resolveRowCurrency(cell: string | undefined, fallback: string): 
     );
   }
   return normalizeCurrency(trimmed);
+}
+
+/**
+ * Reads the statement currency off the currency symbols in the amount cells (Req 10.9).
+ *
+ * Only a pound sign or a euro sign names a currency. The dollar sign and the yen sign are shared
+ * by several currencies, so they, any other symbol, a mix of symbols and no symbol at all give
+ * null. Cells without a symbol and cells that are not shaped like amounts do not count against.
+ */
+export function inferCurrencyFromSymbols(amountCells: readonly string[]): "GBP" | "EUR" | null {
+  let found: string | null = null;
+  for (const cell of amountCells) {
+    const symbol = extractCurrencySymbol(cell);
+    if (symbol === null) {
+      continue;
+    }
+    if (found !== null && found !== symbol) {
+      return null;
+    }
+    found = symbol;
+  }
+  if (found === POUND_SIGN) {
+    return "GBP";
+  }
+  return found === EURO_SIGN ? "EUR" : null;
+}
+
+/**
+ * Decides the one currency that rows without a currency of their own get (Req 10.1, 10.2, 10.5,
+ * 10.7-10.10). The first rule that applies wins, so neither the column nor the symbols can ever
+ * override an explicit option, and the symbols are only read when there is no column.
+ *
+ * @param option the normalised `options.currency`, or null
+ * @param currencyCells the currency column's cell in every data row, or null when there is no such column
+ * @param amountCells the amount column's cells, or the debit and credit columns' cells, of every data row
+ */
+export function decideStatementCurrency(input: {
+  option: string | null;
+  currencyCells: readonly string[] | null;
+  amountCells: readonly string[];
+}): CurrencyInfo {
+  if (input.option !== null) {
+    return { code: input.option, source: "option" };
+  }
+  if (input.currencyCells !== null) {
+    const codes = new Set<string>();
+    for (const cell of input.currencyCells) {
+      const trimmed = cell.trim();
+      if (isCurrencyCode(trimmed)) {
+        codes.add(normalizeCurrency(trimmed));
+      }
+    }
+    const [only] = codes;
+    return {
+      code: codes.size === 1 && only !== undefined ? only : DEFAULT_CURRENCY,
+      source: "column",
+    };
+  }
+  const inferred = inferCurrencyFromSymbols(input.amountCells);
+  return inferred === null
+    ? { code: DEFAULT_CURRENCY, source: "default" }
+    : { code: inferred, source: "symbol" };
 }

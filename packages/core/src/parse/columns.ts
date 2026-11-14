@@ -6,9 +6,9 @@ import {
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
   isHeaderIn,
-} from "./header-names";
-import type { ResolvedColumns } from "./internal-types";
-import type { ColumnMap, ColumnMapValidationError, ColumnRole } from "./types";
+} from "./header-names.js";
+import type { ResolvedColumns } from "./internal-types.js";
+import type { ColumnMap, ColumnMapValidationError, ColumnRole } from "./types.js";
 
 /** Index of the leftmost header cell that is one of `names` once normalized, or null. */
 function leftmostMatch(header: readonly string[], names: readonly string[]): number | null {

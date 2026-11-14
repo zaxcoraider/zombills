@@ -1,14 +1,14 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { detectHeaderRow, firstNonBlankRow, HEADER_SEARCH_LIMIT } from "./header-detect";
+import { detectHeaderRow, firstNonBlankRow, HEADER_SEARCH_LIMIT } from "./header-detect.js";
 import {
   AMOUNT_HEADERS,
   CREDIT_HEADERS,
   DATE_HEADERS,
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
-} from "./header-names";
-import { parseStatement } from "./parse-statement";
+} from "./header-names.js";
+import { parseStatement } from "./parse-statement.js";
 import {
   headerSpellingArbitrary,
   parseOptionsOf,
@@ -16,7 +16,7 @@ import {
   statementModelArbitrary,
   unrecognisedHeaderCellArbitrary,
   withPreamble,
-} from "./test-arbitraries";
+} from "./test-arbitraries.js";
 
 const RECOGNISED_NAMES = [
   ...DATE_HEADERS,

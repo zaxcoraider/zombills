@@ -1,11 +1,11 @@
-import { combineDebitCredit } from "./debit-credit";
-import { parseDate } from "./date-format";
-import { resolveRowCurrency } from "./currency";
-import type { AmountOutcome, DataRow, Delimiter, ResolvedColumns } from "./internal-types";
-import { ParseError } from "./parse-error";
-import { applySignConvention } from "./sign-convention";
-import { serializeRow } from "./tokenize";
-import type { DateFormat, RowError, SignConvention, Transaction } from "./types";
+import { combineDebitCredit } from "./debit-credit.js";
+import { parseDate } from "./date-format.js";
+import { resolveRowCurrency } from "./currency.js";
+import type { AmountOutcome, DataRow, Delimiter, ResolvedColumns } from "./internal-types.js";
+import { ParseError } from "./parse-error.js";
+import { applySignConvention } from "./sign-convention.js";
+import { serializeRow } from "./tokenize.js";
+import type { DateFormat, RowError, SignConvention, Transaction } from "./types.js";
 
 export interface BuildRowsInput {
   dataRows: readonly DataRow[];

@@ -1,10 +1,12 @@
 // Public API of the statement parser.
 
-export { parseStatement } from "./parse-statement";
+export { parseStatement } from "./parse-statement.js";
 export type {
   ColumnMap,
   ColumnMapValidationError,
   ColumnRole,
+  CurrencyInfo,
+  CurrencySource,
   DateFormat,
   DateFormatInfo,
   ErrorResult,
@@ -16,4 +18,4 @@ export type {
   SignConvention,
   SignConventionInfo,
   Transaction,
-} from "./types";
+} from "./types.js";

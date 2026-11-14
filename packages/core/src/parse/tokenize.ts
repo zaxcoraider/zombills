@@ -1,7 +1,7 @@
 import Papa from "papaparse";
-import { isBlankRow } from "./blank-row";
-import { detectHeaderRow } from "./header-detect";
-import type { Delimiter, ParsedTable } from "./internal-types";
+import { isBlankRow } from "./blank-row.js";
+import { detectHeaderRow } from "./header-detect.js";
+import type { Delimiter, ParsedTable } from "./internal-types.js";
 
 const BYTE_ORDER_MARK = "\uFEFF";
 

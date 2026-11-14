@@ -1,0 +1,592 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseStatement: the sample statements end to end > eu-semicolon.csv: semicolons, a byte order mark, dd.mm.yyyy, comma decimals, a currency column 1`] = `
+{
+  "detectedCurrency": {
+    "code": "EUR",
+    "source": "column",
+  },
+  "detectedDateFormat": {
+    "assumed": false,
+    "format": "dd.mm.yyyy",
+  },
+  "detectedSignConvention": {
+    "assumed": false,
+    "convention": "negative-out",
+  },
+  "rowErrors": [],
+  "status": "mapped",
+  "transactions": [
+    {
+      "amountCents": -123456,
+      "currency": "EUR",
+      "date": "2026-01-02",
+      "description": "GEHALT BEISPIEL GMBH",
+    },
+    {
+      "amountCents": 1299,
+      "currency": "EUR",
+      "date": "2026-01-03",
+      "description": "STREAMING DIENST MONATSBEITRAG",
+    },
+    {
+      "amountCents": 5430,
+      "currency": "EUR",
+      "date": "2026-01-05",
+      "description": "SUPERMARKT NORD 0412",
+    },
+    {
+      "amountCents": 999,
+      "currency": "EUR",
+      "date": "2026-01-09",
+      "description": "MUSIKDIENST PREMIUM",
+    },
+    {
+      "amountCents": 2490,
+      "currency": "EUR",
+      "date": "2026-01-12",
+      "description": "FITNESSSTUDIO LINDENHOF",
+    },
+    {
+      "amountCents": 4875,
+      "currency": "EUR",
+      "date": "2026-01-16",
+      "description": "TANKSTELLE AM RING",
+    },
+    {
+      "amountCents": -123456,
+      "currency": "EUR",
+      "date": "2026-01-28",
+      "description": "GEHALT BEISPIEL GMBH",
+    },
+    {
+      "amountCents": 1299,
+      "currency": "EUR",
+      "date": "2026-02-02",
+      "description": "STREAMING DIENST MONATSBEITRAG",
+    },
+    {
+      "amountCents": 6118,
+      "currency": "EUR",
+      "date": "2026-02-04",
+      "description": "SUPERMARKT NORD 0412",
+    },
+    {
+      "amountCents": 999,
+      "currency": "EUR",
+      "date": "2026-02-09",
+      "description": "MUSIKDIENST PREMIUM",
+    },
+    {
+      "amountCents": 2490,
+      "currency": "EUR",
+      "date": "2026-02-12",
+      "description": "FITNESSSTUDIO LINDENHOF",
+    },
+    {
+      "amountCents": -1950,
+      "currency": "EUR",
+      "date": "2026-02-18",
+      "description": "ONLINE SHOP RUECKERSTATTUNG",
+    },
+    {
+      "amountCents": -123456,
+      "currency": "EUR",
+      "date": "2026-02-27",
+      "description": "GEHALT BEISPIEL GMBH",
+    },
+    {
+      "amountCents": 1499,
+      "currency": "EUR",
+      "date": "2026-03-02",
+      "description": "STREAMING DIENST MONATSBEITRAG",
+    },
+    {
+      "amountCents": 999,
+      "currency": "EUR",
+      "date": "2026-03-09",
+      "description": "MUSIKDIENST PREMIUM",
+    },
+    {
+      "amountCents": 2490,
+      "currency": "EUR",
+      "date": "2026-03-12",
+      "description": "FITNESSSTUDIO LINDENHOF",
+    },
+    {
+      "amountCents": 4782,
+      "currency": "EUR",
+      "date": "2026-03-14",
+      "description": "SUPERMARKT NORD 0412",
+    },
+    {
+      "amountCents": 5210,
+      "currency": "EUR",
+      "date": "2026-03-20",
+      "description": "TANKSTELLE AM RING",
+    },
+    {
+      "amountCents": -123456,
+      "currency": "EUR",
+      "date": "2026-03-27",
+      "description": "GEHALT BEISPIEL GMBH",
+    },
+  ],
+}
+`;
+
+exports[`parseStatement: the sample statements end to end > uk-debit-credit.csv: separate debit and credit columns, dd/mm/yyyy decided by a later row, pounds 1`] = `
+{
+  "detectedCurrency": {
+    "code": "GBP",
+    "source": "symbol",
+  },
+  "detectedDateFormat": {
+    "assumed": false,
+    "format": "dd/mm/yyyy",
+  },
+  "detectedSignConvention": null,
+  "rowErrors": [],
+  "status": "mapped",
+  "transactions": [
+    {
+      "amountCents": 3864,
+      "currency": "GBP",
+      "date": "2026-01-02",
+      "description": "HIGHFIELD STORES 3214 LONDON",
+    },
+    {
+      "amountCents": 1099,
+      "currency": "GBP",
+      "date": "2026-01-02",
+      "description": "NETFLIX.COM",
+    },
+    {
+      "amountCents": 1199,
+      "currency": "GBP",
+      "date": "2026-01-05",
+      "description": "SPOTIFY P1A2B3C4D",
+    },
+    {
+      "amountCents": -210000,
+      "currency": "GBP",
+      "date": "2026-01-06",
+      "description": "SALARY BRIGHTON LTD",
+    },
+    {
+      "amountCents": 670,
+      "currency": "GBP",
+      "date": "2026-01-08",
+      "description": "CITY TRAVEL CARD",
+    },
+    {
+      "amountCents": 899,
+      "currency": "GBP",
+      "date": "2026-01-09",
+      "description": "PRIMEVIDEO MEMBERSHIP",
+    },
+    {
+      "amountCents": 2499,
+      "currency": "GBP",
+      "date": "2026-01-10",
+      "description": "FITZONE GYM LTD",
+    },
+    {
+      "amountCents": 5210,
+      "currency": "GBP",
+      "date": "2026-01-12",
+      "description": "MARKET SQUARE FOODS",
+    },
+    {
+      "amountCents": 799,
+      "currency": "GBP",
+      "date": "2026-01-15",
+      "description": "DISNEYPLUS SUBSCRIPTION",
+    },
+    {
+      "amountCents": -210000,
+      "currency": "GBP",
+      "date": "2026-01-27",
+      "description": "SALARY BRIGHTON LTD",
+    },
+    {
+      "amountCents": 1099,
+      "currency": "GBP",
+      "date": "2026-02-02",
+      "description": "NETFLIX.COM",
+    },
+    {
+      "amountCents": 1199,
+      "currency": "GBP",
+      "date": "2026-02-05",
+      "description": "SPOTIFY P1A2B3C4D",
+    },
+    {
+      "amountCents": -210000,
+      "currency": "GBP",
+      "date": "2026-02-06",
+      "description": "SALARY BRIGHTON LTD",
+    },
+    {
+      "amountCents": 899,
+      "currency": "GBP",
+      "date": "2026-02-09",
+      "description": "PRIMEVIDEO MEMBERSHIP",
+    },
+    {
+      "amountCents": 2499,
+      "currency": "GBP",
+      "date": "2026-02-10",
+      "description": "FITZONE GYM LTD",
+    },
+    {
+      "amountCents": -1950,
+      "currency": "GBP",
+      "date": "2026-02-11",
+      "description": "ONLINE SHOP REFUND REF 8841",
+    },
+    {
+      "amountCents": 799,
+      "currency": "GBP",
+      "date": "2026-02-15",
+      "description": "DISNEYPLUS SUBSCRIPTION",
+    },
+    {
+      "amountCents": 4127,
+      "currency": "GBP",
+      "date": "2026-02-19",
+      "description": "HIGHFIELD STORES 3214 LONDON",
+    },
+    {
+      "amountCents": 1299,
+      "currency": "GBP",
+      "date": "2026-03-02",
+      "description": "NETFLIX.COM",
+    },
+    {
+      "amountCents": 1199,
+      "currency": "GBP",
+      "date": "2026-03-05",
+      "description": "SPOTIFY P1A2B3C4D",
+    },
+    {
+      "amountCents": -210000,
+      "currency": "GBP",
+      "date": "2026-03-06",
+      "description": "SALARY BRIGHTON LTD",
+    },
+    {
+      "amountCents": 899,
+      "currency": "GBP",
+      "date": "2026-03-09",
+      "description": "PRIMEVIDEO MEMBERSHIP",
+    },
+    {
+      "amountCents": 2499,
+      "currency": "GBP",
+      "date": "2026-03-10",
+      "description": "FITZONE GYM LTD",
+    },
+    {
+      "amountCents": 799,
+      "currency": "GBP",
+      "date": "2026-03-15",
+      "description": "DISNEYPLUS SUBSCRIPTION",
+    },
+    {
+      "amountCents": 6345,
+      "currency": "GBP",
+      "date": "2026-03-21",
+      "description": "MARKET SQUARE FOODS",
+    },
+  ],
+}
+`;
+
+exports[`parseStatement: the sample statements end to end > us-signed.csv: a signed amount column, mm/dd/yyyy, dollars 1`] = `
+{
+  "detectedCurrency": {
+    "code": "USD",
+    "source": "default",
+  },
+  "detectedDateFormat": {
+    "assumed": false,
+    "format": "mm/dd/yyyy",
+  },
+  "detectedSignConvention": {
+    "assumed": false,
+    "convention": "negative-out",
+  },
+  "rowErrors": [],
+  "status": "mapped",
+  "transactions": [
+    {
+      "amountCents": 1549,
+      "currency": "USD",
+      "date": "2026-01-02",
+      "description": "NETFLIX.COM 866-579-7172 CA",
+    },
+    {
+      "amountCents": 1099,
+      "currency": "USD",
+      "date": "2026-01-03",
+      "description": "SPOTIFY USA NEW YORK NY",
+    },
+    {
+      "amountCents": 8732,
+      "currency": "USD",
+      "date": "2026-01-05",
+      "description": "GREENLEAF MARKET #10234 AUSTIN TX",
+    },
+    {
+      "amountCents": -125000,
+      "currency": "USD",
+      "date": "2026-01-07",
+      "description": "PAYROLL ACME CORP DIRECT DEP",
+    },
+    {
+      "amountCents": 4218,
+      "currency": "USD",
+      "date": "2026-01-09",
+      "description": "LONE STAR FUEL 57444 AUSTIN TX",
+    },
+    {
+      "amountCents": 5499,
+      "currency": "USD",
+      "date": "2026-01-12",
+      "description": "ADOBE *CREATIVE CLOUD 408-536-6000",
+    },
+    {
+      "amountCents": 1375,
+      "currency": "USD",
+      "date": "2026-01-15",
+      "description": "TACO PLANET 1842 AUSTIN TX",
+    },
+    {
+      "amountCents": 2900,
+      "currency": "USD",
+      "date": "2026-01-21",
+      "description": "RIVERSIDE GYM MEMBERSHIP",
+    },
+    {
+      "amountCents": -125000,
+      "currency": "USD",
+      "date": "2026-01-28",
+      "description": "PAYROLL ACME CORP DIRECT DEP",
+    },
+    {
+      "amountCents": 1549,
+      "currency": "USD",
+      "date": "2026-02-02",
+      "description": "NETFLIX.COM 866-579-7172 CA",
+    },
+    {
+      "amountCents": 1099,
+      "currency": "USD",
+      "date": "2026-02-03",
+      "description": "SPOTIFY USA NEW YORK NY",
+    },
+    {
+      "amountCents": 6420,
+      "currency": "USD",
+      "date": "2026-02-06",
+      "description": "HARVEST FOODS #552 AUSTIN TX",
+    },
+    {
+      "amountCents": -125000,
+      "currency": "USD",
+      "date": "2026-02-11",
+      "description": "PAYROLL ACME CORP DIRECT DEP",
+    },
+    {
+      "amountCents": 5499,
+      "currency": "USD",
+      "date": "2026-02-12",
+      "description": "ADOBE *CREATIVE CLOUD 408-536-6000",
+    },
+    {
+      "amountCents": 2347,
+      "currency": "USD",
+      "date": "2026-02-14",
+      "description": "ONLINE MARKETPLACE ORDER 2K4LL9",
+    },
+    {
+      "amountCents": -2347,
+      "currency": "USD",
+      "date": "2026-02-17",
+      "description": "ONLINE MARKETPLACE REFUND 2K4LL9",
+    },
+    {
+      "amountCents": 2900,
+      "currency": "USD",
+      "date": "2026-02-21",
+      "description": "RIVERSIDE GYM MEMBERSHIP",
+    },
+    {
+      "amountCents": -125000,
+      "currency": "USD",
+      "date": "2026-02-25",
+      "description": "PAYROLL ACME CORP DIRECT DEP",
+    },
+    {
+      "amountCents": 1799,
+      "currency": "USD",
+      "date": "2026-03-02",
+      "description": "NETFLIX.COM 866-579-7172 CA",
+    },
+    {
+      "amountCents": 1099,
+      "currency": "USD",
+      "date": "2026-03-03",
+      "description": "SPOTIFY USA NEW YORK NY",
+    },
+    {
+      "amountCents": 9105,
+      "currency": "USD",
+      "date": "2026-03-09",
+      "description": "GREENLEAF MARKET #10234 AUSTIN TX",
+    },
+    {
+      "amountCents": -125000,
+      "currency": "USD",
+      "date": "2026-03-11",
+      "description": "PAYROLL ACME CORP DIRECT DEP",
+    },
+    {
+      "amountCents": 5499,
+      "currency": "USD",
+      "date": "2026-03-12",
+      "description": "ADOBE *CREATIVE CLOUD 408-536-6000",
+    },
+    {
+      "amountCents": 3960,
+      "currency": "USD",
+      "date": "2026-03-16",
+      "description": "LONE STAR FUEL 57444 AUSTIN TX",
+    },
+    {
+      "amountCents": 2900,
+      "currency": "USD",
+      "date": "2026-03-21",
+      "description": "RIVERSIDE GYM MEMBERSHIP",
+    },
+    {
+      "amountCents": -125000,
+      "currency": "USD",
+      "date": "2026-03-25",
+      "description": "PAYROLL ACME CORP DIRECT DEP",
+    },
+  ],
+}
+`;
+
+exports[`parseStatement: the sample statements end to end > with-preamble.csv: account lines above the header and blank rows inside and after the data 1`] = `
+{
+  "detectedCurrency": {
+    "code": "USD",
+    "source": "default",
+  },
+  "detectedDateFormat": {
+    "assumed": false,
+    "format": "yyyy-mm-dd",
+  },
+  "detectedSignConvention": {
+    "assumed": false,
+    "convention": "negative-out",
+  },
+  "rowErrors": [],
+  "status": "mapped",
+  "transactions": [
+    {
+      "amountCents": 1199,
+      "currency": "USD",
+      "date": "2026-01-03",
+      "description": "STREAMLY VIDEO MONTHLY",
+    },
+    {
+      "amountCents": 3460,
+      "currency": "USD",
+      "date": "2026-01-05",
+      "description": "CORNER GROCERY 118",
+    },
+    {
+      "amountCents": 299,
+      "currency": "USD",
+      "date": "2026-01-09",
+      "description": "CLOUDVAULT STORAGE 200GB",
+    },
+    {
+      "amountCents": -180000,
+      "currency": "USD",
+      "date": "2026-01-15",
+      "description": "PAYROLL EXAMPLE INC",
+    },
+    {
+      "amountCents": 3500,
+      "currency": "USD",
+      "date": "2026-01-20",
+      "description": "FIT HOUSE MEMBERSHIP",
+    },
+    {
+      "amountCents": 1199,
+      "currency": "USD",
+      "date": "2026-02-03",
+      "description": "STREAMLY VIDEO MONTHLY",
+    },
+    {
+      "amountCents": 2945,
+      "currency": "USD",
+      "date": "2026-02-06",
+      "description": "CORNER GROCERY 118",
+    },
+    {
+      "amountCents": 299,
+      "currency": "USD",
+      "date": "2026-02-09",
+      "description": "CLOUDVAULT STORAGE 200GB",
+    },
+    {
+      "amountCents": -180000,
+      "currency": "USD",
+      "date": "2026-02-15",
+      "description": "PAYROLL EXAMPLE INC",
+    },
+    {
+      "amountCents": 3500,
+      "currency": "USD",
+      "date": "2026-02-20",
+      "description": "FIT HOUSE MEMBERSHIP",
+    },
+    {
+      "amountCents": 1399,
+      "currency": "USD",
+      "date": "2026-03-03",
+      "description": "STREAMLY VIDEO MONTHLY",
+    },
+    {
+      "amountCents": 4112,
+      "currency": "USD",
+      "date": "2026-03-08",
+      "description": "CORNER GROCERY 118",
+    },
+    {
+      "amountCents": 299,
+      "currency": "USD",
+      "date": "2026-03-09",
+      "description": "CLOUDVAULT STORAGE 200GB",
+    },
+    {
+      "amountCents": -180000,
+      "currency": "USD",
+      "date": "2026-03-15",
+      "description": "PAYROLL EXAMPLE INC",
+    },
+    {
+      "amountCents": 3500,
+      "currency": "USD",
+      "date": "2026-03-20",
+      "description": "FIT HOUSE MEMBERSHIP",
+    },
+  ],
+}
+`;

@@ -67,6 +67,15 @@ export interface ParseOptions {
   signConvention?: SignConvention;
 }
 
+/** How the statement currency was decided (Req 10.7-10.9). */
+export type CurrencySource = "option" | "column" | "symbol" | "default";
+
+export interface CurrencyInfo {
+  /** Upper-case ISO 4217 alpha-3 code: the currency of every row without one of its own */
+  code: string;
+  source: CurrencySource;
+}
+
 export interface MappedResult {
   status: "mapped";
   transactions: Transaction[];
@@ -75,6 +84,8 @@ export interface MappedResult {
   detectedDateFormat: DateFormatInfo | null;
   /** null for the debit/credit layout, where no sign convention applies */
   detectedSignConvention: SignConventionInfo | null;
+  /** Always present: lets the UI say where the currency came from and offer an override */
+  detectedCurrency: CurrencyInfo;
 }
 
 export interface MappingRequiredResult {
