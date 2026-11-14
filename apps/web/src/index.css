@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens from .kiro/steering/spooky-design.md.
+ * These are the only colour literals in the app. Every other shade is a
+ * color-mix() or opacity of one of these seven.
+ */
+:root {
+  --night: #0b0d12;
+  --fog: #1a1f2b;
+  --bone: #ece6d6;
+  --moss: #8fd694;
+  --ember: #f2994a;
+  --spectre: #a99bf2;
+  --blood: #e05a5a;
+
+  color-scheme: dark;
+}
+
+/* Drop Tailwind's default palette so only the tokens above exist as colour utilities. */
+@theme {
+  --color-*: initial;
+}
+
+@theme inline {
+  --color-night: var(--night);
+  --color-fog: var(--fog);
+  --color-bone: var(--bone);
+  --color-moss: var(--moss);
+  --color-ember: var(--ember);
+  --color-spectre: var(--spectre);
+  --color-blood: var(--blood);
+
+  --font-display: "IM Fell English", Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--night);
+    color: var(--bone);
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Focus ring: --moss glow, 2px offset (spooky-design.md, Accessibility). */
+  :focus-visible {
+    outline: 2px solid var(--moss);
+    outline-offset: 2px;
+    box-shadow: 0 0 1rem 0.125rem color-mix(in oklab, var(--moss) 45%, transparent);
+  }
+
+  /* Elements that only receive programmatic focus (tabindex="-1") get no ring. */
+  [tabindex="-1"]:focus {
+    outline: none;
+    box-shadow: none;
+  }
+}
+
+@layer components {
+  /* Carved-into-stone text: dark lip above, moonlit lip below. */
+  .engraved {
+    text-shadow:
+      0 -1px 0 color-mix(in oklab, var(--night) 75%, transparent),
+      0 1px 0 color-mix(in oklab, var(--bone) 16%, transparent);
+  }
+}
