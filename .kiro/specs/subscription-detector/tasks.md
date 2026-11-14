@@ -20,7 +20,7 @@ Rules that apply to every task:
 
 ## Batch 1: foundations
 
-- [ ] 1. Public types, internal types, barrel and date arithmetic (`types.ts`, `internal-types.ts`, `index.ts`, `dates.ts`)
+- [x] 1. Public types, internal types, barrel and date arithmetic (`types.ts`, `internal-types.ts`, `index.ts`, `dates.ts`)
   - In `types.ts`, write `Cadence`, `SubscriptionStatus`, `Confidence`, `DetectOptions`, `PricePoint`, `StatementInfo`, `DetectionEvidence`, `Subscription`, `TransactionRole`, `TransactionUsage` and `DetectionResult` exactly as in design "Public types". Import `MerchantSource` and `NormalizedTransaction` from `../normalize/types.js` as types only, and do not re-export them.
   - In `internal-types.ts`, write `CivilDate`, `Entry`, `Group`, `Band`, `StepKind`, `Interval`, `Segment`, `Series`, `ComparisonCounter` and `Assigned` as in design "Internal types" and "Function signatures".
   - Create `index.ts` exporting the public types only, and add `export * from "./detect/index.js";` to `packages/core/src/index.ts`.
@@ -29,7 +29,7 @@ Rules that apply to every task:
   - Property test (`dates.property.test.ts`): **P15** (round trip over 0000–9999; consecutive dates differ by 1; `addMonths` equals a month-by-month reference; `1970-01-01` → 0, `2000-03-01` → 11017).
   - _Requirements: 1.1 (types), 1.2, 1.3, 1.4 (type), 1.5, 1.8 (types), 7.3, 9.1; glossary Day number, Months after_
 
-- [ ] 2. Validation and fixture builders (`validate.ts`, `test-fixtures.ts`)
+- [x] 2. Validation and fixture builders (`validate.ts`, `test-fixtures.ts`)
   - Write `validateElement(value, index)`: the seven checks of design "Validation" in that order, returning the first failure as a `reason` that names the field (e.g. `"date: not a real calendar date"`). Each field is read once into the `Entry` (without `rank`); the `merchant` object is copied field by field.
   - Write `test-fixtures.ts`: builders for hand-written rows, e.g. `charge("2026-01-15", 999, "merchant:gym")`, `credit(...)`, `zero(...)`, which fill a valid `description`, `currency` (default `USD`) and a `merchant` whose `source`, `serviceId` and `displayName` agree with the key (a key without `:` is `known`, `merchant:` is `generic`, `unidentified:` is `unidentified`).
   - Unit tests (`validate.test.ts`):
@@ -39,7 +39,7 @@ Rules that apply to every task:
     - every builder in `test-fixtures.ts` produces an element that passes.
   - _Requirements: 1.10, 1.12 (fields read once), 1.13 (no throw on plain data), 2.1_
 
-- [ ] 3. Content order and cadence constants (`content-order.ts`, `cadence-rules.ts`)
+- [x] 3. Content order and cadence constants (`content-order.ts`, `cadence-rules.ts`)
   - Write `compareContent` with the levels of design "Content order": `date.day`, `amountCents`, `description`, `merchant.displayName`, `merchant.source`, `merchant.serviceId` (`null` first), `merchant.processor` (`null` first), `currency`, `merchant.key`, then `index`; strings by code units.
   - Write the frozen `Readonly<Record<Cadence, number>>` tables `TOLERANCE_DAYS`, `MAX_K`, `MIN_GAP_DAYS`, `WINDOW_DAYS` (from / to), `LATE_MIN_DAYS`, `LATE_MAX_DAYS`, `ENDED_GRACE_DAYS` from design "Cadence constants", and `addPeriods(date, cadence, k)`.
   - Unit tests (`content-order.test.ts`): each level decides when all earlier levels are equal, in turn, including `currency` and `merchant.key` before `index`; `null` sorts before any string; `"Z" < "a"`; two entries differing only in `index` compare by `index`; sorting a shuffled list gives the same order every time.
@@ -52,12 +52,12 @@ Rules that apply to every task:
 
 ## Batch 2: step 1 and step 2
 
-- [ ] 4. Statement range and As-of date (`statement.ts`)
+- [x] 4. Statement range and As-of date (`statement.ts`)
   - Write `buildStatementInfo(sorted, options)`: `firstDate` and `lastDate` from the first and last sorted entry, distinct `currencies` by code units, and `asOf` / `asOfSource` from `options.asOf` only when `options` is a non-null, non-array object and `parseIsoDate` accepts the value, read once. Write `resolveAsOf(info)`.
   - Unit tests (`statement.test.ts`): no entries → `null` dates, `currencies: []`, `asOf: null`, `asOfSource: null`; a valid `asOf` gives `"option"` even when it is before `firstDate` or after `lastDate`; `asOf` `"2026-02-30"`, `20260301`, `""`, and `options` `null`, `42`, `[]`, `{}` all give `lastDate` with `"statement"`; `currencies` `["EUR", "GBP", "USD"]` for mixed input; `resolveAsOf` returns the matching `CivilDate` or `null`.
   - _Requirements: 1.4, 1.14 (statement part), 7.1, 7.2_
 
-- [ ] 5. Full refunds (`refunds.ts`)
+- [x] 5. Full refunds (`refunds.ts`)
   - Write `matchRefunds(sorted)` as in design "Full refunds": per Group, Charges indexed by amount in Content order; Credits processed in Content order; a binary search for the last Charge on or before the Credit's date, then the "previous unmatched" pointers back to `r.day − 45`; on the latest qualifying date, the first unmatched Charge in Content order. Return the `refunded` and `refunds` sets.
   - Unit tests (`refunds.test.ts`):
     - a Credit 0 days and 45 days after its Charge matches; 46 days does not; a Credit dated before the Charge does not;
@@ -68,7 +68,7 @@ Rules that apply to every task:
     - a Credit in another currency or under another key never matches, including the Req 2.7 order/refund keys.
   - _Requirements: 2.4, 2.5 (matching), 2.6, 2.7_
 
-- [ ] 6. Groups and Amount bands (`bands.ts`)
+- [x] 6. Groups and Amount bands (`bands.ts`)
   - Write `groupCharges(sorted, refunded, refunds)`: Groups keyed by `key + "\u0000" + currency`, in Content order of their first entry, holding live Charges, Zero-amount rows and `"money-in"` Credits in Content order; refunded Charges and their Credits are left out.
   - Write `splitIntoBands(charges)` with the overflow-free test `a − m ≤ (m − m % 20) / 20` from design "Groups and Amount bands"; band ids `0, 1, …` in ascending `low`.
   - Unit tests (`bands.test.ts`): `999`/`1029` one band; `999`/`1049` two; `1549`/`1799` two; `99`/`1099` two; `1000`/`1050` one and `1000`/`1051` two (the 5 % edge); amounts near `Number.MAX_SAFE_INTEGER` band without overflow; Charges of the same key in two currencies form two Groups; a refunded Charge is in no band; Zero-amount rows and Credits are in no band; supermarket `5430`, `6118`, `4782` give three bands (the Req 5.3 note).
@@ -81,7 +81,7 @@ Rules that apply to every task:
 
 ## Batch 3: schedule rules and Segments
 
-- [ ] 7. Schedule rules (`schedule.ts`)
+- [x] 7. Schedule rules (`schedule.ts`)
   - Write `expectedDays(prev, anchor, anchorIndex, cadence, k)` and `deviation(...)` from design "Schedule rules": the forward date (with the month-end alternative for monthly), the backward check and the anchor date (with its month-end alternative), the anchor date counting only when `b.day − a.day ≥ MIN_GAP_DAYS[cadence]`. Write `classifyStep`, which reports on schedule with `k = 1` or `k = 2` (`k = 1` only for yearly) or, for monthly, late (`b.day − addMonths(a, 1).day` from 4 to 10).
   - Unit tests (`schedule.test.ts`):
     - month-end alternative: `2026-02-28` → `2026-03-31` deviation 0; `2026-01-31` → `2026-02-28` deviation 0;
