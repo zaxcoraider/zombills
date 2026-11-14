@@ -23,15 +23,18 @@ const COMBINING_MARKS = /\p{M}/gu;
 const MAPPED_LETTERS = /[øØæÆœŒłŁđĐðÐþÞ]/g;
 
 /**
- * NFKD, remove combining marks, apply the letter map, then upper-case and lower-case.
- * The trip through upper case turns "ß" into "ss" and makes fold(s), fold(s.toUpperCase())
- * and fold(s.toLowerCase()) equal.
+ * Case round trip, NFKD, remove combining marks, apply the letter map, then lower-case.
+ * The round trip comes first so "ẞ", "ß" and "SS" all become "ss" and iota subscripts become
+ * real iotas in every case form. That makes fold(s), fold(s.toUpperCase()) and
+ * fold(s.toLowerCase()) equal.
  */
 export function fold(text: string): string {
   return text
+    .toLowerCase()
+    .toUpperCase()
+    .toLowerCase()
     .normalize("NFKD")
     .replace(COMBINING_MARKS, "")
     .replace(MAPPED_LETTERS, (letter) => FOLD_LETTER_MAP[letter] ?? letter)
-    .toUpperCase()
     .toLowerCase();
 }

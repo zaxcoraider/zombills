@@ -142,7 +142,7 @@ describe("the built package in plain Node (Req 12.3)", () => {
       expect(run.status, run.stderr).toBe(0);
       const result = JSON.parse(run.stdout) as { keys: string[] };
       expect({ ...result, keys: [...result.keys].sort() }).toEqual({
-        keys: ["KNOWN_SERVICES", "getKnownService", "parseStatement"],
+        keys: ["KNOWN_SERVICES", "getKnownService", "normalizeMerchant", "parseStatement"],
         window: "undefined",
         document: "undefined",
       });

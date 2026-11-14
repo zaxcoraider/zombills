@@ -38,6 +38,7 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
     expect(Object.keys(entry).sort()).toEqual([
       "KNOWN_SERVICES",
       "getKnownService",
+      "normalizeMerchant",
       "parseStatement",
     ]);
   });

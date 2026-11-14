@@ -21,9 +21,9 @@ Rules that apply to every task:
 - [x] 1. Public types, internal types and folding
   - In `types.ts`, write `MerchantSource`, `ProcessorId`, `ServiceCategory`, `ServiceVariant`, `KnownService`, `MerchantIdentity` and `NormalizedTransaction` exactly as in design "Public types". Import `Transaction` from `../parse/types.js` as a type only, and do not re-export it.
   - In `internal-types.ts`, write `Lexeme`, `Token`, `RemovalReason` and `CleanResult` as in design "Internal types".
-  - In `fold.ts`, write `FOLD_LETTER_MAP` (frozen) and `fold(text)`: NFKD, remove `\p{M}`, apply the letter map, then `.toUpperCase().toLowerCase()`.
+  - In `fold.ts`, write `FOLD_LETTER_MAP` (frozen) and `fold(text)`: the case round trip `.toLowerCase().toUpperCase().toLowerCase()`, NFKD, remove `\p{M}`, apply the letter map, then a final `.toLowerCase()`.
   - Create `index.ts` exporting the public types only, and add `export * from "./normalize/index.js";` to `packages/core/src/index.ts`.
-  - Unit tests (`fold.test.ts`): `Café` → `cafe`; `STRAßE` → `strasse`; `Ørsted` → `orsted`; `Æble` → `aeble`; `Łódź` → `lodz`; `Þór` → `thor`; Cyrillic `ЯНДЕКС` → `яндекс`; `fold(s)`, `fold(s.toUpperCase())` and `fold(s.toLowerCase())` are equal for these samples; lone surrogates and emoji do not throw.
+  - Unit tests (`fold.test.ts`): `Café` → `cafe`; `STRAßE` → `strasse`; `Ørsted` → `orsted`; `Æble` → `aeble`; `Łódź` → `lodz`; `Þór` → `thor`; Cyrillic `ЯНДЕКС` → `яндекс`; `fold(s)`, `fold(s.toUpperCase())` and `fold(s.toLowerCase())` are equal for these samples; lone surrogates and emoji do not throw; for every code point from U+0000 to U+10FFFF except surrogates, `fold(c)`, `fold(c.toUpperCase())` and `fold(c.toLowerCase())` are equal.
   - _Requirements: 1.1 (types), 2.1, 2.3, 2.5; glossary Folding, MerchantIdentity, MerchantSource, NormalizedTransaction_
 
 - [x] 2. Lexer (`lex.ts`)
@@ -133,7 +133,7 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
 
 ## Batch 4: `normalizeMerchant` and its properties
 
-- [ ] 11. Display and unidentified helpers (`display.ts`, `unidentified.ts`)
+- [x] 11. Display and unidentified helpers (`display.ts`, `unidentified.ts`)
   - `slugify(foldedText)`: runs of `[^\p{L}\p{N}]` → `-`, trimmed.
   - `titleCase(rawToken)`: initial letters (first letter or digit, or after `-`) upper-cased, others lower-cased, leaving a character unchanged when upper-casing would turn it into several code points.
   - `unidentifiedKey(processor, residue)` and `unidentifiedDisplayName(processor)` as in the design.
@@ -141,7 +141,7 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
   - Unit tests (`unidentified.test.ts`, helper cases): every processor's display name; no processor → `Unknown merchant`; an empty residue → `unidentified:none:-`.
   - _Requirements: 2.3, 5.2, 5.3, 6.2 (empty residue), 6.4_
 
-- [ ] 12. `normalizeMerchant` (`normalize-merchant.ts`)
+- [x] 12. `normalizeMerchant` (`normalize-merchant.ts`)
   - Implement the design's identity builder: `TypeError` for a non-string; clean; match; generic when the slug is non-empty; otherwise unidentified. The generic display name is the title-cased raw tokens joined with spaces, then NFC.
   - Export `normalizeMerchant` from `index.ts`.
   - Unit tests (`normalize-merchant.test.ts`):

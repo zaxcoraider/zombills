@@ -45,4 +45,25 @@ describe("fold", () => {
     }
     expect(fold("ÐÞ")).toBe("dth");
   });
+
+  it("folds ẞ, ß and SS to ss and iota subscripts to iotas in every case form", () => {
+    expect(fold("ẞ")).toBe("ss");
+    expect(fold("ß")).toBe("ss");
+    expect(fold("SS")).toBe("ss");
+    expect(fold("ᾳ")).toBe(fold("ᾼ"));
+    expect(fold("ᾳ")).toBe(fold("ΑΙ"));
+  });
+
+  it("gives equal results for every code point, its upper case and its lower case", () => {
+    const failures: string[] = [];
+    for (let cp = 0; cp <= 0x10ffff; cp++) {
+      if (cp >= 0xd800 && cp <= 0xdfff) continue;
+      const c = String.fromCodePoint(cp);
+      const f = fold(c);
+      if (f !== fold(c.toUpperCase()) || f !== fold(c.toLowerCase())) {
+        failures.push(`U+${cp.toString(16).toUpperCase().padStart(4, "0")}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
 });

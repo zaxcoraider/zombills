@@ -236,10 +236,11 @@ export function unidentifiedDisplayName(processor: ProcessorId | null): string;
 
 `fold(text)`, exactly as in the glossary:
 
-1. `text.normalize("NFKD")`.
-2. Remove `\p{M}` characters.
-3. Replace each character found in `FOLD_LETTER_MAP` (`ø→o`, `æ→ae`, `œ→oe`, `ł→l`, `đ→d`, `ð→d`, `þ→th` and the upper-case forms `Ø Æ Œ Ł Đ Ð Þ`).
-4. `.toUpperCase().toLowerCase()`. The round trip through upper case turns `ß` into `ss` and gives the same result for `s`, `s.toUpperCase()` and `s.toLowerCase()`.
+1. Case round trip: `.toLowerCase().toUpperCase().toLowerCase()`. This turns `ẞ`, `ß` and `SS` into `ss` and turns iota subscripts into real iotas in every case form, so `s`, `s.toUpperCase()` and `s.toLowerCase()` reach the same text before any decomposition.
+2. `.normalize("NFKD")`.
+3. Remove `\p{M}` characters.
+4. Replace each character found in `FOLD_LETTER_MAP` (`ø→o`, `æ→ae`, `œ→oe`, `ł→l`, `đ→d`, `ð→d`, `þ→th` and the upper-case forms `Ø Æ Œ Ł Đ Ð Þ`).
+5. A final `.toLowerCase()`.
 
 Folding is applied per token and per gap, never to the whole description.
 

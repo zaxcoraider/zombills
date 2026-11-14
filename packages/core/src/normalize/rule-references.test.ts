@@ -90,10 +90,7 @@ describe("step order: store numbers before references", () => {
   it("would leave STORE behind if references ran first", () => {
     const log: RemovalLog = [];
     const ctx = ctxOf(true, log);
-    const list = removeStoreNumbers(
-      removeReferences(tokensFrom(lex("FOO STORE 0412")), ctx),
-      ctx,
-    );
+    const list = removeStoreNumbers(removeReferences(tokensFrom(lex("FOO STORE 0412")), ctx), ctx);
     expect(list.tokens.map((t) => t.folded)).toEqual(["foo", "store"]);
   });
 });
