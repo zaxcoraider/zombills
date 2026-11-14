@@ -258,7 +258,7 @@ Examples: `APPLE.COM/BILL` → word `apple.com`, gap `/`, word `bill`. `****1234
 
 ### Token list helpers (`token-list.ts`)
 
-Rules never splice arrays in a loop. Each rule makes one linear pass that builds a new array, or moves a cursor over the start or end. Removing a token appends its `gapBefore` to the next remaining token's `gapBefore`, so after `PAYPAL 12/03 *X` loses the date, `X` still has `*` in front of it. Each removal is logged with its `RemovalReason` and lexeme `span`; the residue builder needs this.
+Rules never splice arrays in a loop. Each rule makes one linear pass that builds a new array, or moves a cursor over the start or end. Removing a token appends its `gapBefore` to the next remaining token's `gapBefore`, so after `PAYPAL 12/03 *X` loses the date, `X` still has `*` in front of it. The token list is `{ tokens, trailingGap }`: `trailingGap` is the gap after the last word, and the gaps of removed trailing tokens are merged into it, so the PayPal rule can test "token is last and its trailing gap contains `*`". Each removal is logged with its `RemovalReason` and lexeme `span`; the residue builder needs this.
 
 ### Step 1: masked card numbers (`rule-card-numbers.ts`)
 

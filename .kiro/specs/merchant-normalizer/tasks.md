@@ -18,7 +18,7 @@ Rules that apply to every task:
 
 ## Batch 1: foundations
 
-- [ ] 1. Public types, internal types and folding
+- [x] 1. Public types, internal types and folding
   - In `types.ts`, write `MerchantSource`, `ProcessorId`, `ServiceCategory`, `ServiceVariant`, `KnownService`, `MerchantIdentity` and `NormalizedTransaction` exactly as in design "Public types". Import `Transaction` from `../parse/types.js` as a type only, and do not re-export it.
   - In `internal-types.ts`, write `Lexeme`, `Token`, `RemovalReason` and `CleanResult` as in design "Internal types".
   - In `fold.ts`, write `FOLD_LETTER_MAP` (frozen) and `fold(text)`: NFKD, remove `\p{M}`, apply the letter map, then `.toUpperCase().toLowerCase()`.
@@ -26,7 +26,7 @@ Rules that apply to every task:
   - Unit tests (`fold.test.ts`): `Café` → `cafe`; `STRAßE` → `strasse`; `Ørsted` → `orsted`; `Æble` → `aeble`; `Łódź` → `lodz`; `Þór` → `thor`; Cyrillic `ЯНДЕКС` → `яндекс`; `fold(s)`, `fold(s.toUpperCase())` and `fold(s.toLowerCase())` are equal for these samples; lone surrogates and emoji do not throw.
   - _Requirements: 1.1 (types), 2.1, 2.3, 2.5; glossary Folding, MerchantIdentity, MerchantSource, NormalizedTransaction_
 
-- [ ] 2. Lexer (`lex.ts`)
+- [x] 2. Lexer (`lex.ts`)
   - Write `lex(nfkcText)`: one left-to-right scan with one character of lookahead, producing alternating `word` and `gap` lexemes, each with `raw` and `folded = fold(raw)`.
     - Word characters: `\p{L}`, `\p{N}`, `\p{M}`.
     - `&`, `'`, `’`, `-`, `.` join a word only between a word character and a following letter or digit.
@@ -36,7 +36,7 @@ Rules that apply to every task:
   - Unit tests (`lex.test.ts`): `AT&T`, `MCDONALD'S`, `JOE’S`, `DISNEY+`, `APPLE TV+`, `7-ELEVEN` are one word each; `A--B` is two words; `APPLE.COM/BILL` → `apple.com`, `/`, `bill`; `****1234` → gap, word; `(800) 123` → `(`, `800`, `) `, `123`; `03.01.` → `03.01`, `.`; a trailing `.` or `-` is a gap; empty input gives `[]`; fullwidth `ＮＥＴＦＬＩＸ＊` after NFKC gives `NETFLIX` and `*`; lexing `joinTokens(x, "raw")` gives the same words with `" "` gaps.
   - _Requirements: 3.1_
 
-- [ ] 3. Noise lists and token-list helpers (`noise-lists.ts`, `token-list.ts`)
+- [x] 3. Noise lists and token-list helpers (`noise-lists.ts`, `token-list.ts`)
   - In `noise-lists.ts`, write as frozen constants:
     - `CARD_PREFIXES`, every Req 3.2 entry as a folded token sequence, sorted longest first;
     - `PROCESSOR_FORMS` (the design's step-3 table) and `PROCESSOR_NAMES` (Req 6.4 display names);
