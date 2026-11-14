@@ -9,3 +9,4 @@ export type {
   ServiceCategory,
   ServiceVariant,
 } from "./types.js";
+export { KNOWN_SERVICES, getKnownService } from "./known-services.js";

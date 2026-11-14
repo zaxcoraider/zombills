@@ -33,9 +33,13 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
     }
   });
 
-  it("exports parseStatement and nothing else at runtime", async () => {
+  it("exports only the public functions and data at runtime", async () => {
     const entry = await import("../index.js");
-    expect(Object.keys(entry)).toEqual(["parseStatement"]);
+    expect(Object.keys(entry).sort()).toEqual([
+      "KNOWN_SERVICES",
+      "getKnownService",
+      "parseStatement",
+    ]);
   });
 
   it("runs every path of the pipeline on every sample without a ReferenceError", () => {

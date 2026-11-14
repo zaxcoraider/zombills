@@ -130,7 +130,7 @@ describe("the built package in plain Node (Req 12.3)", () => {
   );
 
   it(
-    "exports parseStatement and nothing that needs a browser",
+    "exports the public functions and nothing that needs a browser",
     () => {
       const run = runModule(
         `
@@ -140,8 +140,9 @@ describe("the built package in plain Node (Req 12.3)", () => {
         repoRoot,
       );
       expect(run.status, run.stderr).toBe(0);
-      expect(JSON.parse(run.stdout)).toEqual({
-        keys: ["parseStatement"],
+      const result = JSON.parse(run.stdout) as { keys: string[] };
+      expect({ ...result, keys: [...result.keys].sort() }).toEqual({
+        keys: ["KNOWN_SERVICES", "getKnownService", "parseStatement"],
         window: "undefined",
         document: "undefined",
       });

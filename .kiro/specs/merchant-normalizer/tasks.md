@@ -94,7 +94,7 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
 
 ## Batch 3: cleaning engine and the service list
 
-- [ ] 8. Pass loop, context snapshot and residue (`clean.ts`)
+- [x] 8. Pass loop, context snapshot and residue (`clean.ts`)
   - Write `cleanDescription(description)`:
     - NFKC, lex, then run steps 1–8 in the design's order with `firstPass: true`;
     - snapshot the folded tokens after step 5 of pass 1 as `context`;
@@ -109,14 +109,14 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
   - Property test (`clean.property.test.ts`): **P6** (cleaning `joinTokens(cleaned, "raw")` again gives the same cleaned tokens, for arbitrary strings and for strings built from the noise lists).
   - _Requirements: 3.1–3.11, 3.12 (cleaned names), 6.2 (residue), 9.6_
 
-- [ ] 9. Known service data (`known-services.ts`)
+- [x] 9. Known service data (`known-services.ts`)
   - Write the 59 services from design "Known service data", in that order, with exactly the Req 4.2 ids, display names and categories and the design's variants. Deep-freeze the list, each service and each variant array.
   - Write `getKnownService(serviceId)` backed by a frozen `Map` built at module load.
   - Export `KNOWN_SERVICES` and `getKnownService` from `index.ts`.
   - Unit tests (`known-services.test.ts`): every data check in the design (count 59; unique ids matching `^[a-z0-9]+(-[a-z0-9]+)*$`; ids, display names and categories equal to the Req 4.2 table; at least two variants each, one equal to the folded display name; every variant text equals `joinTokens(lex(text), "folded")`; no variant text shared by two services; no variant token is a card prefix, a month or a 1–2 digit number; the listed services use `exact`; none of the Req 4.8 excluded tokens is a variant; `getKnownService` returns the frozen object or `undefined`; frozen objects reject writes).
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6 (exact for ambiguous names), 4.8 (excluded tokens), 7.2 (no `streaming`/`premium`/`musik`), 10.1 (bundled list), 10.4_
 
-- [ ] 10. Variant matching (`match-known.ts`)
+- [x] 10. Variant matching (`match-known.ts`)
   - Build the read-only `containsByFirstToken` and `exactByText` indexes at module load.
   - Write `matchKnownService(context, cleaned)`: contains hits in both lists on whole-token sequences, the exact hit on the whole cleaned text, then the longest text, lowest service index, lowest variant index.
   - Unit tests (`match-known.test.ts`), on folded token lists:
