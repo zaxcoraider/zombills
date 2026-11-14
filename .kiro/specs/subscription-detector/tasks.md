@@ -211,7 +211,7 @@ Rules that apply to every task:
 
 Every fixture goes through the public `detectSubscriptions` and checks the full expected result the row names: roles for every input element, the Subscriptions with id, cadence, amounts and `priceHistory`, and the evidence fields the row mentions. Dates are 2026 unless stated. All fixture tasks add a `describe` block per requirement to `fixtures.test.ts` and build rows with `test-fixtures.ts`. A fixture that fails is a Detector bug to fix in the module that owns the step, not a fixture to change.
 
-- [ ] 18. Fixtures, part 1: refunds, grouping and Series (Req 2.7, 3.4–3.7, 3.11)
+- [x] 18. Fixtures, part 1: refunds, grouping and Series (Req 2.7, 3.4–3.7, 3.11)
   - Req 2.7: `ONLINE MARKETPLACE ORDER` `2347` on 02-14 and `REFUND` `−2347` on 02-17 under different keys → order `"not-recurring"`, refund `"money-in"`.
   - Req 3.4: generic `999` on 01-10, 02-09, 02-11, 03-10 → Series 01-10, 02-09, 03-10; 02-11 `"not-recurring"`. Generic `999` on 01-01, 02-01, 02-03, 03-03 → one Subscription with id `…:*:…`; 02-03 `"not-recurring"`.
   - Req 3.5: unidentified Apple key, `99` and `1099` monthly 01-12 to 03-12 → two Subscriptions, ids `…:99:…` and `…:1099:…`.
@@ -220,11 +220,11 @@ Every fixture goes through the public `detectSubscriptions` and checks the full 
   - Req 3.11: both rows (coffee: no Subscription, all 9 `"not-recurring"`; generic `999`: one Subscription 01-01 to 04-01, `confidence: "high"`, 01-08 and 01-15 `"not-recurring"`).
   - _Requirements: 2.7, 3.4, 3.5, 3.6, 3.7, 3.11_
 
-- [ ] 19. Fixtures, part 2: cadence (Req 4.8)
+- [x] 19. Fixtures, part 2: cadence (Req 4.8)
   - All 12 rows of the Req 4.8 table, one test each, as generic monthly charges at one amount in one band, with the result the row states: month-end rows `missedPeriods: 0`; the leap-year row; 01-30, 03-02, 03-30; the weekend shift; the missed month (`missedPeriods: 1`); both retry rows (`lateChargeDates: ["2026-02-22"]`); the 11-days-late row (Series 02-26, 03-26 with `confidence: "medium"`, 01-15 `"not-recurring"`); 01-27, 03-01, 03-27, 04-27; the gym row; 01-15, 03-15 (no Subscription); quarterly (no Subscription).
   - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6, 4.8_
 
-- [ ] 20. Fixtures, part 3: evidence, single charges and status (Req 5.4, 5.6, 7.5, 7.7, 9.8)
+- [x] 20. Fixtures, part 3: evidence, single charges and status (Req 5.4, 5.6, 7.5, 7.7, 9.8)
   - Req 5.4: Netflix `1549` and `999` on 03-01 → one low-confidence Subscription for the `999` charge, in both input orders.
   - Req 5.6: iCloud+ `99` on 01-12, 02-12, 03-12 plus one app purchase at `99` → kept; plus app purchases on 01-20 and 02-25 → no Subscription and 5 `"not-recurring"`.
   - Req 7.5: monthly, last charge 02-20; `asOf` 03-30 → `"active"`, `asOf` 03-31 → `"ended"`, `statement.asOfSource: "option"`.
@@ -232,7 +232,7 @@ Every fixture goes through the public `detectSubscriptions` and checks the full 
   - Req 9.8: Amazon Prime `13900` on 03-20, statement ending 03-31 → monthly, `yearlyCostCents: 166800`, `cadenceAssumed: true`; Netflix `1549` on 01-02, statement ending 03-25 → yearly, `"active"`, `cadenceAssumed: true`.
   - _Requirements: 5.4, 5.6, 7.5, 7.7, 9.3, 9.8_
 
-- [ ] 21. Fixtures, part 4: out-of-scope cases and id stability (Introduction)
+- [x] 21. Fixtures, part 4: out-of-scope cases and id stability (Introduction)
   - 4-weekly: NYT `2500` every 28 days 01-01 to 12-31 → monthly, `yearlyCostCents: 30000`.
   - Other cadences: a fortnightly generic plan and a quarterly generic plan → no Subscription; quarterly Netflix `1549` on 01-15, 04-15, 07-15, range to 07-20 → one low-confidence single-charge Subscription for 07-15.
   - Two accounts: generic `1099` monthly on the 5th and on the 20th → no Subscription; Spotify `1099` the same → one low-confidence single-charge Subscription.
@@ -242,7 +242,7 @@ Every fixture goes through the public `detectSubscriptions` and checks the full 
   - Id stability: Apple Music `1099` next to iCloud+ `99`, then a second run with Apple Music at `1199` → id changes from `…:1099:…` to `…:1199:…`; Netflix single charge 01-02 with range to 03-25, then a second run adding 02-02 and 03-02 → id changes from `…:yearly:*:netflix` to `…:monthly:*:netflix`.
   - _Requirements: 3.6 (replaced service), 4.1, 5.4 (Introduction cases), 6.2 (4-weekly), 8.2 (id change), 8.5_
 
-- [ ] 22. Sample statements (`samples.test.ts`)
+- [x] 22. Sample statements (`samples.test.ts`)
   - For each of `us-signed.csv`, `uk-debit-credit.csv`, `eu-semicolon.csv` and `with-preamble.csv`: read it with `node:fs`, run `parseStatement` (no options), `normalizeTransactions` and `detectSubscriptions` (no options), and compare with the Req 10.1 tables: the Subscriptions in order with `merchantKey`, `merchant`, `currentAmountCents`, `yearlyCostCents` and `priceHistory`; the shared fields (monthly, active, high, `labels: []`, 3 Regular charges, `missedPeriods: 0`, empty evidence lists, `cadenceAssumed: false`, `introCharge: null`, `freeTrialDate: null`, `startedInStatement: false`, id `sub:<currency>:monthly:*:<merchantKey>`); the Statement range; the usage counts per role; the named non-recurring merchants by key.
   - Do not edit any file in `samples/`. A mismatch is a Detector bug or a spec change to raise, not a fixture to adjust (Req 10.2).
   - _Requirements: 10.1, 10.2_
