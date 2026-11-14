@@ -91,7 +91,7 @@ Rules that apply to every task:
     - weekly `k = 2` accepted, yearly `k = 2` refused; Tolerance edges ±2, ±3, ±7 accepted and one day more refused.
   - _Requirements: 4.2, 4.3, 4.6 (late test)_
 
-- [ ] 8. Growing one chain (`segments.ts`, `growChain` and `longestValidPrefix`)
+- [x] 8. Growing one chain (`segments.ts`, `growChain` and `longestValidPrefix`)
   - Write `growChain` as in design "Growing one chain": successors with a strictly later Day number; the preference classes on schedule `k = 1`, then late (monthly), then on schedule `k = 2`; inside a class the smallest deviation (fewest days late for a late charge), then Content order; after a late charge only the two continuations of Req 4.6, never a second late charge. Scan only the previous-charge and anchor windows found by binary search on the band's sorted Day numbers, and add one to `counter.comparisons` (when a counter is given) for each charge examined.
   - Write `longestValidPrefix`: the longest prefix of 2 or more charges with at least one `k = 1` interval and no more `k = 2` than `k = 1` intervals, a prefix may end on a late charge; otherwise `null`.
   - Unit tests (`segments.test.ts`, chain cases), each as the chain grown from the first charge:
@@ -105,7 +105,7 @@ Rules that apply to every task:
     - the counter grows when given and the result is identical without it.
   - _Requirements: 3.4 (steps 2–3), 4.4, 4.5 (k = 2 intervals), 4.6 (continuations, no two late in a row)_
 
-- [ ] 9. Cover and cadence choice per band (`segments.ts`, `coverBand` and `chooseBandCover`)
+- [x] 9. Cover and cadence choice per band (`segments.ts`, `coverBand` and `chooseBandCover`)
   - Write `coverBand(band, cadence, counter)`: the earliest-start sweep of design "Cover per cadence", returning the multi-charge Segments and the one-charge leftovers (`cadence: null`).
   - Write `chooseBandCover(band, source, counter)`: run `coverBand` for monthly and yearly, plus weekly only for `"known"`; take the cadence covering the most charges, then the shorter Period; no covered charge → leftovers only.
   - Unit tests (`segments.test.ts`, cover cases):
@@ -123,7 +123,7 @@ Rules that apply to every task:
 
 ## Batch 4: Series, acceptance and single known charges
 
-- [ ] 10. Joins across bands (`series.ts`, `joinSegments`)
+- [x] 10. Joins across bands (`series.ts`, `joinSegments`)
   - Write `joinSegments(group, segments)` as in design "Joins across bands": pieces in Content order of their first charge plus a Day-number index; for each unconsumed piece, extend the Series built so far with the best candidate until none is left; keep it when it has 2 or more Regular charges. Candidates come from a binary-searched window keyed to the last charge `l`; the conditions are the design's list (different band, compatible cadence, wholly later, on schedule after `l` with `k = 1` or `k = 2` by the previous-charge rule or late for monthly, ratio `max ≤ 2 × min`, `S` with 2 charges or a `"known"` source, Req 4.4 still holding). Two one-charge pieces of a `"known"` Group join only one Period apart, trying monthly then yearly. Tie-breaks: earliest first charge, then smaller `|q − p|`, then Content order.
   - Unit tests (`series.test.ts`, join cases):
     - Netflix `1549` 01-02, 02-02 and `1799` 03-02 → one Series of 3; Streaming Dienst shape with a generic source and a 2-charge `A` joins;
@@ -136,7 +136,7 @@ Rules that apply to every task:
     - join intervals carry `k` and kind (`missedPeriods` counted later from these).
   - _Requirements: 3.5, 3.6, 3.10 (step 5, joins), 4.5 (join gap)_
 
-- [ ] 11. Introductory charges (`series.ts`, `addIntroCharges`)
+- [x] 11. Introductory charges (`series.ts`, `addIntroCharges`)
   - Write `addIntroCharges(group, series, leftovers)` as in design "Introductory charges": `"known"` Groups only; Series in Content order of their first Regular charge `r`; candidates are leftovers with a lower amount, dated before `r`, with `r` on schedule after them with `k = 1`; latest, then lower amount, then Content order; each leftover used at most once and each Series gets at most one.
   - Unit tests (`series.test.ts`, intro cases):
     - Netflix `100` 01-10, `1499` 02-10, 03-10 → intro `100`, 2 Regular charges, intro adds no interval;
