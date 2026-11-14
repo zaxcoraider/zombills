@@ -55,14 +55,14 @@ Rules that apply to every task:
 
 Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` carries `firstPass: boolean` and the recorded processor. Every task's tests call the rule directly on lexed input.
 
-- [ ] 4. Masked card numbers and dates (`rule-card-numbers.ts`, `rule-dates.ts`)
+- [x] 4. Masked card numbers and dates (`rule-card-numbers.ts`, `rule-dates.ts`)
   - Step 1: remove `^x{2,}[0-9]{4}$` words, 4-digit words whose `gapBefore` ends in two or more `*`, and the sequences `card dddd`, `card ending dddd`, `card no dddd`.
   - Step 2: remove the date forms in the design's table (ISO, dot with optional year, dash, slash with an optional third part in pass 1 only, joined month, spaced month with the stack), only when at least one reading has day 1–31 and month 1–12.
   - Unit tests (`rule-card-numbers.test.ts`): `XXXX1234`, `****1234`, `CARD 1234`, `CARD ENDING 1234`, `CARD NO 1234` removed; `XX123`, `X1234`, `CARD 12345` kept.
   - Unit tests (`rule-dates.test.ts`): every Req 3.5 form removed (`2026-03-12`, `12/03`, `12/03/26`, `12/03/2026`, `03.01`, `03.01.2026`, `12-03`, `12JAN`, `JAN12`, `12 JAN`, `JAN 12`); `31/13` and `32.01` and `00/05` kept; `12/03` with `firstPass: false` is not seen as a date because the gap is a space; `12 12 JAN JAN` cleared in one pass; `866-579-7172` untouched.
   - _Requirements: 3.3, 3.5, 7.5_
 
-- [ ] 5. Card prefixes and processor forms (`rule-prefixes.ts`)
+- [x] 5. Card prefixes and processor forms (`rule-prefixes.ts`)
   - Step 3, the leading loop from the design: the longest card prefix first; then the processor form when none is recorded yet (the `*` forms only in pass 1, `apple.com` + `/` + `bill`, the Amazon forms with the 2-letter-code condition); then further leading Amazon forms removed without recording.
   - Unit tests (`rule-prefixes.test.ts`):
     - each Req 3.2 prefix removed at the start, the longest of overlapping prefixes first, repeated prefixes cleared, a prefix in the middle kept (`NETFLIX POS`);
@@ -74,17 +74,17 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
     - `SEPA-LASTSCHRIFT SPOTIFY AB` → `SPOTIFY AB`; `KARTENZAHLUNG NETFLIX` → `NETFLIX`.
   - _Requirements: 3.2, 3.4, 7.4_
 
-- [ ] 6. Phone numbers and domains (`rule-phones.ts`, `rule-domains.ts`)
+- [x] 6. Phone numbers and domains (`rule-phones.ts`, `rule-domains.ts`)
   - Step 4, the three phone shapes in the design: a single digit-group word with 7–15 digits; a `+`- or `(`-marked run; the unmarked NANP-shaped spaced run with an optional leading `1`. Digit groups are checked with a character loop.
   - Step 5: drop `http`/`https` before `://` (pass 1); strip a leading `www.` from `raw` and `folded` at the same dot; apply the domain test; replace a first-token domain with its name label and remove any other domain; drop the path segments after a domain (pass 1).
   - Unit tests (`rule-phones.test.ts`): `866-579-7172`, `1-800-123-4567`, `866.579.7172`, `8665797172`, `(800) 123 4567`, `+44 20 7946 0958`, `866 579 7172`, `1 866 579 7172` removed; `MICROSOFT 365 866 579 7172` keeps `365`; `123-456` (6 digits) and a 16-digit group kept.
   - Unit tests (`rule-domains.test.ts`): `NETFLIX.COM` → `NETFLIX`; `HELP.MAX.COM` → `MAX`; `WWW.NYTIMES.COM` → `NYTIMES`; `https://www.netflix.com/account` → `NETFLIX`; `AUDIBLE AMZN.COM/BILL NJ` → `AUDIBLE NJ` (the `NJ` goes later, in step 8); `BBC.CO.UK` → `BBC`; `G.CO/HELPPAY` removed when not first; `NETFLIX.XYZ` and `A..COM` are not domains; raw case is kept in the label.
   - _Requirements: 3.6, 3.7_
 
-- [ ] 7. References, store numbers and the trailing loop (`rule-references.ts`, `rule-trailing.ts`)
-  - Steps 6 and 7: reference tokens (4+ digits, or 6+ letters and digits with at least 2 digits and 1 letter); `#ddd` (pass 1); `store ddd`, `no ddd`, `nr ddd`.
+- [x] 7. References, store numbers and the trailing loop (`rule-references.ts`, `rule-trailing.ts`)
+  - Steps 6 and 7, in this order: store numbers (`#ddd` in pass 1; `store ddd`, `no ddd`, `nr ddd`) first, then reference tokens (4+ digits, or 6+ letters and digits with at least 2 digits and 1 letter). Store numbers run first so `WALGREENS STORE 1234` and `FOO STORE 0412` lose both `STORE` and the number.
   - Step 8: the trailing loop removing digits-only tokens and location codes, keeping a lone location code only when no processor is recorded.
-  - Unit tests (`rule-references.test.ts`): `2K4LJ8MB3`, `P1A2B3C4D5`, `0412`, `123456` removed; `1PASSWORD`, `MP3`, `B2B`, `365`, `A1B2C` kept; `#0412`, `STORE 12`, `NO 7`, `NR 3` removed.
+  - Unit tests (`rule-references.test.ts`): `2K4LJ8MB3`, `P1A2B3C4D5`, `0412`, `123456` removed; `1PASSWORD`, `MP3`, `B2B`, `365`, `A1B2C` kept; `#0412`, `STORE 12`, `NO 7`, `NR 3` removed; running store numbers and then references on `WALGREENS STORE 1234` and `FOO STORE 0412` leaves `WALGREENS` and `FOO`.
   - Unit tests (`rule-trailing.test.ts`): `FOO AM DE` → `FOO`; `TANKSTELLE AM RING` unchanged; `BP` and `BP 0412` → `BP` with no processor; `CA` alone → empty with a processor; `SUPERMARKT NORD 0412` → `SUPERMARKT NORD`; `STUDIO 54` → `STUDIO`.
   - _Requirements: 3.8, 3.9, 3.10_
 
@@ -159,7 +159,7 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
 
 - [ ] 13. Noise generators and the noise properties (`test-arbitraries.ts`)
   - Write `noiseArb`, `genericNameArb` and `unidentifiedArb` as described in design "Generators", built from the constants in `noise-lists.ts` and filtered against variant tokens.
-  - Self-tests (`test-arbitraries.test.ts`): every generated reference token is removed by step 6 and is not a variant token; every generated generic name is `generic` when bare; every generated date passes the 1–31/1–12 check.
+  - Self-tests (`test-arbitraries.test.ts`): every generated reference token is removed by step 7 and is not a variant token; every generated generic name is `generic` when bare; every generated date passes the 1–31/1–12 check.
   - Property test (`match-known.property.test.ts`): **P7**.
   - Property tests (`normalize-merchant.property.test.ts`): **P9**, and extend **P5** to run on `noiseArb` × variants and `noiseArb` × generic names.
   - Property test (`unidentified.property.test.ts`): **P10**.

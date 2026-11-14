@@ -55,7 +55,7 @@ flowchart TD
 
 ### Cleaning engine: rule order inside one pass
 
-Every pass runs these steps in this order. Steps marked *pass 1 only* need gap characters that only exist in the original text. The order is fixed, so the same input always produces the same output (Req 9.3).
+Every pass runs these steps in this order. Steps marked *pass 1 only* need gap characters that only exist in the original text. The order is fixed, so the same input always produces the same output (Req 9.3). Store numbers run before reference numbers, so `STORE 1234` is removed as a pair; if the reference step ran first it would remove `1234` alone and leave `STORE` behind.
 
 | # | Step | Where | Requirement |
 | --- | --- | --- | --- |
@@ -65,8 +65,8 @@ Every pass runs these steps in this order. Steps marked *pass 1 only* need gap c
 | 4 | Phone numbers | anywhere | 3.6 |
 | 5 | URLs and domains, with paths (*pass 1 only* for `://` and `/path`) | anywhere; first token replaced by its label | 3.7 |
 | — | *Snapshot the context tokens (pass 1 only)* | | 4.5 |
-| 6 | Reference numbers | anywhere | 3.8 |
-| 7 | Store numbers: `#ddd` (*pass 1 only*), `STORE ddd`, `NO ddd`, `NR ddd` | anywhere | 3.9 |
+| 6 | Store numbers: `#ddd` (*pass 1 only*), `STORE ddd`, `NO ddd`, `NR ddd` | anywhere | 3.9 |
+| 7 | Reference numbers | anywhere | 3.8 |
 | 8 | Trailing loop: digits-only token, location code | end | 3.9, 3.10 |
 
 The residue for unidentified keys (Req 6.2) is built from the pass-1 lexemes using only the removals made by steps 1–3 for prefixes, masked card numbers and dates.
@@ -311,7 +311,7 @@ A **digit group** is a word made of ASCII digits with optional single `-` or `.`
 2. **Marked run:** a digit group whose `gapBefore` ends in `+` or `(`, followed to the right by pure-digit words. A word joins the run only if its gap is one space, or, for the second group after a `(`, `)` or `) `. The run is removed if it holds 7–15 digits in total (`+44 20 7946 0958`, `(800) 123 4567`).
 3. **Unmarked spaced run:** a window of three pure-digit words of 3, 3 and 4 digits with single-space gaps, optionally preceded by a word `1` (`866 579 7172`, `1 866 579 7172`).
 
-Unmarked spaced runs are limited to the North American shape so that a preceding short number is never absorbed. Under a looser rule, `MICROSOFT 365 866 579 7172` would lose `365` and stop matching Microsoft 365. Other spaced shapes, such as `020 7946 0958`, still disappear: the 4-digit groups are reference numbers (step 6), and a leftover short group at the end is caught by the trailing loop. See Design review decision 3.
+Unmarked spaced runs are limited to the North American shape so that a preceding short number is never absorbed. Under a looser rule, `MICROSOFT 365 866 579 7172` would lose `365` and stop matching Microsoft 365. Other spaced shapes, such as `020 7946 0958`, still disappear: the 4-digit groups are reference numbers (step 7), and a leftover short group at the end is caught by the trailing loop. See Design review decision 3.
 
 ### Step 5: URLs and domains (`rule-domains.ts`)
 
@@ -323,10 +323,10 @@ Unmarked spaced runs are limited to the North American shape so that a preceding
 
 After step 5, the folded tokens are copied as the **context** list (pass 1 only).
 
-### Steps 6 and 7: reference and store numbers (`rule-references.ts`)
+### Steps 6 and 7: store and reference numbers (`rule-references.ts`)
 
-- **Reference (Req 3.8):** a folded word of 4 or more ASCII digits, or a word of 6 or more code points, all `\p{L}`/`\p{N}`, with at least 2 ASCII digits and at least 1 letter.
-- **Store (Req 3.9):** a pure-digit word whose `gapBefore` ends in `#` (pass 1); the pairs `store ddd`, `no ddd`, `nr ddd`, both tokens removed.
+- **Store, step 6 (Req 3.9):** a pure-digit word whose `gapBefore` ends in `#` (pass 1); the pairs `store ddd`, `no ddd`, `nr ddd`, both tokens removed. This runs first so that `WALGREENS STORE 1234` and `FOO STORE 0412` lose `STORE` together with the number, even when the number has 4 or more digits.
+- **Reference, step 7 (Req 3.8):** a folded word of 4 or more ASCII digits, or a word of 6 or more code points, all `\p{L}`/`\p{N}`, with at least 2 ASCII digits and at least 1 letter.
 
 ### Step 8: trailing loop (`rule-trailing.ts`)
 

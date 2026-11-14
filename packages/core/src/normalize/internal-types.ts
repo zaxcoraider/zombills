@@ -60,3 +60,16 @@ export interface CleanResult {
   /** Number of passes run, for tests and diagnostics */
   passes: number;
 }
+
+/**
+ * What every cleaning rule receives next to the token list (design "Cleaning engine"). A rule is
+ * `(list, ctx) => list`: it returns a new list and appends its removals to `ctx.log`.
+ */
+export interface RuleContext {
+  /** True in pass 1, where the original gap characters (`/`, `#`, `*`, `://`) still exist */
+  firstPass: boolean;
+  /** The ProcessorId recorded so far, or null */
+  processor: ProcessorId | null;
+  /** Removal log of the current cleaning run */
+  log: RemovalLog;
+}
