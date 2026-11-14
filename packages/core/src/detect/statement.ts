@@ -18,7 +18,7 @@ export function buildStatementInfo(sorted: readonly Entry[], options: unknown): 
 
   const currencySet = new Set<string>();
   for (const entry of sorted) currencySet.add(entry.currency);
-  // Default sort compares UTF-16 code units, as required (no localeCompare).
+  // Default sort compares UTF-16 code units, as required (no locale-aware comparison).
   const currencies = [...currencySet].sort();
 
   let requested: unknown = undefined;

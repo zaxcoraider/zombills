@@ -401,6 +401,6 @@ Out of scope for this spec:
 1. THE Detector SHALL NOT contain any call to `fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket`, or any other network API.
 2. THE Detector SHALL NOT access `document`, `window`, `navigator`, `localStorage`, or any other DOM or browser-global API.
 3. THE Detector SHALL NOT read the current time (`Date.now()`, `new Date()` without arguments, `performance.now()`) or use `Math.random()` or `crypto.randomUUID()`.
-4. WHEN the Detector module is imported in a Node.js Vitest environment with no browser polyfills loaded, THE Detector SHALL load and execute its exported functions without throwing a ReferenceError or any other runtime error caused by a missing browser global.
+4. WHEN the Detector module is imported in a Node.js Vitest environment with no browser polyfills loaded and no browser globals other than Node's built-in `navigator`, THE Detector SHALL load and execute its exported functions without throwing a ReferenceError or any other runtime error caused by a missing browser global.
 5. THE Detector SHALL NOT keep mutable module-level state between calls, so that results depend only on the arguments.
 6. THE static analysis check SHALL fail, with an error naming the offending API, WHEN the Detector source references a network API (`fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket`), a DOM or browser-global API (`document`, `window`, `navigator`, `localStorage`), or a clock or randomness API (`Date.now`, `new Date(` with no arguments, `performance.now`, `Math.random`, `crypto.randomUUID`).

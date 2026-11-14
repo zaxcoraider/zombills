@@ -255,7 +255,7 @@ Every fixture goes through the public `detectSubscriptions` and checks the full 
 
 Property tests use fast-check's default 100 runs; P1 and P3 use 300 (design "Testing strategy"). Each property's failure message must show the shrunk input.
 
-- [ ] 23. Base generators and the whole-result properties (`test-arbitraries.ts`)
+- [x] 23. Base generators and the whole-result properties (`test-arbitraries.ts`)
   - Write `isoDateArb` (2020–2030, with a rare 0000–9999 branch), `merchantArb(source)`, `validTxArb` (amounts `−10⁶` to `10⁶` including zero; `USD`, `EUR`, `GBP`) and `junkElementArb` as in design "Generators".
   - Self-tests (`test-arbitraries.test.ts`): every `validTxArb` value passes `validateElement`; every `junkElementArb` value that is not a valid transaction fails it.
   - Property tests (`detect-subscriptions.property.test.ts`):
@@ -266,20 +266,20 @@ Property tests use fast-check's default 100 runs; P1 and P3 use 300 (design "Tes
     - **P19** adding Zero-amount rows inside the Statement range changes only `evidence.freeTrialDate`, and every added row is `"zero-amount"`.
   - _Requirements: 1.8, 1.9, 1.10, 1.12, 1.13, 2.3, 9.5, 11.1, 11.2, 11.4_
 
-- [ ] 24. Order independence, ids and statement range
+- [x] 24. Order independence, ids and statement range
   - Property test (`order-independence.property.test.ts`): **P3** on `validTxArb` arrays with forced duplicates and same-date ties, checking `subscriptions` and `statement` deep-equal under a random permutation and each element's `role` and `subscriptionId` unchanged, letting fully equal elements swap.
   - Property test (`ids.property.test.ts`): **P12** (unique ids, the Req 11.12 pattern, remainder equal to `merchantKey`).
   - Property test (`statement.property.test.ts`): **P13** (min and max valid dates or `null`, sorted distinct currencies, `asOf` for valid, invalid and absent options).
   - _Requirements: 1.4, 2.4, 3.4 (input-order independence), 5.4 (tie-break), 7.1, 7.2, 8.3, 8.4, 11.3, 11.12, 11.13_
 
-- [ ] 25. Series generators, amounts and status
+- [x] 25. Series generators, amounts and status
   - Add `monthlySeriesArb`, `weeklySeriesArb` and `yearlyPairArb` to `test-arbitraries.ts` as in design "Generators" (the yearly pair shifts only `b`).
   - Self-tests: every generated monthly series has 4–24 charges at one amount with shifts of 0–2 days; every yearly pair is 12 months plus 0–7 days apart.
   - Property tests (`amounts.property.test.ts`): **P5** yearly cost formula; **P6** no floats, including amounts near `MAX_SAFE_INTEGER / 12`, where no unsafe product is reported; **P17** price history.
   - Property test (`status.property.test.ts`): **P18** status against a random valid `asOf`.
   - _Requirements: 6.1, 6.2, 6.4, 6.5, 7.4, 7.5, 7.8, 11.5, 11.6_
 
-- [ ] 26. Cadence, habits, unrelated purchases and refunds
+- [x] 26. Cadence, habits, unrelated purchases and refunds
   - Add `habitArb` and `unrelatedChargesArb(input)` to `test-arbitraries.ts`. Self-tests: no 7-day habit has a gap above 16 days; every unrelated charge has a fresh generic key, an input currency and a date inside the input's range.
   - Property test (`detect-subscriptions.property.test.ts`): **P7** unrelated purchases.
   - Property tests (`cadence.property.test.ts`): **P8** missed month (including anchor days 27–28 with a shift of 2, review finding 1); **P9** cadence recognition (monthly anchor 1–31, known weekly, known yearly pair); **P10** habits.
@@ -292,14 +292,14 @@ Property tests use fast-check's default 100 runs; P1 and P3 use 300 (design "Tes
 
 ## Batch 8: privacy, environment and performance
 
-- [ ] 27. Privacy and environment checks
+- [x] 27. Privacy and environment checks
   - Add the opt-in clock and randomness check to `src/test-no-network-scan.ts` as in design "Privacy and environment": property accesses `Date.now`, `performance.now`, `Math.random`, `crypto.randomUUID`, and a `NewExpression` with callee `Date` and no arguments, found on the syntax tree. The parser and normalizer tests keep calling the existing check unchanged and stay green.
   - `no-network.test.ts` in `src/detect`: run both checks over every non-test `.ts` file of `src/detect`, failing with the file, line and identifier. Self-tests for the new check: fixtures with `Date.now()`, `new Date()`, `Math.random()` and `crypto.randomUUID()` are reported; `new Date(2026, 0, 1)`, a comment mentioning `Date.now` and an identifier `randomize` are not.
-  - `node-env.test.ts` in `src/detect`: import `detectSubscriptions` from the package entry (`../index.js`) under the Node environment, run it on a small Netflix fixture, and check that `window`, `document`, `navigator` and `localStorage` are undefined.
+  - `node-env.test.ts` in `src/detect`: import `detectSubscriptions` from the package entry (`../index.js`) under the Node environment, run it on a small Netflix fixture, and check that `window`, `document` and `localStorage` are undefined and that `navigator` is either undefined or Node's built-in object (`userAgent` starts with `Node.js/`, present on Node 21+). That is, no browser globals other than Node's built-in `navigator`.
   - Extend `src/build.test.ts`: the plain-Node import of `dist/index.js` also calls `detectSubscriptions` on two Netflix charges a month apart and expects one Subscription with id `sub:USD:monthly:*:netflix`.
   - _Requirements: 7.3, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6; privacy.md_
 
-- [ ] 28. Comparison bound and timing (`performance.test.ts`, `performance.property.test.ts`)
+- [x] 28. Comparison bound and timing (`performance.test.ts`, `performance.property.test.ts`)
   - Add `driftingLateBandArb` to `test-arbitraries.ts` as in design "Generators".
   - Property test (`performance.property.test.ts`): **P20** for single-Group, single-band inputs of `b` charges from `driftingLateBandArb`, `monthlySeriesArb` with one amount and random dates at one amount, for known and generic sources: `detectSubscriptionsCounted` with a fresh counter gives `counter.comparisons ≤ 24 × b²`.
   - `performance.test.ts`:
@@ -312,7 +312,7 @@ Property tests use fast-check's default 100 runs; P1 and P3 use 300 (design "Tes
 
 ---
 
-- [ ] 29. Checkpoint: run the whole suite
+- [x] 29. Checkpoint: run the whole suite
   - From the repo root, run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass with no skipped or `.only` tests, and the statement-parser and merchant-normalizer suites must be unchanged.
   - Check that `packages/core/dist` contains no test files, no `test-arbitraries`, `test-fixtures` or `test-no-network-scan` output and no `node:fs` import, and that `dist/index.js` exports `detectSubscriptions` and not `detectSubscriptionsCounted` in plain Node (`build.test.ts` covers the call).
   - Check that every property P1–P20 has a passing `it`/`test` whose name starts with its ID, and that `grep -rE 'console\.|toLocale|localeCompare|Intl\.|new Date|Date\.now|Math\.random' packages/core/src/detect` finds nothing outside test files.

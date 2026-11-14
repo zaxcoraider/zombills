@@ -11,7 +11,7 @@ function compareNumbers(a: number, b: number): number {
   return 0;
 }
 
-/** Strings by code units (never `localeCompare`). */
+/** Strings by code units (never locale-aware). */
 function compareStrings(a: string, b: string): number {
   if (a < b) return -1;
   if (a > b) return 1;

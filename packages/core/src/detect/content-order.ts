@@ -1,6 +1,6 @@
 // Content order: the total order that ends every tie-break of the detector.
 // See .kiro/specs/subscription-detector/design.md ("Content order").
-// Strings are compared by code units with `<` / `>`, never `localeCompare`.
+// Strings are compared by code units with `<` / `>`, never locale-aware comparison.
 
 import type { Entry } from "./internal-types.js";
 

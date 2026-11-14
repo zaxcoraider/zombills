@@ -71,3 +71,52 @@ export function sourceFilesUnder(directory: string): string[] {
     return name.endsWith(".ts") && !isTestSupport ? [path] : [];
   });
 }
+
+/**
+ * The clock and randomness accesses the detector must not use (Req 12.3, 12.6), as
+ * `object.property` pairs. A `new Date` with no arguments is checked separately.
+ */
+export const CLOCK_AND_RANDOM = [
+  ["Date", "now"],
+  ["performance", "now"],
+  ["Math", "random"],
+  ["crypto", "randomUUID"],
+] as const;
+
+/**
+ * Opt-in second check, used by the detector's test only: finds the property accesses in
+ * `CLOCK_AND_RANDOM` and every `new Date` expression with no arguments, on the syntax tree. A
+ * comment, a string or a longer identifier such as `randomize` is never a match.
+ */
+export function findClockAndRandomReferences(source: string, file: string): Violation[] {
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const violations: Violation[] = [];
+
+  const report = (node: ts.Node, identifier: string): void => {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    violations.push({ file, line: line + 1, identifier });
+  };
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      ts.isIdentifier(node.name)
+    ) {
+      const object = node.expression.text;
+      const property = node.name.text;
+      if (CLOCK_AND_RANDOM.some(([o, p]) => o === object && p === property)) {
+        report(node, `${object}.${property}`);
+      }
+    } else if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "Date" &&
+      (node.arguments === undefined || node.arguments.length === 0)
+    ) {
+      report(node, "new Date");
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return violations;
+}

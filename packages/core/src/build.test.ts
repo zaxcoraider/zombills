@@ -130,6 +130,30 @@ describe("the built package in plain Node (Req 12.3)", () => {
   );
 
   it(
+    "calls detectSubscriptions from dist/index.js on two Netflix charges a month apart",
+    () => {
+      const run = runModule(
+        `
+        const api = await import(${JSON.stringify(pathToFileURL(join(distRoot, "index.js")).href)});
+        const rows = ["2026-01-02", "2026-02-02"].map((date) => {
+          const merchant = api.normalizeMerchant("NETFLIX.COM 866-579-7172 CA");
+          return { date, description: "NETFLIX.COM 866-579-7172 CA", amountCents: 1549, currency: "USD", merchant };
+        });
+        const result = api.detectSubscriptions(rows);
+        console.log(JSON.stringify({
+          ids: result.subscriptions.map((sub) => sub.id),
+          usage: result.usage.length,
+        }));
+      `,
+        repoRoot,
+      );
+      expect(run.status, run.stderr).toBe(0);
+      expect(JSON.parse(run.stdout)).toEqual({ ids: ["sub:USD:monthly:*:netflix"], usage: 2 });
+    },
+    TIMEOUT,
+  );
+
+  it(
     "exports the public functions and nothing that needs a browser",
     () => {
       const run = runModule(
