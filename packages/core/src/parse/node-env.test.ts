@@ -37,6 +37,7 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
     const entry = await import("../index.js");
     expect(Object.keys(entry).sort()).toEqual([
       "KNOWN_SERVICES",
+      "detectSubscriptions",
       "getKnownService",
       "normalizeMerchant",
       "normalizeTransactions",

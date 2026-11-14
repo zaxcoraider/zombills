@@ -150,6 +150,7 @@ describe("the built package in plain Node (Req 12.3)", () => {
       expect({ ...result, keys: [...result.keys].sort() }).toEqual({
         keys: [
           "KNOWN_SERVICES",
+          "detectSubscriptions",
           "getKnownService",
           "normalizeMerchant",
           "normalizeTransactions",

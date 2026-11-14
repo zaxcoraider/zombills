@@ -1,4 +1,6 @@
-// Public API of the subscription detector (types only until detectSubscriptions is wired in).
+// Public API of the subscription detector. `detectSubscriptionsCounted` stays internal.
+
+export { detectSubscriptions } from "./detect-subscriptions.js";
 
 export type {
   Cadence,

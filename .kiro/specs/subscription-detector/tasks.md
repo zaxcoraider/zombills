@@ -146,7 +146,7 @@ Rules that apply to every task:
     - two Series of one Group compete for a leftover: the Series first in Content order takes it.
   - _Requirements: 3.7, 3.8, 3.9, 3.10 (step 5, intros)_
 
-- [ ] 12. Minimum evidence and density (`accept.ts`)
+- [x] 12. Minimum evidence and density (`accept.ts`)
   - Write `meetsMinimum`, `densityCount` (two binary searches per band of the Regular charges, live charges only) and `acceptSeries(series)` returning the `Confidence` or `null`, as in design "Minimum evidence and density".
   - Unit tests (`accept.test.ts`):
     - every Req 5.1 row at its minimum and one below: known monthly and yearly `n = 2` high, `n = 1` rejected; known weekly `n = 3` high, `n = 2` rejected; generic and unidentified monthly `n = 3` high, `n = 2` equal amounts medium, `n = 2` unequal rejected; yearly `n = 2` medium, `n = 3` high; generic weekly always rejected;
@@ -154,7 +154,7 @@ Rules that apply to every task:
     - iCloud+ with one app purchase `m = 4` kept; with two `m = 5` rejected; coffee `n = 3`, `m = 6` rejected; generic `999` `n = 4`, `m = 6` kept.
   - _Requirements: 5.1, 5.2, 5.5, 5.6, 3.10 (step 6)_
 
-- [ ] 13. Single known charges (`single-charge.ts`)
+- [x] 13. Single known charges (`single-charge.ts`)
   - Write `reportSingleKnownCharges(groups, accepted, asOf)` as in design "Single known charges": for each `"known"` Group with no accepted Series and a live charge, the latest charge (ties by Content order) as a one-charge Series with `confidence: "low"`, `cadenceAssumed: true`, monthly when `asOf.day ≤ addMonths(charge, 1).day + 3`, else yearly.
   - Unit tests (`single-charge.test.ts`): the monthly/yearly boundary at exactly `addMonths + 3` and one day later; Netflix `1549` and `999` on the same date → the `999` charge; a Group whose only charge is refunded gives nothing; a Group with an accepted Series gives nothing; generic and unidentified Groups give nothing; a charge of a rejected Series can be reported.
   - _Requirements: 5.4, 5.5 (exception), 3.10 (step 7)_
@@ -165,7 +165,7 @@ Rules that apply to every task:
 
 ## Batch 5: building Subscriptions and the public function
 
-- [ ] 14. Amounts, price history, charge copies and status (`build-subscription.ts`, part 1)
+- [x] 14. Amounts, price history, charge copies and status (`build-subscription.ts`, part 1)
   - Write `buildSubscription(series, statement, asOf)` with every field except `evidence` (filled with a placeholder of the right shape until task 15): `currentAmountCents` from the last Regular charge; `yearlyCostCents = currentAmountCents × {52, 12, 1}` and `null` when it is not a safe integer; `priceHistory` from intro plus Regular charges by date; `charges` as new objects with exactly the 4 + 5 fields (the `processor` cast); `merchant` from the last charge's `displayName`; `merchantKey`, `serviceId`, `source`, `currency` from the Group; `labels: []`, no `cancel`; `status` from `next = addPeriods(lastRegular, cadence, 1)` and `ENDED_GRACE_DAYS`.
   - Unit tests (`build-subscription.test.ts`, part 1):
     - yearly cost for each cadence; an amount near `MAX_SAFE_INTEGER / 12` monthly returns `null`, the same amount yearly does not;
@@ -175,7 +175,7 @@ Rules that apply to every task:
     - status: last charge 2026-02-20 monthly, `asOf` 2026-03-30 → `"active"`, 2026-03-31 → `"ended"`; weekly grace 2 and yearly grace 7 at their edges; `asOf` before the last Regular charge → `"active"`; an ended Subscription keeps its last price.
   - _Requirements: 1.6, 1.7, 1.12, 6.1, 6.2, 6.3, 6.4, 6.5, 7.4, 7.5, 7.6, 7.8_
 
-- [ ] 15. Evidence (`build-subscription.ts`, part 2)
+- [x] 15. Evidence (`build-subscription.ts`, part 2)
   - Fill `evidence` as in the design's Evidence table: `regularChargeCount`, `firstChargeDate`, `lastChargeDate`, `nextExpectedDate` (`formatDate` of `next`), `missedPeriods` (intervals with `k = 2`, join gaps included), `lateChargeDates` (ascending), `cadenceAssumed`, `introCharge`, `freeTrialDate` (binary search on the Group's zero rows), `startedInStatement` and `partialRefunds` (the Group's `"money-in"` Credits from `e` to the last Regular charge + 45 days, negative amounts, ascending).
   - Unit tests (`build-subscription.test.ts`, part 2):
     - `freeTrialDate`: a zero row exactly at `addPeriods(e, cadence, −1)` minus the Tolerance is used, one day earlier is not; a zero row on `e`'s date is used; the latest of two qualifying rows wins; a zero row of another Group is ignored;
@@ -185,12 +185,12 @@ Rules that apply to every task:
     - `nextExpectedDate` for a charge in year 9999 has a 5-digit year.
   - _Requirements: 2.3 (trial evidence only), 4.5, 4.6 (`lateChargeDates`), 5.7, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
 
-- [ ] 16. Ids and ordering (`ids.ts`)
+- [x] 16. Ids and ordering (`ids.ts`)
   - Write `assignIds(subs, series)` and `sortSubscriptions(subs)` as in design "Ids": groups by `(merchantKey, currency, cadence)`; `"*"` for a group of one; `String(currentAmountCents)` otherwise; `"<amount>-<r>"` for shared amounts, ranked by first charge date, then the list of charge dates, then the list of charge amounts, element by element with a prefix first. Sort by `yearlyCostCents` descending, then `id` by code units.
   - Unit tests (`ids.test.ts`): `sub:USD:monthly:*:netflix`; the Req 8.2 Apple example ids `…:99:…` and `…:1099:…`; two Subscriptions of one amount get `-1` and `-2` by first date, then by date list, then by amount list, and a prefix list ranks first; the same key in two currencies or two cadences gets `*` each; a key containing `:` is the whole remainder after the fourth `:`; sort order with equal yearly costs falls back to `id`.
   - _Requirements: 1.11, 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 17. `detectSubscriptions` and usage (`detect-subscriptions.ts`, `usage.ts`)
+- [x] 17. `detectSubscriptions` and usage (`detect-subscriptions.ts`, `usage.ts`)
   - Write `buildUsage(length, roles)`: one entry per input position, in input order, defaulting to `"not-recurring"` for valid Charges with no other role.
   - Write `detectSubscriptionsCounted(transactions, options, counter)` running the eight steps of design "Overview" in order, and `detectSubscriptions(transactions, options)` calling it with no counter. Throw `TypeError("detectSubscriptions: transactions must be an array")` only for a non-array. Charges of rejected Series and of overflowed Subscriptions get `"not-recurring"`.
   - Export `detectSubscriptions` from `index.ts`; do not export `detectSubscriptionsCounted`.
