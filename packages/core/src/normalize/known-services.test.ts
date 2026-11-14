@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { KNOWN_SERVICES, getKnownService } from "./known-services.js";
 import { joinTokens, lex } from "./lex.js";
 import { CARD_PREFIXES, MONTHS } from "./noise-lists.js";
+import { normalizeMerchant } from "./normalize-merchant.js";
+import { KNOWN_SERVICE_FIXTURES } from "./test-known-service-fixtures.js";
 import type { ServiceCategory } from "./types.js";
 
 /** The Req 4.2 table: serviceId, display name, category, in design order. */
@@ -210,6 +212,31 @@ describe("getKnownService", () => {
   it("returns undefined for unknown ids", () => {
     for (const id of ["", "nope", "NETFLIX", "constructor", "__proto__", "toString"]) {
       expect(getKnownService(id), id).toBeUndefined();
+    }
+  });
+});
+
+describe("realistic fixtures", () => {
+  it("has a fixture for every service and none for an unknown id", () => {
+    const fixtureIds = KNOWN_SERVICE_FIXTURES.map((fixture) => fixture.serviceId);
+    expect(new Set(fixtureIds).size).toBe(fixtureIds.length);
+    expect([...fixtureIds].sort()).toEqual(KNOWN_SERVICES.map((s) => s.serviceId).sort());
+    for (const fixture of KNOWN_SERVICE_FIXTURES) {
+      expect(fixture.descriptions.length, fixture.serviceId).toBeGreaterThan(0);
+    }
+  });
+
+  it("maps every fixture description to its serviceId", () => {
+    for (const fixture of KNOWN_SERVICE_FIXTURES) {
+      for (const description of fixture.descriptions) {
+        const merchant = normalizeMerchant(description);
+        expect({ description, source: merchant.source, key: merchant.key }, description).toEqual({
+          description,
+          source: "known",
+          key: fixture.serviceId,
+        });
+        expect(merchant.serviceId, description).toBe(fixture.serviceId);
+      }
     }
   });
 });

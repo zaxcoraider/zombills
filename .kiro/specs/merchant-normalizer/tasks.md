@@ -171,14 +171,14 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
 
 ## Batch 5: statement helper, samples, privacy and performance
 
-- [ ] 14. `normalizeTransactions` (`normalize-transactions.ts`)
+- [x] 14. `normalizeTransactions` (`normalize-transactions.ts`)
   - Implement the design's version: a memo local to the call, the four `Transaction` fields copied explicitly, `merchant` a fresh copy per element.
   - Export `normalizeTransactions` from `index.ts`.
   - Unit tests (`normalize-transactions.test.ts`): an empty array gives `[]`; debit, credit and zero rows with the same description get equal `merchant` values; a frozen input array of frozen transactions does not throw; an input object with an extra property gives an output without it; mutating one output's `merchant` leaves another element with the same description unchanged.
   - Property tests (`normalize-transactions.property.test.ts`): **P11**, and extend **P3** (in `normalize-merchant.property.test.ts`) to the `normalizeTransactions` half.
   - _Requirements: 8.1–8.6, 9.3_
 
-- [ ] 15. Known-service fixtures, the EU sample and sample snapshots
+- [x] 15. Known-service fixtures, the EU sample and sample snapshots
   - Write `test-known-service-fixtures.ts`: for each of the 59 services, at least one realistic raw description with bank noise (e.g. `NETFLIX.COM 866-579-7172 CA`, `PAYPAL *DISNEYPLUS 4029357733`, `GOOGLE *YouTubePremium g.co/helppay#`, `MICROSOFT*XBOX GAME PASS 425-681-4800 WA`, `AMZN DIGITAL*KINDLE UNLIMITED`). Invented reference numbers only.
   - `known-services.test.ts`: every fixture maps to its `serviceId`, and every service has a fixture.
   - `eu-sample.test.ts`:
@@ -189,14 +189,14 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
   - `samples.test.ts`: for each CSV in `samples/` (`us-signed.csv`, `uk-debit-credit.csv`, `eu-semicolon.csv`, `with-preamble.csv`), parse, normalize and snapshot the sorted list of distinct `{ key, displayName, source, serviceId, processor }`.
   - _Requirements: 4.10, 7.1–7.5_
 
-- [ ] 16. Privacy and environment checks
+- [x] 16. Privacy and environment checks
   - `no-network.test.ts` in `src/normalize`: scan every non-test `.ts` file's syntax tree and fail on `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `document`, `window`, `navigator` or `localStorage`, naming the file, line and identifier. If the scanner in `src/parse/no-network.test.ts` is local to that file, move it to `src/test-no-network-scan.ts` and use it from both tests, keeping the parser's test passing unchanged. Include the self-tests: a fixture containing `fetch(` is reported; a comment and `prefetchAll` are not.
   - Add `localStorage` to the `no-restricted-globals` rule for `packages/core/src/**` in `eslint.config.js`, with the same privacy message.
   - `node-env.test.ts` in `src/normalize`: import `normalizeMerchant`, `normalizeTransactions`, `KNOWN_SERVICES` and `getKnownService` from the package entry (`../index.js`) under the Node environment and call each one; check that `window`, `document`, `navigator` and `localStorage` are undefined.
   - Extend `src/build.test.ts`: the plain-Node import of `dist/index.js` also calls `normalizeMerchant("NETFLIX.COM 866-579-7172 CA")` and expects key `netflix`.
   - _Requirements: 10.1, 10.2, 10.3, 10.5; privacy.md_
 
-- [ ] 17. Performance (`performance.test.ts`)
+- [x] 17. Performance (`performance.test.ts`)
   - Write `adversarialCorpus` in `test-arbitraries.ts`: every string listed in design "Generators", each exactly 10,000 characters, plus random-case copies and at least one nested phone/date alternation that needs several passes.
   - **P13**: after one warm-up call, each corpus entry and 100 random 10,000-character strings (`fc.string` and `fc.fullUnicodeString`) finish in under 250 ms, measured with `performance.now()`. The test name gives the slowest input's label and time on failure.
   - Assert that `cleanDescription` reports `passes` ≤ 3 for each realistic fixture from task 15, so a rule change that adds passes is noticed.
@@ -206,7 +206,7 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
 
 ---
 
-- [ ] 18. Checkpoint: run the whole suite
+- [x] 18. Checkpoint: run the whole suite
   - From the repo root, run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass with no skipped or `.only` tests, and the statement-parser suite must be unchanged.
   - Check that `packages/core/dist` contains no test files, no `test-arbitraries`, `test-known-service-fixtures` or `test-no-network-scan` output and no `node:fs` import, and that `dist/index.js` exports `normalizeMerchant`, `normalizeTransactions`, `KNOWN_SERVICES` and `getKnownService` in plain Node (`build.test.ts` covers this).
   - Check that every property P1–P13 has a passing `it`/`test` whose name starts with its ID, and that `grep -rE 'console\.|toLocale|Intl\.|new Date|Date\.now' packages/core/src/normalize` finds nothing outside test files.

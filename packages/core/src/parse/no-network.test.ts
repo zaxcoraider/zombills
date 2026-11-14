@@ -1,80 +1,19 @@
 // Req 12.1, 12.2, 12.4 and privacy.md: the parser never reaches for the network or the browser.
 //
 // The scan reads the syntax tree of every non-test source file, so a mention in a comment is never
-// a reference, and a string or a regular expression cannot be mistaken for a comment.
+// a reference, and a string or a regular expression cannot be mistaken for a comment. The scanner
+// is shared with src/normalize/no-network.test.ts and lives in src/test-no-network-scan.ts.
 
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 import { describe, expect, it } from "vitest";
-
-const FORBIDDEN = [
-  "fetch",
-  "XMLHttpRequest",
-  "sendBeacon",
-  "WebSocket",
-  "document",
-  "window",
-  "navigator",
-] as const;
-
-const FORBIDDEN_WORD = new RegExp(`\\b(${FORBIDDEN.join("|")})\\b`, "g");
-
-interface Violation {
-  file: string;
-  line: number;
-  identifier: string;
-}
-
-/**
- * Finds every identifier, string, template or regular expression in `source` that contains one of
- * the forbidden words as a whole word. Comments are not looked at.
- */
-function findForbiddenReferences(source: string, file: string): Violation[] {
-  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
-  const violations: Violation[] = [];
-
-  const check = (node: ts.Node, text: string): void => {
-    for (const match of text.matchAll(FORBIDDEN_WORD)) {
-      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-      violations.push({ file, line: line + 1, identifier: match[1] ?? match[0] });
-    }
-  };
-  const visit = (node: ts.Node): void => {
-    if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) {
-      check(node, node.text);
-    } else if (
-      ts.isStringLiteral(node) ||
-      ts.isNoSubstitutionTemplateLiteral(node) ||
-      ts.isTemplateHead(node) ||
-      ts.isTemplateMiddle(node) ||
-      ts.isTemplateTail(node) ||
-      ts.isRegularExpressionLiteral(node)
-    ) {
-      check(node, node.text);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return violations;
-}
+import { FORBIDDEN, findForbiddenReferences, sourceFilesUnder } from "../test-no-network-scan.js";
 
 const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
 const repoRoot = join(packageRoot, "..", "..");
-
-function sourceFilesUnder(directory: string): string[] {
-  return readdirSync(directory).flatMap((name) => {
-    const path = join(directory, name);
-    if (statSync(path).isDirectory()) {
-      return sourceFilesUnder(path);
-    }
-    const isTestSupport = /\.test\.ts$/.test(name) || name.startsWith("test-");
-    return name.endsWith(".ts") && !isTestSupport ? [path] : [];
-  });
-}
 
 describe("no network and no browser APIs in the parser (Req 12.1, 12.2, 12.4)", () => {
   it("finds no network or browser reference in any non-test source file", () => {

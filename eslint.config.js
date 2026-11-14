@@ -12,6 +12,7 @@ const RESTRICTED_GLOBALS = [
   "document",
   "window",
   "navigator",
+  "localStorage",
 ].map((name) => ({ name, message: PRIVACY_MESSAGE }));
 
 export default tseslint.config(

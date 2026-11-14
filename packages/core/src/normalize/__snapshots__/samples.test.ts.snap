@@ -1,0 +1,252 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`sample statements, normalized > eu-semicolon.csv: distinct merchant identities 1`] = `
+[
+  {
+    "displayName": "Fitnessstudio Lindenhof",
+    "key": "merchant:fitnessstudio-lindenhof",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Gehalt Beispiel Gmbh",
+    "key": "merchant:gehalt-beispiel-gmbh",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Musikdienst Premium",
+    "key": "merchant:musikdienst-premium",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Online Shop Rueckerstattung",
+    "key": "merchant:online-shop-rueckerstattung",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Streaming Dienst Monatsbeitrag",
+    "key": "merchant:streaming-dienst-monatsbeitrag",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Supermarkt Nord",
+    "key": "merchant:supermarkt-nord",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Tankstelle Am Ring",
+    "key": "merchant:tankstelle-am-ring",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+]
+`;
+
+exports[`sample statements, normalized > uk-debit-credit.csv: distinct merchant identities 1`] = `
+[
+  {
+    "displayName": "Disney+",
+    "key": "disney-plus",
+    "processor": null,
+    "serviceId": "disney-plus",
+    "source": "known",
+  },
+  {
+    "displayName": "City Travel Card",
+    "key": "merchant:city-travel-card",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Fitzone Gym Ltd",
+    "key": "merchant:fitzone-gym-ltd",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Highfield Stores London",
+    "key": "merchant:highfield-stores-london",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Market Square Foods",
+    "key": "merchant:market-square-foods",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Online Shop Refund Ref",
+    "key": "merchant:online-shop-refund-ref",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Primevideo Membership",
+    "key": "merchant:primevideo-membership",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Salary Brighton Ltd",
+    "key": "merchant:salary-brighton-ltd",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Netflix",
+    "key": "netflix",
+    "processor": null,
+    "serviceId": "netflix",
+    "source": "known",
+  },
+  {
+    "displayName": "Spotify",
+    "key": "spotify",
+    "processor": null,
+    "serviceId": "spotify",
+    "source": "known",
+  },
+]
+`;
+
+exports[`sample statements, normalized > us-signed.csv: distinct merchant identities 1`] = `
+[
+  {
+    "displayName": "Adobe Creative Cloud",
+    "key": "adobe",
+    "processor": null,
+    "serviceId": "adobe",
+    "source": "known",
+  },
+  {
+    "displayName": "Greenleaf Market Austin",
+    "key": "merchant:greenleaf-market-austin",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Harvest Foods Austin",
+    "key": "merchant:harvest-foods-austin",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Lone Star Fuel Austin",
+    "key": "merchant:lone-star-fuel-austin",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Online Marketplace Order",
+    "key": "merchant:online-marketplace-order",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Online Marketplace Refund",
+    "key": "merchant:online-marketplace-refund",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Payroll Acme Corp Direct Dep",
+    "key": "merchant:payroll-acme-corp-direct-dep",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Riverside Gym Membership",
+    "key": "merchant:riverside-gym-membership",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Taco Planet Austin",
+    "key": "merchant:taco-planet-austin",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Netflix",
+    "key": "netflix",
+    "processor": null,
+    "serviceId": "netflix",
+    "source": "known",
+  },
+  {
+    "displayName": "Spotify",
+    "key": "spotify",
+    "processor": null,
+    "serviceId": "spotify",
+    "source": "known",
+  },
+]
+`;
+
+exports[`sample statements, normalized > with-preamble.csv: distinct merchant identities 1`] = `
+[
+  {
+    "displayName": "Cloudvault Storage 200gb",
+    "key": "merchant:cloudvault-storage-200gb",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Corner Grocery",
+    "key": "merchant:corner-grocery",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Fit House Membership",
+    "key": "merchant:fit-house-membership",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Payroll Example Inc",
+    "key": "merchant:payroll-example-inc",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+  {
+    "displayName": "Streamly Video Monthly",
+    "key": "merchant:streamly-video-monthly",
+    "processor": null,
+    "serviceId": null,
+    "source": "generic",
+  },
+]
+`;

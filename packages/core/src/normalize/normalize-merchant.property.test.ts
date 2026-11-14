@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { fold } from "./fold.js";
 import { KNOWN_SERVICES } from "./known-services.js";
 import { normalizeMerchant } from "./normalize-merchant.js";
+import { normalizeTransactions } from "./normalize-transactions.js";
 import { applyNoise, genericNameArb, noiseArb } from "./test-arbitraries.js";
 
 const MERCHANT_SOURCES = ["known", "generic", "unidentified"];
@@ -78,6 +79,23 @@ describe("normalizeMerchant properties", () => {
     fc.assert(
       fc.property(anyStringArb, (s) => {
         expect(normalizeMerchant(s)).toEqual(normalizeMerchant(s));
+      }),
+    );
+  });
+
+  it("P3: deterministic, normalizeTransactions", () => {
+    const transactionsArb = fc.array(
+      fc.record({
+        date: fc.constant("2026-03-12"),
+        description: anyStringArb,
+        amountCents: fc.integer({ min: -100_000, max: 100_000 }),
+        currency: fc.constant("USD"),
+      }),
+      { maxLength: 10 },
+    );
+    fc.assert(
+      fc.property(transactionsArb, (input) => {
+        expect(normalizeTransactions(input)).toEqual(normalizeTransactions(input));
       }),
     );
   });

@@ -339,3 +339,68 @@ export const decorationArb: fc.Arbitrary<Pick<UnidentifiedCase, "start" | "end">
     start: prefix === null ? startItems : [prefix, ...startItems],
     end,
   }));
+
+// ---------------------------------------------------------------------------------------------
+// adversarialCorpus
+// ---------------------------------------------------------------------------------------------
+
+/** One adversarial input: a label for failure messages and a text of exactly CORPUS_LENGTH. */
+export interface AdversarialInput {
+  label: string;
+  text: string;
+}
+
+export const CORPUS_LENGTH = 10_000;
+
+/** `unit` repeated and cut to exactly `length` characters. */
+function repeatTo(unit: string, length: number): string {
+  return unit.repeat(Math.ceil(length / unit.length)).slice(0, length);
+}
+
+/** Fixed seed: the random-case copies are the same on every run, so a slow input can be replayed. */
+const CORPUS_SEED = 20_260_312;
+
+const BASE_CORPUS: readonly AdversarialInput[] = [
+  { label: '"1" x 10000', text: repeatTo("1", CORPUS_LENGTH) },
+  { label: '"*" x 10000', text: repeatTo("*", CORPUS_LENGTH) },
+  { label: '"12/" repeated', text: repeatTo("12/", CORPUS_LENGTH) },
+  { label: '"12/12/" repeated', text: repeatTo("12/12/", CORPUS_LENGTH) },
+  { label: '"01." repeated', text: repeatTo("01.", CORPUS_LENGTH) },
+  { label: '"1-" repeated', text: repeatTo("1-", CORPUS_LENGTH) },
+  { label: '"(1) " repeated', text: repeatTo("(1) ", CORPUS_LENGTH) },
+  { label: '"POS " repeated', text: repeatTo("POS ", CORPUS_LENGTH) },
+  { label: '"PAYPAL *" repeated', text: repeatTo("PAYPAL *", CORPUS_LENGTH) },
+  { label: '"AMZN MKTP " repeated', text: repeatTo("AMZN MKTP ", CORPUS_LENGTH) },
+  { label: '"a." repeated + "com"', text: repeatTo("a.", CORPUS_LENGTH - 3) + "com" },
+  // A date inside a phone number, repeated: dates and phones unlock each other across passes.
+  { label: "phone/date alternation", text: repeatTo("866 12/03 579 12/03 7172 ", CORPUS_LENGTH) },
+  // `12 <phone> JAN` needs a second pass: the phone must go before `12 JAN` is contiguous.
+  { label: "date around phone, flat", text: repeatTo("12 866-579-7172 JAN ", CORPUS_LENGTH) },
+  // The same shape nested 500 deep: each pass can only peel the innermost layer.
+  {
+    label: "date around phone, nested",
+    text: repeatTo("12 866-579-7172 ".repeat(500) + "JAN ".repeat(500), CORPUS_LENGTH),
+  },
+  { label: "reference between dates", text: repeatTo("12 0412 JAN ", CORPUS_LENGTH) },
+];
+
+function randomCaseCopy(input: AdversarialInput, bits: readonly boolean[]): AdversarialInput {
+  return { label: `${input.label}, random case`, text: applyCase(input.text, bits) };
+}
+
+/**
+ * Every adversarial string of design "Generators" at exactly 10,000 characters, plus a random-case
+ * copy of each.
+ */
+export const adversarialCorpus: readonly AdversarialInput[] = Object.freeze([
+  ...BASE_CORPUS,
+  ...BASE_CORPUS.map((input, index) =>
+    randomCaseCopy(
+      input,
+      fc.sample(fc.array(fc.boolean(), { minLength: 1, maxLength: 12 }), {
+        numRuns: 1,
+        seed: CORPUS_SEED + index,
+      })[0] ?? [true],
+    ),
+  ),
+]);

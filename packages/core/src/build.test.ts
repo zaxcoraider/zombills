@@ -135,16 +135,29 @@ describe("the built package in plain Node (Req 12.3)", () => {
       const run = runModule(
         `
         const api = await import(${JSON.stringify(pathToFileURL(join(distRoot, "index.js")).href)});
-        console.log(JSON.stringify({ keys: Object.keys(api), window: typeof window, document: typeof document }));
+        const identity = api.normalizeMerchant("NETFLIX.COM 866-579-7172 CA");
+        console.log(JSON.stringify({
+          keys: Object.keys(api),
+          window: typeof window,
+          document: typeof document,
+          key: identity.key,
+        }));
       `,
         repoRoot,
       );
       expect(run.status, run.stderr).toBe(0);
       const result = JSON.parse(run.stdout) as { keys: string[] };
       expect({ ...result, keys: [...result.keys].sort() }).toEqual({
-        keys: ["KNOWN_SERVICES", "getKnownService", "normalizeMerchant", "parseStatement"],
+        keys: [
+          "KNOWN_SERVICES",
+          "getKnownService",
+          "normalizeMerchant",
+          "normalizeTransactions",
+          "parseStatement",
+        ],
         window: "undefined",
         document: "undefined",
+        key: "netflix",
       });
     },
     TIMEOUT,

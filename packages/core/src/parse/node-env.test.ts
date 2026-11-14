@@ -39,6 +39,7 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
       "KNOWN_SERVICES",
       "getKnownService",
       "normalizeMerchant",
+      "normalizeTransactions",
       "parseStatement",
     ]);
   });
