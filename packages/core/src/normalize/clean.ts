@@ -24,6 +24,9 @@ import { removeTrailingCodes } from "./rule-trailing.js";
 import { tokensFrom } from "./token-list.js";
 
 const WHITESPACE_RUN = /[\s\p{Z}]+/gu;
+const FOUR_DIGITS = /^[0-9]{4}$/u;
+const OPENING_MARKS = /[(+#]+$/u;
+const TRAILING_STARS = /\*+$/u;
 
 /** Removal reasons that are left out of the Unidentified residue (Req 6.2). */
 const RESIDUE_REASONS: ReadonlySet<string> = new Set(["prefix", "card-number", "date"]);
@@ -55,16 +58,30 @@ function runPass(
  */
 function buildResidue(lexemes: readonly Lexeme[], log: RemovalLog): string {
   const dropped: boolean[] = new Array<boolean>(lexemes.length).fill(false);
+  const texts: string[] = lexemes.map((lexeme) => lexeme.folded);
   for (const record of log) {
     if (!RESIDUE_REASONS.has(record.reason) || record.span === null) continue;
     for (let i = record.span.first; i <= record.span.last; i++) dropped[i] = true;
     // Words and gaps alternate, so a lexeme right after a span is a gap.
     const after = record.span.last + 1;
-    if (after < lexemes.length) dropped[after] = true;
+    // The gap goes, except for the characters that open the next word (`(800)`, `+44`, `#0412`).
+    if (after < lexemes.length) {
+      texts[after] = ((lexemes[after] as Lexeme).folded.match(OPENING_MARKS) ?? [""])[0] as string;
+    }
+    // `****1234`: the stars that made the 4 digits a masked card number belong to it.
+    const before = record.span.first - 1;
+    if (
+      record.reason === "card-number" &&
+      record.span.first === record.span.last &&
+      before >= 0 &&
+      FOUR_DIGITS.test((lexemes[record.span.first] as Lexeme).folded)
+    ) {
+      texts[before] = (texts[before] as string).replace(TRAILING_STARS, "");
+    }
   }
   let text = "";
   for (let i = 0; i < lexemes.length; i++) {
-    if (!dropped[i]) text += (lexemes[i] as Lexeme).folded;
+    if (!dropped[i]) text += texts[i] as string;
   }
   return text.replace(WHITESPACE_RUN, " ").trim();
 }

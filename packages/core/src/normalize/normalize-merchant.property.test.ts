@@ -1,7 +1,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { fold } from "./fold.js";
+import { KNOWN_SERVICES } from "./known-services.js";
 import { normalizeMerchant } from "./normalize-merchant.js";
+import { applyNoise, genericNameArb, noiseArb } from "./test-arbitraries.js";
 
 const MERCHANT_SOURCES = ["known", "generic", "unidentified"];
 
@@ -110,6 +112,55 @@ describe("normalizeMerchant properties", () => {
         expect(again.source).toBe(r.source);
         expect(again.serviceId).toBe(r.serviceId);
         expect(again.displayName).toBe(r.displayName);
+      }),
+      { numRuns: 1000 },
+    );
+  });
+
+  it("P5: idempotent on its own display name, noise x variants", () => {
+    for (const service of KNOWN_SERVICES) {
+      for (const variant of service.variants) {
+        fc.assert(
+          fc.property(noiseArb, (noise) => {
+            const description = applyNoise(noise, variant.text);
+            const r = normalizeMerchant(description);
+            expect(r.source, description).toBe("known");
+            const again = normalizeMerchant(r.displayName);
+            expect(again.key).toBe(r.key);
+            expect(again.source).toBe(r.source);
+            expect(again.serviceId).toBe(r.serviceId);
+            expect(again.displayName).toBe(r.displayName);
+          }),
+          { numRuns: 10 },
+        );
+      }
+    }
+  });
+
+  it("P5: idempotent on its own display name, noise x generic names", () => {
+    fc.assert(
+      fc.property(genericNameArb, noiseArb, (name, noise) => {
+        const description = applyNoise(noise, name);
+        const r = normalizeMerchant(description);
+        expect(r.source, description).toBe("generic");
+        const again = normalizeMerchant(r.displayName);
+        expect(again.key).toBe(r.key);
+        expect(again.source).toBe(r.source);
+        expect(again.serviceId).toBe(r.serviceId);
+        expect(again.displayName).toBe(r.displayName);
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it("P9: generic noise-insensitivity", () => {
+    fc.assert(
+      fc.property(genericNameArb, noiseArb, (name, noise) => {
+        const bare = normalizeMerchant(name);
+        const description = applyNoise(noise, name);
+        const noisy = normalizeMerchant(description);
+        expect(noisy.source, JSON.stringify(description)).toBe("generic");
+        expect(noisy.key, JSON.stringify(description)).toBe(bare.key);
       }),
       { numRuns: 1000 },
     );

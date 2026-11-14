@@ -157,7 +157,7 @@ Each rule is a function `(tokens, ctx) => tokens` that logs its removals. `ctx` 
   - Property test (`known-services.property.test.ts`): **P8**.
   - _Requirements: 1.1–1.9, 2.2, 2.4, 2.5, 3.12, 4.8, 4.9, 4.11, 5.1–5.5, 6.1–6.5, 9.1, 9.2, 9.3, 9.5, 9.7_
 
-- [ ] 13. Noise generators and the noise properties (`test-arbitraries.ts`)
+- [x] 13. Noise generators and the noise properties (`test-arbitraries.ts`)
   - Write `noiseArb`, `genericNameArb` and `unidentifiedArb` as described in design "Generators", built from the constants in `noise-lists.ts` and filtered against variant tokens.
   - Self-tests (`test-arbitraries.test.ts`): every generated reference token is removed by step 7 and is not a variant token; every generated generic name is `generic` when bare; every generated date passes the 1–31/1–12 check.
   - Property test (`match-known.property.test.ts`): **P7**.

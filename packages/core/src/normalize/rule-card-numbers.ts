@@ -1,7 +1,9 @@
 // Step 1: masked card numbers (design "Step 1", Req 3.3). Removed anywhere in the description:
 //   - a word like `XXXX1234` (two or more `x`, then 4 digits);
 //   - a 4-digit word whose gap in front ends in two or more `*` (`****1234`);
-//   - the sequences `card dddd`, `card ending dddd` and `card no dddd`.
+//   - the sequences `card dddd`, `card ending dddd` and `card no dddd`, taking a directly preceding
+//     `check` with them: `check card` is a prefix (Req 3.2), but `check` alone is not, so removing
+//     only `card dddd` would leave `CHECK` behind as part of the merchant name.
 // One left-to-right scan builds the new list. The gaps of removed tokens are merged into the next
 // kept token (or into trailingGap), so later rules still see `*` and other separators.
 
@@ -32,7 +34,8 @@ export function removeCardNumbers(list: TokenList, ctx: RuleContext): TokenList 
     const gap = carried + original.gapBefore;
     carried = "";
 
-    const phrase = cardPhraseLength(tokens, i);
+    const checkPhrase = original.folded === "check" ? cardPhraseLength(tokens, i + 1) : 0;
+    const phrase = checkPhrase > 0 ? checkPhrase + 1 : cardPhraseLength(tokens, i);
     if (phrase > 0) {
       ctx.log.push({ reason: "card-number", span: spanOfRun(tokens, i, i + phrase) });
       carried = gap;

@@ -19,6 +19,8 @@ describe("removeCardNumbers", () => {
     ["NETFLIX CARD ENDING 1234", ["netflix"]],
     ["NETFLIX CARD NO 1234", ["netflix"]],
     ["NETFLIX xx1234 FOO", ["netflix", "foo"]],
+    ["CHECK CARD 1234 FOO", ["foo"]],
+    ["CHECK CARD ****1234 FOO", ["foo"]],
   ])("removes the mask in %s", (text, expected) => {
     expect(run(text).folded).toEqual(expected);
   });
@@ -30,6 +32,7 @@ describe("removeCardNumbers", () => {
     ["NETFLIX 1234", ["netflix", "1234"]],
     ["NETFLIX *1234", ["netflix", "1234"]],
     ["CARD ENDING", ["card", "ending"]],
+    ["CHECK CARD FOO", ["check", "card", "foo"]],
     ["CARD NO ABCD", ["card", "no", "abcd"]],
   ])("keeps %s", (text, expected) => {
     expect(run(text).folded).toEqual(expected);

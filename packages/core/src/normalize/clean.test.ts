@@ -81,6 +81,32 @@ describe("cleanDescription: residue", () => {
     );
   });
 
+  it("takes the stars of a masked card number out of the residue", () => {
+    expect(cleanDescription("****1234 PAYPAL *X").residue).toBe(
+      cleanDescription("PAYPAL *X").residue,
+    );
+    expect(cleanDescription("FOO ****1234 BAR").residue).toBe("foo bar");
+  });
+
+  it("keeps the opening mark of the next word when a date goes", () => {
+    expect(cleanDescription("12/03 (800) 123 4567").residue).toBe(
+      cleanDescription("(800) 123 4567").residue,
+    );
+    expect(cleanDescription("FOO 12/03 +44 20 7946 0958").residue).toBe(
+      cleanDescription("FOO +44 20 7946 0958").residue,
+    );
+    expect(cleanDescription("FOO 12/03 #0412").residue).toBe("foo #0412");
+  });
+
+  it("removes `check card dddd` as a whole, with or without stars", () => {
+    expect(cleanDescription("CHECK CARD 1234 BLUE BOTTLE").cleaned.map((t) => t.folded)).toEqual([
+      "blue",
+      "bottle",
+    ]);
+    expect(cleanDescription("CHECK CARD ****1234").cleaned).toEqual([]);
+    expect(cleanDescription("CHECK CARD ****1234").residue).toBe("");
+  });
+
   it("leaves one space where a date sat between two words", () => {
     expect(cleanDescription("FOO 12/03 BAR").residue).toBe("foo bar");
   });
