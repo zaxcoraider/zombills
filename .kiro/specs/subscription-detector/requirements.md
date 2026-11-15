@@ -340,7 +340,9 @@ Out of scope for this spec:
    | `merchant:fitzone-gym-ltd` | Fitzone Gym Ltd | 2499 | 29988 | 2026-01-10: 2499 |
    | `netflix` | Netflix | 1299 | 15588 | 2026-01-02: 1099; 2026-03-02: 1299 |
    | `spotify` | Spotify | 1199 | 14388 | 2026-01-05: 1199 |
-   | `merchant:primevideo-membership` | Primevideo Membership | 899 | 10788 | 2026-01-09: 899 |
+   | `amazon-prime` | Amazon Prime | 899 | 10788 | 2026-01-09: 899 |
+
+   (Row changed by subscription-classifier: the key was `merchant:primevideo-membership` and the display name `Primevideo Membership`. The id is now `sub:GBP:monthly:*:amazon-prime`. Only the sample expectation changed, because the normalizer now maps `PRIMEVIDEO MEMBERSHIP` to `amazon-prime`; no detector rule changed. The row keeps its place, fourth by `yearlyCostCents`.)
    | `disney-plus` | Disney+ | 799 | 9588 | 2026-01-15: 799 |
 
    Not recurring: Highfield Stores London (`3864` and `4127` are different bands), Market Square Foods, City Travel Card. Money in: the four salary credits and Online Shop Refund Ref. Usage: 15 `"subscription-charge"`, 5 `"money-in"`, 5 `"not-recurring"`.

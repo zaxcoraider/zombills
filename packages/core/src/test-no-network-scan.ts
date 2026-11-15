@@ -120,3 +120,43 @@ export function findClockAndRandomReferences(source: string, file: string): Viol
   visit(sourceFile);
   return violations;
 }
+
+/**
+ * The same syntax-tree walk as `findForbiddenReferences`, with the word list as a parameter: finds
+ * every identifier, string, template or regular expression in `source` that contains one of `words`
+ * as a whole word. Comments are not looked at.
+ */
+export function findWordReferences(
+  source: string,
+  file: string,
+  words: readonly string[],
+): Violation[] {
+  const escaped = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const wordPattern = new RegExp(`\\b(${escaped.join("|")})\\b`, "g");
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const violations: Violation[] = [];
+
+  const check = (node: ts.Node, text: string): void => {
+    for (const match of text.matchAll(wordPattern)) {
+      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      violations.push({ file, line: line + 1, identifier: match[1] ?? match[0] });
+    }
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) {
+      check(node, node.text);
+    } else if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node) ||
+      ts.isRegularExpressionLiteral(node)
+    ) {
+      check(node, node.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return violations;
+}

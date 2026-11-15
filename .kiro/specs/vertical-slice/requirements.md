@@ -12,6 +12,7 @@ Out of scope for this spec:
 
 - The column-mapping screen. WHEN the parser returns `status: "mapping-required"`, the page shows an error state saying which required column it could not find (Requirement 4.6). A later spec adds the mapping fallback that `product.md` requires. To make this dead end rarer, Requirement 11 amends statement-parser with more header names used by common UK and US banks.
 - The classifier labels (`zombie`, `possessed`, `trial-trap`), the "Still using this?" question, Keep / Bury, tombstones, the graveyard view, the cancel helper and the shareable image.
+  (Changed by subscription-classifier: that spec moved `possessed` and `trial-trap` in scope, shown as plain text lines on the slice page. The `zombie` label and the "Still using this?" question stay out of scope.)
 - Any haunted art, animation or sound on the slice page.
 - Currency override and sign-convention override controls. The page uses the parser's defaults and detection.
 - Multiple statements at once, and merging statements.

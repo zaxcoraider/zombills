@@ -164,8 +164,11 @@ Out of scope for this spec:
    | `KINDLE SVCS*2K4LJ8MB3` | generic (`merchant:kindle-svcs`); not `kindle-unlimited` or `amazon-prime` |
    | `AMAZON PRIME`, `AMAZON PRIME MEMBERSHIP`, `AMZN PRIME` | `amazon-prime` |
    | `PRIME VIDEO*2K4LJ8MB3`, `PRIME VIDEO CHANNELS` | generic (`merchant:prime-video`, `merchant:prime-video-channels`); not `amazon-prime` |
+   | `PRIMEVIDEO MEMBERSHIP` (changed by subscription-classifier) | `amazon-prime`, display name `Amazon Prime` |
+   | `PRIME VIDEO MEMBERSHIP` (changed by subscription-classifier) | `amazon-prime` |
+   | `AMAZON PRIME VIDEO MEMBERSHIP` (changed by subscription-classifier) | `amazon-prime` |
 
-   Therefore `"MICROSOFT"`, `"XBOX"`, `"PLAYSTATION"`, `"PLAYSTATION NETWORK"`, `"PS"`, `"NINTENDO"`, `"ELECTRONIC ARTS"`, `"EA"`, `"KINDLE"` and `"PRIME VIDEO"` SHALL NOT be Variants of any service. Where the bank text cannot tell a subscription from a purchase, the out-of-scope list in the Introduction applies.
+   Therefore `"MICROSOFT"`, `"XBOX"`, `"PLAYSTATION"`, `"PLAYSTATION NETWORK"`, `"PS"`, `"NINTENDO"`, `"ELECTRONIC ARTS"`, `"EA"`, `"KINDLE"`, `"PRIME VIDEO"` and `"PRIMEVIDEO"` (changed by subscription-classifier) SHALL NOT be Variants of any service. So `PRIMEVIDEO*2K4LJ8MB3` stays generic, while the two longer Variants `"prime video membership"` and `"primevideo membership"` of `amazon-prime` map the membership lines (changed by subscription-classifier). Where the bank text cannot tell a subscription from a purchase, the out-of-scope list in the Introduction applies.
 9. WHEN a raw description is only a processor form with nothing else (e.g. `"APPLE.COM/BILL"`, `"GOOGLE *"`), THE Normalizer SHALL NOT match it to a Known service of that company; Requirement 6 applies.
 10. A unit test fixture SHALL contain, for every Known service, at least one realistic raw description that maps to it, and THE test suite SHALL check that each maps to the expected `serviceId`.
 11. *(PBT: list invariant — FOR ALL Known services `s` and FOR ALL Variants `v` of `s`, `normalizeMerchant(v.text).serviceId` SHALL equal `s.serviceId`, and `normalizeMerchant(s.displayName).serviceId` SHALL equal `s.serviceId`.)*

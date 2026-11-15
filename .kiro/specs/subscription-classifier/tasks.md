@@ -75,7 +75,7 @@ Every file in this batch is pure and tested in Vitest's default `node` environme
   - Existing tests this task may change: `possessed.test.ts` and `trial-trap.test.ts` helpers now call `classifySubscriptions([s])[0]` (assertions unchanged); `build.test.ts` gains the case of design "Existing tests and snapshots that change": a fresh Node process imports `dist/index.js`, runs parse, normalize, detect and classify on `samples/us-signed.csv` and prints the Netflix labels; the test expects `["possessed"]`.
   - _Requirements: 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 11.10_
 
-- [ ] 7. Privacy scan and Node environment (`test-no-network-scan.ts`, `classify/no-network.test.ts`, `classify/node-env.test.ts`)
+- [x] 7. Privacy scan and Node environment (`test-no-network-scan.ts`, `classify/no-network.test.ts`, `classify/node-env.test.ts`)
   - `test-no-network-scan.ts` gains `findWordReferences(source, file, words)`: the same syntax-tree walk as `findForbiddenReferences`, with the word list as a parameter. `findForbiddenReferences`, `FORBIDDEN` and the other exports are unchanged, so the parser, normalizer and detector scans are unaffected.
   - New `classify/no-network.test.ts`: scans every non-test `.ts` file under `src/classify` with `sourceFilesUnder`, `findForbiddenReferences`, `findClockAndRandomReferences` and `findWordReferences(…, ["console", "sessionStorage", "indexedDB"])`, as the detector's `no-network.test.ts` does; asserts the file list is non-empty and includes `classify-subscriptions.ts`; checks the helper reports `console.log(x)` and `sessionStorage` with file and line and ignores a comment that mentions `console`.
   - New `classify/node-env.test.ts`: imports `classifySubscriptions` from `../index.js`, asserts the same absent browser globals as `detect/node-env.test.ts` (Node's built-in `navigator` allowed), and classifies the detector output of three Netflix charges at `1549`, `1549`, `1799` (`["possessed"]`).
@@ -90,7 +90,7 @@ Every file in this batch is pure and tested in Vitest's default `node` environme
 
 Generators go in `classify/test-arbitraries.ts`, which only tests import. The reference `oracle(s, answer)` is written once, straight from the requirement text (glossary, Req 2.1, 3.1, 5, 6.3) with `BigInt` for the Band rise, in `classify/test-oracle.ts` so that P3 and P5 share it. It imports nothing from `src/classify` except types. (The design places the oracle "in the test file"; a shared `test-` file keeps one copy for the two files that need it.) Property tests use fast-check's default 100 runs per input source; P1 and P3 use 300.
 
-- [ ] 8. Generators and their coverage test (`classify/test-arbitraries.ts`)
+- [x] 8. Generators and their coverage test (`classify/test-arbitraries.ts`)
   - `classifierSubscriptionArb` (source (b)): the six steps of design "Generators", with literal cadence factors. `classifierSubscriptionsArb`: 0 to 8 values with unique ids `sub:<currency>:<cadence>:<i>:<key>` and a branch that carries leftover `labels`, `priceRise` and `trial`.
   - `detectorOutputArb` (source (a)): `fc.oneof` over the detector's `monthlySeriesArb`, `weeklySeriesArb`, `yearlyPairArb` and arrays of `validTxArb`, optionally mixed with `unrelatedChargesArb`, through `detectSubscriptions(…).subscriptions`; plus the hand-made branch (intro `100` then `1499`; Inferred intro `750` then `1499` with an unrelated transaction 2025-12-01; a zero row before the first charge).
   - `answersArb(ids)`: a `Map` of 0 to 10 entries mixing input ids, random strings, numbers and `null` as keys, and `"still-using"`, `"not-using"`, `"maybe"`, `null`, `1`, `undefined` as values; with low probability a non-`Map` value (`undefined`, `null`, `{}`, `[]`, an object with `get`), typed through `unknown` with a comment.
@@ -98,13 +98,13 @@ Generators go in `classify/test-arbitraries.ts`, which only tests import. The re
   - No existing test changes.
   - _Requirements: 11.1_
 
-- [ ] 9. Oracle and P1–P3 (`classify/test-oracle.ts`, `classify/classify-subscriptions.property.test.ts`)
+- [x] 9. Oracle and P1–P3 (`classify/test-oracle.ts`, `classify/classify-subscriptions.property.test.ts`)
   - `test-oracle.ts`: `oracle(s, answer)` returning the expected `labels`, whether `priceRise` and `trial` are set, and the expected Inferred intro, as above.
   - New `classify-subscriptions.property.test.ts` with P1, P2 and P3 exactly as in design "Correctness properties", each on both sources of Req 11.1 with `answersArb`. P2 compares the input and `Map` answers with a `structuredClone` taken before the call, and for a non-`Map` `answers` uses a spy on `get` to show it is never called.
   - No existing test changes.
   - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.7, 1.8, 1.9, 1.10, 2.1, 3.1, 4.1, 4.2, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3, 6.4, 11.2, 11.3, 11.4_
 
-- [ ] 10. P4–P9 (`classify/possessed.property.test.ts`, `classify/trial-trap.property.test.ts`, `classify/classify-subscriptions.property.test.ts`)
+- [x] 10. P4–P9 (`classify/possessed.property.test.ts`, `classify/trial-trap.property.test.ts`, `classify/classify-subscriptions.property.test.ts`)
   - New `possessed.property.test.ts`: P4 (price-rise arithmetic in `BigInt`, `latestRise` is the last consecutive Band-rise pair and `null` only when there is none).
   - New `trial-trap.property.test.ts`: P5 (trial details), using `test-oracle.ts` for the expected Inferred intro.
   - Append P6 (idempotent), P7 (deterministic), P8 (answers touch only zombie; extra non-id keys change nothing) and P9 (input order, `fc.shuffledSubarray` of full length) to `classify-subscriptions.property.test.ts`. P1–P3 are not changed.
@@ -117,14 +117,14 @@ Generators go in `classify/test-arbitraries.ts`, which only tests import. The re
 
 ## Batch 4: samples and requirement documents
 
-- [ ] 11. Sample expectations (`classify/samples.test.ts`)
+- [x] 11. Sample expectations (`classify/samples.test.ts`)
   - New test only; no source file. For each file in `samples/`: read, `parseStatement` (no options), `normalizeTransactions`, `detectSubscriptions` (no options), `classifySubscriptions` (no answers). Assert as in design "Sample tests": exactly the Req 8.1 row has `labels: ["possessed"]`, its full `priceRise` and `trial: null`; every other Subscription has `labels: []`, `priceRise: null`, `trial: null`; the result minus `labels`, `priceRise`, `trial` deep-equals the detector output minus `labels`, in order.
   - For `us-signed.csv`, each Req 6.7 row: build the answer map from the ids as written, classify again, and compare the Netflix, Spotify and Adobe labels; the `hulu` id is not in the result.
   - If a Sample disagrees with Req 8.1, stop and report; do not edit `samples/` or loosen the expectation.
   - No existing test changes.
   - _Requirements: 6.7, 8.1, 8.2, 8.3_
 
-- [ ] 12. Requirement text in the three earlier specs (`.kiro/specs/merchant-normalizer/requirements.md`, `.kiro/specs/subscription-detector/requirements.md`, `.kiro/specs/vertical-slice/requirements.md`)
+- [x] 12. Requirement text in the three earlier specs (`.kiro/specs/merchant-normalizer/requirements.md`, `.kiro/specs/subscription-detector/requirements.md`, `.kiro/specs/vertical-slice/requirements.md`)
   - Documentation only; no code and no test. Mark each change "(changed by subscription-classifier)".
   - merchant-normalizer Requirement 4.8: the example table gains the Req 10.3 rows; the list of tokens that are not Variants gains `"primevideo"`. The service count (59) and the Requirement 4.2 table stay unchanged (Req 10.4).
   - subscription-detector Requirement 10.1, UK table: the `merchant:primevideo-membership` row becomes key `amazon-prime`, display name `Amazon Prime`, id `sub:GBP:monthly:*:amazon-prime`, with a note that only the sample expectation changed and no detector rule (Req 10.6).
