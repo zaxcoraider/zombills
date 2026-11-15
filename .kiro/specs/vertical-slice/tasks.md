@@ -56,7 +56,7 @@ All files in this batch are under `packages/core/src/parse/`. The core suite (`n
 
 ## Batch 2: web dependencies, test config and scripts
 
-- [ ] 4. Dependencies, Vitest config and scripts (`package.json`, root `package.json`, `vite.config.ts`, `tsconfig.json`)
+- [x] 4. Dependencies, Vitest config and scripts (`package.json`, root `package.json`, `vite.config.ts`, `tsconfig.json`)
   - This is the only task that runs `npm install`. Add to `apps/web/package.json`, pinned exactly as in design "New dependencies": `"@zombills/core": "0.0.0"` in `dependencies`; `vitest` `5.1.0`, `fast-check` `4.10.2`, `jsdom` `31.0.1`, `@testing-library/react` `16.3.3`, `@testing-library/dom` `10.4.2`, `@testing-library/user-event` `14.6.10`, `@playwright/test` `1.65.1` and `@types/node` `24.19.2` in `devDependencies`. Then run `npm install` once from the repo root and keep the updated `package-lock.json`. Do not run `npx playwright install` here (task 23).
   - Web scripts, as in design "Root scripts": `pretest` and `predev` (build `@zombills/core`), `test: "vitest run"`. Leave `typecheck` as it is; task 23 adds the e2e project to it.
   - Root `package.json`: add `pretest` and `pretypecheck`, each `npm run build --workspace @zombills/core` (Req 9.2a). Keep the existing `build` script; the `workspaces` order already builds core first (Req 9.2).
@@ -73,13 +73,13 @@ All files in this batch are under `packages/core/src/parse/`. The core suite (`n
 
 Every source file in this batch is pure and tested in the `node` environment. Files under `src/slice/logic/` also follow the purity rule of Req 3.1; task 5 changes `src/index.css`, and task 14 writes the reducer and paint helpers in `src/slice/`. Generators for the property tests go in `src/slice/logic/test-arbitraries.ts`, which only tests import.
 
-- [ ] 5. Focus ring, money class and colour contrast (`src/index.css`, `src/contrast.test.ts`)
+- [x] 5. Focus ring, money class and colour contrast (`src/index.css`, `src/contrast.test.ts`)
   - In `index.css`, add `:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }` and the `.money` class (`font-family: var(--font-sans); font-variant-numeric: tabular-nums`) (design "Look and layout"). Change no existing token.
   - Unit test `src/contrast.test.ts`, as in design "Unit tests": starts with `/// <reference types="node" />`, reads `index.css` with `readFileSync(new URL("./index.css", import.meta.url), "utf8")` (not `?raw`), parses `--night`, `--fog` and `--bone`, and asserts `bone` on `night` and `bone` on `fog` are at least 4.5:1 by the WCAG relative-luminance formula. It also asserts the `:focus-visible` and `.money` rules above.
   - This is the first web test: from here on the root `npm test` must be green.
   - _Requirements: 6.5 (class), 8.1 (focus ring), 8.5, 10.1_
 
-- [ ] 6. Money formatter and date display (`money.ts`, `display-date.ts`)
+- [x] 6. Money formatter and date display (`money.ts`, `display-date.ts`)
   - Write `formatMoney(minorUnits, currency, locale?)` as in design "Money and dates": `RangeError` unless `Number.isSafeInteger(minorUnits)`; build the exact decimal string `"<units>.<cc>"` with integer arithmetic and pass it to `Intl.NumberFormat(...).format`; 2 fraction digits when the currency's default is below 2 and `minorUnits % 100 !== 0`; `minimumFractionDigits` and `maximumFractionDigits` 2 when the default is above 2.
   - Write `formatDisplayDate(iso)` with a fixed English month table and no `Date` object (non-ISO input returned unchanged), and `CADENCE_LABELS` (`Weekly`, `Monthly`, `Yearly`).
   - Unit tests `money.test.ts`: the six Req 6.7 examples as exact strings (with `\u00a0` where `Intl` puts one); `0`; `-1`; `RangeError` for `1.5`, `NaN`, `Infinity`, `2 ** 53`.
@@ -87,14 +87,14 @@ Every source file in this batch is pure and tested in the `node` environment. Fi
   - Property tests: **P9** and **P10** in `money.property.test.ts`; **P11** in `display-date.property.test.ts`.
   - _Requirements: 5.3 (cadence labels), 5.8, 6.1, 6.3, 6.4, 6.6, 6.7_
 
-- [ ] 7. Currency totals and display order (`totals.ts`, `test-arbitraries.ts`)
+- [x] 7. Currency totals and display order (`totals.ts`, `test-arbitraries.ts`)
   - Write `isCounted`, `currencyTotals` (one Counted subscription at a time, `RangeError` as soon as the running sum is not a safe integer) and `groupForDisplay(subscriptions, currencyOrder)` returning `CurrencyGroup`s with `total` and `hasExcluded`, as in design "Totals and display order".
   - Create `test-arbitraries.ts` with `subscriptionArb` (design "Generators": currencies `USD`, `EUR`, `GBP`, `JPY`; equal merchants and `"Z"`/`"a"` edge cases; unique `id`).
   - Unit tests `totals.test.ts`: two Counted subscriptions of `Number.MAX_SAFE_INTEGER` throw `RangeError`; a guessed-only group has `total: null` and `hasExcluded: true`; an ended subscription is left out of the total; ties on cost broken by merchant, then `id`; `"Z"` before `"a"`.
   - Property tests `totals.property.test.ts`: **P6** (50 runs for the 10,000-element case), **P7**, **P8**.
   - _Requirements: 5.2, 5.7, 5.11, 5.11a, 5.12_
 
-- [ ] 8. Missing-column check (`missing-columns.ts`)
+- [x] 8. Missing-column check (`missing-columns.ts`)
   - Write `ColumnPresence` and `findColumns(columns)` as in design "Missing columns": each column goes through `normalizeHeader` from `@zombills/core` and is matched against the exported header lists; `amount` is true for a signed amount column, or for a debit and a credit column together.
   - Unit tests `missing-columns.test.ts`: `"  DATE "` matches; debit and credit together count as amount, debit alone does not; the new names `Paid out`/`Paid in`, `Money out`/`Money in` and `Posting Date` from task 1.
   - Add `headerRowArb` to `test-arbitraries.ts` (cells from every header list, case and space variants, noise names).

@@ -66,6 +66,12 @@
 }
 
 @layer components {
+  /* Every money figure: Inter with tabular figures. */
+  .money {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Carved-into-stone text: dark lip above, moonlit lip below. */
   .engraved {
     text-shadow:

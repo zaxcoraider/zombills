@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "pretest": "npm run build --workspace @zombills/core",
     "test": "npm run test --workspaces --if-present",
+    "pretypecheck": "npm run build --workspace @zombills/core",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   },
