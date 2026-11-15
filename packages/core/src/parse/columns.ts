@@ -6,6 +6,7 @@ import {
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
   isHeaderIn,
+  normalizeHeader,
 } from "./header-names.js";
 import type { ResolvedColumns } from "./internal-types.js";
 import type { ColumnMap, ColumnMapValidationError, ColumnRole } from "./types.js";
@@ -14,6 +15,23 @@ import type { ColumnMap, ColumnMapValidationError, ColumnRole } from "./types.js
 function leftmostMatch(header: readonly string[], names: readonly string[]): number | null {
   const index = header.findIndex((cell) => isHeaderIn(cell, names));
   return index >= 0 ? index : null;
+}
+
+/**
+ * Index of the header cell whose normalized name comes earliest in `names`, leftmost among cells
+ * with the same name, or null when no cell is named in `names`.
+ */
+function firstByListOrder(header: readonly string[], names: readonly string[]): number | null {
+  let best: number | null = null;
+  let bestRank = names.length;
+  for (let index = 0; index < header.length; index += 1) {
+    const rank = names.indexOf(normalizeHeader(header[index] ?? ""));
+    if (rank >= 0 && rank < bestRank) {
+      best = index;
+      bestRank = rank;
+    }
+  }
+  return best;
 }
 
 /**
@@ -27,7 +45,9 @@ export function findCurrencyColumn(header: readonly string[]): number | null {
 /**
  * Works out which column holds what from the header names alone (Req 2.1-2.7, 2.10).
  *
- * Each role takes the leftmost matching header. A statement with both a debit and a credit column
+ * Each role takes the leftmost matching header, except the description: it takes the header whose
+ * name comes earliest in `DESCRIPTION_HEADERS` (leftmost among equal names), so `Description` beats
+ * `Details` or `Memo` wherever they sit (Req 11.7). A statement with both a debit and a credit column
  * uses the debit/credit layout even when it also has an amount column (Req 2.5); otherwise an
  * amount column selects the signed layout.
  *
@@ -36,7 +56,7 @@ export function findCurrencyColumn(header: readonly string[]): number | null {
  */
 export function autoDetectColumns(header: readonly string[]): ResolvedColumns | null {
   const date = leftmostMatch(header, DATE_HEADERS);
-  const description = leftmostMatch(header, DESCRIPTION_HEADERS);
+  const description = firstByListOrder(header, DESCRIPTION_HEADERS);
   if (date === null || description === null) {
     return null;
   }

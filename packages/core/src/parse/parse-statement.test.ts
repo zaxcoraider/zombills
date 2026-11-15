@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseStatement } from "./index.js";
+import * as root from "../index.js";
+import { EMPTY_CSV_REASON, NO_CONTENT_ROWS_REASON, parseStatement } from "./index.js";
 import type { MappedResult, MappingRequiredResult, ParseResult } from "./types.js";
 
 const US_SIGNED = [
@@ -73,6 +74,38 @@ describe("parseStatement: empty input (Req 1.4)", () => {
     if (result.status === "error") {
       expect(result.reason).toMatch(/empty/i);
     }
+  });
+});
+
+describe("parseStatement: empty-input reasons (vertical-slice Req 11.4)", () => {
+  it("returns EMPTY_CSV_REASON for an empty string", () => {
+    const result = parseStatement("");
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.reason).toBe(EMPTY_CSV_REASON);
+    }
+  });
+
+  it("returns NO_CONTENT_ROWS_REASON when every row is blank", () => {
+    const result = parseStatement("\n,\n");
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.reason).toBe(NO_CONTENT_ROWS_REASON);
+    }
+  });
+});
+
+describe("package root exports (vertical-slice Req 11.5)", () => {
+  it("exports the empty-input constants, the header lists and normalizeHeader", () => {
+    expect(root.EMPTY_CSV_REASON).toBeDefined();
+    expect(root.NO_CONTENT_ROWS_REASON).toBeDefined();
+    expect(root.AMOUNT_HEADERS).toBeDefined();
+    expect(root.CREDIT_HEADERS).toBeDefined();
+    expect(root.DATE_HEADERS).toBeDefined();
+    expect(root.DEBIT_HEADERS).toBeDefined();
+    expect(root.DESCRIPTION_HEADERS).toBeDefined();
+    expect(root.normalizeHeader).toBeDefined();
+    expect(root.DATE_HEADERS).toContain("posting date");
   });
 });
 

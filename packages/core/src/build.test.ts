@@ -173,9 +173,17 @@ describe("the built package in plain Node (Req 12.3)", () => {
       const result = JSON.parse(run.stdout) as { keys: string[] };
       expect({ ...result, keys: [...result.keys].sort() }).toEqual({
         keys: [
+          "AMOUNT_HEADERS",
+          "CREDIT_HEADERS",
+          "DATE_HEADERS",
+          "DEBIT_HEADERS",
+          "DESCRIPTION_HEADERS",
+          "EMPTY_CSV_REASON",
           "KNOWN_SERVICES",
+          "NO_CONTENT_ROWS_REASON",
           "detectSubscriptions",
           "getKnownService",
+          "normalizeHeader",
           "normalizeMerchant",
           "normalizeTransactions",
           "parseStatement",

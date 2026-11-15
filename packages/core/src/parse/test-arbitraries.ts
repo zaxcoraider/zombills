@@ -807,7 +807,8 @@ export function statementModelArbitrary(
       }
       // Columns that carry a recognised header name but must be ignored: a stray amount next to
       // debit and credit, a lone debit or credit next to an amount, and later duplicates of real
-      // columns (the leftmost one wins). They sit at the right end of the header.
+      // columns (for the other roles the leftmost one wins; for the description the earliest-listed
+      // name wins, see `descriptionByListOrder`). They sit at the right end of the header.
       const recognisedNoiseRoles: ModelRole[] = [];
       if (context.layout === "debit-credit" && context.loneExtra === "amount") {
         recognisedNoiseRoles.push("amount");
@@ -878,6 +879,8 @@ export function statementModelArbitrary(
             rolesOfLayout.forEach((role, index) => {
               headers[role] = spellings[index] ?? "";
             });
+            const trailingHeaders = [...recognisedHeaders];
+            descriptionByListOrder(headers, trailingHeaders, recognisedNoiseRoles);
             const slots: ColumnSpec[] = [
               ...rolesOfLayout.map((role): ColumnSpec => ({ kind: "role", role })),
               ...unrecognisedHeaders.map((header, index): ColumnSpec => ({
@@ -886,7 +889,7 @@ export function statementModelArbitrary(
                 noiseIndex: index,
               })),
             ];
-            const trailing: ColumnSpec[] = recognisedHeaders.map((header, index): ColumnSpec => ({
+            const trailing: ColumnSpec[] = trailingHeaders.map((header, index): ColumnSpec => ({
               kind: "noise",
               header,
               noiseIndex: context.unrecognisedNoise + index,
@@ -941,6 +944,31 @@ export function statementModelArbitrary(
           },
         );
     });
+}
+
+/**
+ * The parser takes the description from the header whose name comes earliest in
+ * `DESCRIPTION_HEADERS`, leftmost among equal names (Req 11.7). The model's description data sits in
+ * the real description column, which is left of every trailing duplicate. So when a duplicate has
+ * an earlier-listed name than the real column, the two spellings trade places: the real column then
+ * holds the winning name and still wins any tie by position.
+ */
+function descriptionByListOrder(
+  headers: Partial<Record<ModelRole, string>>,
+  trailingHeaders: string[],
+  trailingRoles: readonly ModelRole[],
+): void {
+  const rank = (cell: string): number => DESCRIPTION_HEADERS.indexOf(normalizeHeader(cell));
+  trailingRoles.forEach((role, index) => {
+    const duplicate = trailingHeaders[index];
+    const real = headers.description;
+    if (role === "description" && duplicate !== undefined && real !== undefined) {
+      if (rank(duplicate) < rank(real)) {
+        headers.description = duplicate;
+        trailingHeaders[index] = real;
+      }
+    }
+  });
 }
 
 /** Adds blank rows to a model: `kinds[i]` goes before data row i, the last entry after the final row. */

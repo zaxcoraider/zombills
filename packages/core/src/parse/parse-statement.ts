@@ -4,6 +4,7 @@ import { autoDetectColumns, resolveColumnMap } from "./columns.js";
 import { decideStatementCurrency, isCurrencyCode, normalizeCurrency } from "./currency.js";
 import { detectDateFormat } from "./date-format.js";
 import { detectDecimalSeparator } from "./decimal-separator.js";
+import { EMPTY_CSV_REASON, NO_CONTENT_ROWS_REASON } from "./empty-reasons.js";
 import { detectHeaderRow, firstNonBlankRow } from "./header-detect.js";
 import type { AmountOutcome, DataRow, ResolvedColumns } from "./internal-types.js";
 import { detectSignConvention } from "./sign-convention.js";
@@ -62,7 +63,7 @@ export function parseStatement(csv: string, optionsArgument?: ParseOptions): Par
   // Steps 1-2: strip a byte order mark, then reject empty input (Req 1.4, 1.6).
   const text = stripBom(csv);
   if (text.trim() === "") {
-    return error("The CSV is empty");
+    return error(EMPTY_CSV_REASON);
   }
 
   // Step 3: validate the options before touching any row (Req 10.1-10.3).
@@ -86,7 +87,7 @@ export function parseStatement(csv: string, optionsArgument?: ParseOptions): Par
   const { rows, delimiter } = tokenize(text);
   const firstRow = firstNonBlankRow(rows);
   if (firstRow === null) {
-    return error("The CSV has no rows with content");
+    return error(NO_CONTENT_ROWS_REASON);
   }
 
   // Step 5: find the header row. Without a recognised header, a supplied column map makes the

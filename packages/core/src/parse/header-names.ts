@@ -7,6 +7,7 @@ export const DATE_HEADERS: readonly string[] = [
   "posted date",
   "value date",
   "trans. date",
+  "posting date", // added by vertical-slice
 ];
 
 export const DESCRIPTION_HEADERS: readonly string[] = [
@@ -31,9 +32,18 @@ export const DEBIT_HEADERS: readonly string[] = [
   "debit amount",
   "withdrawal",
   "withdrawals",
+  "paid out", // added by vertical-slice
+  "money out", // added by vertical-slice
 ];
 
-export const CREDIT_HEADERS: readonly string[] = ["credit", "credit amount", "deposit", "deposits"];
+export const CREDIT_HEADERS: readonly string[] = [
+  "credit",
+  "credit amount",
+  "deposit",
+  "deposits",
+  "paid in", // added by vertical-slice
+  "money in", // added by vertical-slice
+];
 
 export const CURRENCY_HEADERS: readonly string[] = ["currency", "ccy"];
 

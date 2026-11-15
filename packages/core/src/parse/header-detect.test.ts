@@ -24,6 +24,7 @@ describe("recognition lists (Req 2.1-2.4, 10.4)", () => {
       "posted date",
       "value date",
       "trans. date",
+      "posting date",
     ]);
     expect(DESCRIPTION_HEADERS).toEqual([
       "description",
@@ -35,8 +36,22 @@ describe("recognition lists (Req 2.1-2.4, 10.4)", () => {
       "transaction description",
     ]);
     expect(AMOUNT_HEADERS).toEqual(["amount", "transaction amount", "net amount", "value"]);
-    expect(DEBIT_HEADERS).toEqual(["debit", "debit amount", "withdrawal", "withdrawals"]);
-    expect(CREDIT_HEADERS).toEqual(["credit", "credit amount", "deposit", "deposits"]);
+    expect(DEBIT_HEADERS).toEqual([
+      "debit",
+      "debit amount",
+      "withdrawal",
+      "withdrawals",
+      "paid out",
+      "money out",
+    ]);
+    expect(CREDIT_HEADERS).toEqual([
+      "credit",
+      "credit amount",
+      "deposit",
+      "deposits",
+      "paid in",
+      "money in",
+    ]);
     expect(CURRENCY_HEADERS).toEqual(["currency", "ccy"]);
   });
 

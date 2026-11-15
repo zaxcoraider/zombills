@@ -3,7 +3,14 @@ import { autoDetectColumns, findCurrencyColumn, resolveColumnMap } from "./colum
 import type { ColumnMap } from "./types.js";
 
 // The recognised spellings are written out here, independently of header-names.ts.
-const DATE_NAMES = ["date", "transaction date", "posted date", "value date", "trans. date"];
+const DATE_NAMES = [
+  "date",
+  "transaction date",
+  "posted date",
+  "value date",
+  "trans. date",
+  "posting date",
+];
 const DESCRIPTION_NAMES = [
   "description",
   "memo",
@@ -72,14 +79,68 @@ describe("autoDetectColumns: each recognised spelling (Req 2.1-2.4)", () => {
 });
 
 describe("autoDetectColumns: choosing among columns", () => {
-  it("takes the leftmost match for each role (Req 2.1-2.3)", () => {
+  it("takes the leftmost match for date and amount, and the earliest-listed name for description (Req 2.1-2.3, 11.7)", () => {
     expect(
       autoDetectColumns(["Memo", "Date", "Posted Date", "Description", "Value", "Amount"]),
     ).toEqual({
       layout: "signed-amount",
       date: 1,
-      description: 0,
+      description: 3,
       amount: 4,
+      currency: null,
+    });
+  });
+
+  it("takes the leftmost of two description columns with the same name (Req 11.7)", () => {
+    expect(autoDetectColumns(["Date", "Description", "Amount", "Description"])).toEqual({
+      layout: "signed-amount",
+      date: 0,
+      description: 1,
+      amount: 2,
+      currency: null,
+    });
+  });
+
+  it("maps the Chase header row: Description beats Details, Posting Date is the date (Req 11.6)", () => {
+    expect(
+      autoDetectColumns([
+        "Details",
+        "Posting Date",
+        "Description",
+        "Amount",
+        "Type",
+        "Balance",
+        "Check or Slip #",
+      ]),
+    ).toEqual({
+      layout: "signed-amount",
+      date: 1,
+      description: 2,
+      amount: 3,
+      currency: null,
+    });
+  });
+
+  it("maps Posting Date to the date column (Req 11.1)", () => {
+    expect(autoDetectColumns(["Posting Date", "Description", "Amount"])).toEqual({
+      layout: "signed-amount",
+      date: 0,
+      description: 1,
+      amount: 2,
+      currency: null,
+    });
+  });
+
+  it.each([
+    ["Paid out", "Paid in"],
+    ["Money out", "Money in"],
+  ])("maps %s / %s as a debit/credit layout (Req 11.2)", (out, into) => {
+    expect(autoDetectColumns(["Date", "Description", out, into])).toEqual({
+      layout: "debit-credit",
+      date: 0,
+      description: 1,
+      debit: 2,
+      credit: 3,
       currency: null,
     });
   });

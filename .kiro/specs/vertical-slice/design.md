@@ -776,13 +776,14 @@ function firstByListOrder(header: readonly string[], names: readonly string[]): 
 
 and `autoDetectColumns` uses it for `description` only; the other roles keep `leftmostMatch` (Req 11.7). For the Chase header row this gives `description` = 2 (`"description"` is index 0 of the list, `"details"` index 3), `date` = 1, `amount` = 3. `header-detect.ts` only asks whether a row has matching names, so it needs no change.
 
-Parser tests changed by R11.7. These existing tests assume the leftmost description column wins between different names, and are the only existing tests the amendment changes. In each, the description role switches to list priority (lowest index in `DESCRIPTION_HEADERS`, then leftmost among equal names); date, amount, debit, credit and currency keep leftmost choice.
+Parser tests changed by R11.7. The first three of these existing tests assume the leftmost description column wins between different names; the fourth pins the recognition lists. Together they are the only existing tests the amendment changes. In each, the description role switches to list priority (lowest index in `DESCRIPTION_HEADERS`, then leftmost among equal names); date, amount, debit, credit and currency keep leftmost choice.
 
 | Place | Change |
 | --- | --- |
 | `packages/core/src/parse/columns.test.ts:74-83` ("takes the leftmost match for each role") | `["Memo","Date","Posted Date","Description","Value","Amount"]` now expects `description: 3` (`"description"` precedes `"memo"` in the list); the other roles keep their expected values. The test title names the description rule |
 | `packages/core/src/parse/columns.property.test.ts:93` (P14 column resolution) | The expected `description` index comes from list priority over `entries` instead of `entries.findIndex(...)`; the other roles keep `findIndex` |
 | `packages/core/src/parse/test-arbitraries.ts:808-822` (`parse-statement` row model) | The row model picks the description column by list priority among the real and duplicate description cells; the comment "the leftmost one wins" is narrowed to the other roles |
+| `packages/core/src/parse/header-detect.test.ts` ("hold exactly the names the requirements list") | The pinned lists must include the five new names (`posting date`; `paid out`, `money out`; `paid in`, `money in`), in the order of `header-names.ts` |
 
 `packages/core/src/parse/index.ts` adds:
 
@@ -908,7 +909,7 @@ Tools: Vitest 5 and fast-check 4 for unit, property and component tests; `@testi
 | `vite-config.test.ts` | Imports `vite.config.ts` and asserts `build.assetsInlineLimit === 0` and `build.modulePreload.polyfill === false` | 7.7 |
 | `netlify-config.test.ts` | Reads the root `netlify.toml` with `node:fs` (`/// <reference types="node" />`) and asserts, with a line-based check of its few keys, that `[build]` has `command = "npm run build"` and `publish = "apps/web/dist"`, and that the file has no `[[redirects]]`, `[functions]`, `[[edge_functions]]` or `[[headers]]` table | 9.3 |
 | `src/slice/fade-in.test.tsx` | `fadeInMotion(true)` and `fadeInMotion(false)` both give `initial` and `animate` that set only `opacity`, with transition `duration` 0 and 0.15; rendering `FadeIn` with `framer-motion`'s `useReducedMotion` mocked to return `true` (partial `vi.mock` via `vi.importActual`, own file so the mock touches nothing else) shows its children | 8.7 |
-| `packages/core/src/parse/columns.test.ts` (amended) | `Date,Description,Paid out,Paid in` and `Date,Description,Money out,Money in` → debit/credit layout; `Posting Date,Description,Amount` → date 0; the Chase row → description 2, date 1, amount 3. Existing tests stay unchanged except the three places R11.7 changes, listed under "Parser tests changed by R11.7" | 11.6, 11.7 |
+| `packages/core/src/parse/columns.test.ts` (amended) | `Date,Description,Paid out,Paid in` and `Date,Description,Money out,Money in` → debit/credit layout; `Posting Date,Description,Amount` → date 0; the Chase row → description 2, date 1, amount 3. Existing tests stay unchanged except the four places R11.7 changes, listed under "Parser tests changed by R11.7" | 11.6, 11.7 |
 | `packages/core/src/parse/parse-statement.test.ts` (amended) | `""` and `"\n,\n"` return `EMPTY_CSV_REASON` and `NO_CONTENT_ROWS_REASON` by identity with the exported constants | 11.4, 11.6 |
 
 ### Component tests (`slice-page.test.tsx`, `app.test.tsx`)

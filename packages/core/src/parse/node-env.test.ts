@@ -36,9 +36,17 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
   it("exports only the public functions and data at runtime", async () => {
     const entry = await import("../index.js");
     expect(Object.keys(entry).sort()).toEqual([
+      "AMOUNT_HEADERS",
+      "CREDIT_HEADERS",
+      "DATE_HEADERS",
+      "DEBIT_HEADERS",
+      "DESCRIPTION_HEADERS",
+      "EMPTY_CSV_REASON",
       "KNOWN_SERVICES",
+      "NO_CONTENT_ROWS_REASON",
       "detectSubscriptions",
       "getKnownService",
+      "normalizeHeader",
       "normalizeMerchant",
       "normalizeTransactions",
       "parseStatement",

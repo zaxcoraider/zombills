@@ -24,17 +24,18 @@ Rules that apply to every task:
 
 All files in this batch are under `packages/core/src/parse/`. The core suite (`npm test -w @zombills/core`) must stay green, and the merchant-normalizer and subscription-detector suites must be unchanged.
 
-- [ ] 1. New header names and the description priority rule (`header-names.ts`, `columns.ts`)
+- [x] 1. New header names and the description priority rule (`header-names.ts`, `columns.ts`)
   - In `header-names.ts`, append `"posting date"` to `DATE_HEADERS`, `"paid out"` and `"money out"` to `DEBIT_HEADERS`, and `"paid in"` and `"money in"` to `CREDIT_HEADERS`, after the existing entries, each with the comment `// added by vertical-slice` (design "Core amendment"). Do not add `"transaction date"` again.
   - In `columns.ts`, add `firstByListOrder(header, names)` (index of the header cell whose name comes earliest in `names`, leftmost among equal names) and use it in `autoDetectColumns` for `description` only; every other role keeps `leftmostMatch`.
-  - Update the three existing places listed in design "Parser tests changed by R11.7", and no other existing test:
+  - Update the four existing places listed in design "Parser tests changed by R11.7", and no other existing test:
     - `columns.test.ts` "takes the leftmost match for each role": `["Memo","Date","Posted Date","Description","Value","Amount"]` now expects `description: 3`; the title names the description rule.
     - `columns.property.test.ts` P14: the expected `description` index comes from list priority over `entries`; other roles keep `findIndex`.
     - `test-arbitraries.ts` row model: picks the description column by list priority; the "leftmost one wins" comment is narrowed to the other roles.
+    - `header-detect.test.ts` "hold exactly the names the requirements list": the pinned lists must include the five new names, in the order of `header-names.ts`.
   - New unit tests in `columns.test.ts`: `Date,Description,Paid out,Paid in` and `Date,Description,Money out,Money in` map as a `DebitCreditLayout`; `Posting Date,Description,Amount` maps `date` to column 0; the Chase row `Details,Posting Date,Description,Amount,Type,Balance,Check or Slip #` maps `description` 2, `date` 1, `amount` 3; two cells both named `Description` → the leftmost.
   - _Requirements: 11.1, 11.2, 11.6 (header and Chase cases), 11.7 (code and tests)_
 
-- [ ] 2. Exported empty-input constants and header lists (`empty-reasons.ts`, `parse-statement.ts`, `index.ts`)
+- [x] 2. Exported empty-input constants and header lists (`empty-reasons.ts`, `parse-statement.ts`, `index.ts`)
   - Create `empty-reasons.ts` with `EMPTY_CSV_REASON = "The CSV is empty"` and `NO_CONTENT_ROWS_REASON = "The CSV has no rows with content"` (design "Core amendment"; the file name keeps it apart from `parse-error.ts`).
   - In `parse-statement.ts`, replace the two string literals with these constants.
   - In `parse/index.ts`, export `EMPTY_CSV_REASON`, `NO_CONTENT_ROWS_REASON`, `AMOUNT_HEADERS`, `CREDIT_HEADERS`, `DATE_HEADERS`, `DEBIT_HEADERS`, `DESCRIPTION_HEADERS` and `normalizeHeader`. `CURRENCY_HEADERS` and `isHeaderIn` stay internal.
@@ -42,7 +43,7 @@ All files in this batch are under `packages/core/src/parse/`. The core suite (`n
   - Add one test (in the existing core build or barrel test, if there is one; otherwise in `parse-statement.test.ts`) that imports the seven names from the package root `../index.js` and checks they are defined, and that `DATE_HEADERS` contains `"posting date"`.
   - _Requirements: 11.4, 11.5, 11.6 (empty-input case)_
 
-- [ ] 3. Update the statement-parser requirements text (`.kiro/specs/statement-parser/requirements.md`)
+- [x] 3. Update the statement-parser requirements text (`.kiro/specs/statement-parser/requirements.md`)
   - Documentation only; no code and no test.
   - Requirement 2.1: list `"posting date"` among the date names; Requirement 2.4: list `"paid out"`, `"money out"`, `"paid in"` and `"money in"` among the debit and credit names. Mark each addition "(added by vertical-slice)".
   - Requirement 2.2: replace the leftmost-column rule for `description` with the list-priority rule of vertical-slice Requirement 11.7 (earliest name in `DESCRIPTION_HEADERS`, then leftmost among equal names), with the Chase example and the note "(changed by vertical-slice)". The other roles keep the leftmost rule.
@@ -244,7 +245,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 
 - [ ] 24. Checkpoint: run everything and check traceability
   - On a clean core build (delete only `packages/core/dist`, which the build recreates), run from the repo root `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass with no skipped or `.only` tests. This proves the root `pretest` and `pretypecheck` scripts (Req 9.2a). Then run `npm run test:e2e --workspace @zombills/web`.
-  - Check that the root `npm test` runs the core and web Vitest suites and not Playwright (Req 10.6), and that the core suites are unchanged except the three places listed in task 1.
+  - Check that the root `npm test` runs the core and web Vitest suites and not Playwright (Req 10.6), and that the core suites are unchanged except the four places listed in task 1.
   - Check that every property P1–P15 has a passing test whose name starts with its ID.
   - Check by search, outside test files of `apps/web/src`: no `console.`, `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `EventSource`, `localStorage`, `sessionStorage`, `indexedDB`, `document.cookie` or `toFixed`; no `/ 100` outside `logic/money.ts`; no import path containing `packages/core`; no `<img` in `src/slice`; no hex colour in `src/slice`. Check that `git diff --stat apps/web/src/spike` is empty (Req 1.5).
   - Check that `apps/web/dist` contains no `test-arbitraries` code and no `http://` or `https://` URL to another host in its HTML, JS or CSS (Req 7.2).

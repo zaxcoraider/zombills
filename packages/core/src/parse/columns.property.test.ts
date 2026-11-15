@@ -43,6 +43,23 @@ interface HeaderModel {
   expected: ResolvedColumns;
 }
 
+/** Index of the description entry whose name is earliest in the list; leftmost among equals. */
+function firstDescriptionByListOrder(entries: readonly Entry[]): number {
+  let best = -1;
+  let bestRank = Number.POSITIVE_INFINITY;
+  entries.forEach((entry, index) => {
+    if (entry.role !== "description") {
+      return;
+    }
+    const rank = DESCRIPTION_HEADERS.indexOf(entry.cell.trim().toLowerCase());
+    if (rank < bestRank) {
+      best = index;
+      bestRank = rank;
+    }
+  });
+  return best;
+}
+
 function spelled(role: DetectedRole): fc.Arbitrary<Entry> {
   return headerSpellingArbitrary(NAMES[role]).map((cell) => ({ role, cell }));
 }
@@ -91,13 +108,15 @@ const headerModelArbitrary: fc.Arbitrary<HeaderModel> = fc
             const entries = [...shuffled, ...duplicates];
             const header = entries.map((entry) => entry.cell);
             const first = (role: DetectedRole): number => entries.findIndex((e) => e.role === role);
+            // The description is the exception: the name earliest in the list wins (Req 11.7).
+            const descriptionAt = firstDescriptionByListOrder(entries);
             const currency = withCurrency ? first("currency") : null;
             const expected: ResolvedColumns =
               layout === "debit-credit"
                 ? {
                     layout,
                     date: first("date"),
-                    description: first("description"),
+                    description: descriptionAt,
                     debit: first("debit"),
                     credit: first("credit"),
                     currency,
@@ -105,7 +124,7 @@ const headerModelArbitrary: fc.Arbitrary<HeaderModel> = fc
                 : {
                     layout,
                     date: first("date"),
-                    description: first("description"),
+                    description: descriptionAt,
                     amount: first("amount"),
                     currency,
                   };
