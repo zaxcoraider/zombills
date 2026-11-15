@@ -101,25 +101,25 @@ Every source file in this batch is pure and tested in the `node` environment. Fi
   - Property test `missing-columns.property.test.ts`: **P5**.
   - _Requirements: 3.9, 11.5 (used by the web)_
 
-- [ ] 9. The Analyzer (`analyze-statement.ts`)
+- [x] 9. The Analyzer (`analyze-statement.ts`)
   - Write `GENERIC_FAILURE_REASON`, `StatementFacts`, `AnalysisOutcome`, `ResultsOutcome`, `NoSubscriptionsOutcome` and `analyzeStatement(csv)` as in design "Analyzer": steps 1–6 inside one `try`; `"empty"` matched on `EMPTY_CSV_REASON` and `NO_CONTENT_ROWS_REASON`, not literals; `subscriptions` exactly as `detectSubscriptions` returned them; `totals` from `currencyTotals(subscriptions, statement.currencies)`; the `catch` drops the error and logs nothing.
   - Unit tests `analyze-statement.test.ts`, as in design "Unit tests": `""` and `"\n\n"` → `"empty"`; conflicting date formats → `"parse-error"` with the parser's reason; `Foo,Bar\n1,2` → all three missing; `Date,Amount` → description missing; `Date,Description,Debit` → amount missing; only bad rows → `"no-transactions"` with the row count; one non-recurring row → `"no-subscriptions"` with its facts. Each of the four Samples, read with a `?raw` import from `samples/`, → `"results"` with the merchants, `yearlyCostCents` and order that `packages/core/src/detect/samples.test.ts` expects.
   - Unit test `analyze-statement.throw.test.ts` (own file, because `vi.mock` is hoisted): `vi.mock("@zombills/core", …)` keeps the real module through `vi.importActual` and makes `detectSubscriptions` throw; a Sample then gives `{ kind: "parse-error", reason: GENERIC_FAILURE_REASON }`, and the reason contains none of the input.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.7, 3.9 (wiring), 11.4 (used by the web)_
 
-- [ ] 10. Analyzer property tests (`analyze-statement.property.test.ts`, `test-arbitraries.ts`)
+- [x] 10. Analyzer property tests (`analyze-statement.property.test.ts`, `test-arbitraries.ts`)
   - Add `dateCellArb`, `amountCellArb` and `csvLikeArb` to `test-arbitraries.ts` as in design "Generators" (`csvLikeArb` has one branch that repeats a merchant monthly, so `"results"` is reached often enough for P3).
   - Property tests: **P1** (the four string sources listed in the design; 300 runs), **P2**, **P3**, **P4**.
   - No source file changes. If a property finds a bug in the Analyzer, fix it in `analyze-statement.ts` and add the shrunk input as a unit test in `analyze-statement.test.ts`.
   - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 11. Error messages (`messages.ts`)
+- [x] 11. Error messages (`messages.ts`)
   - Write `PageError`, `errorFromOutcome`, `ErrorMessage`, `errorMessage`, `isDateShaped`, `isAmountShaped` and `visibleColumnNames` as in design "Messages", with the exact texts of its message table. Names are cut by code points (`Array.from`): longer than 40 becomes 39 code points plus `…`.
   - Unit tests `messages.test.ts`: every row of the message table; missing-column wording for one, two and three roles; `01/02/2026,NETFLIX.COM,-15.49` and the same with `01/02/26` list only `NETFLIX.COM`; a row of only dates and amounts → `No header row was found.`; 11 names → 10 listed; a 60-character name cut to 40; a 40-character name kept whole; an emoji across code units 39–40 cut without a lone surrogate; `errorFromOutcome` maps `"empty"` to `empty-file` and keeps the other three kinds' data.
   - Property tests `messages.property.test.ts`: **P13** and **P14**, using `dateCellArb` and `amountCellArb` from task 10.
   - _Requirements: 4.3, 4.4, 4.5, 4.6, 4.9 (message text), 4.12_
 
-- [ ] 12. Byte decoding and file checks (`decode-bytes.ts`, `file-checks.ts`)
+- [x] 12. Byte decoding and file checks (`decode-bytes.ts`, `file-checks.ts`)
   - Write `decodeStatementBytes(bytes)` as in design "Byte decoding and file checks": `FF FE` → `utf-16le`, `FE FF` → `utf-16be`, else `TextDecoder("utf-8", { fatal: true })`, and on its `TypeError` `TextDecoder("windows-1252")`. It never throws.
   - Write `SIZE_LIMIT_BYTES`, `FileFacts`, `FileCheck`, the generic `checkFiles` (order: count, size, name/type, 0 bytes), `looksLikeCsv` and `containsNul`. Errors use the `PageError` kinds from task 11.
   - Unit tests `decode-bytes.test.ts`: UTF-8 with and without BOM; UTF-16 LE and BE with BOM; `0xA3` → `£`; `0x80` → `€`; invalid continuation bytes; `"\uFEFFa"` as UTF-8 → `"a"`; Windows-1252 `ÿþab` (bytes `FF FE 61 62`) → `"扡"`.
@@ -127,7 +127,7 @@ Every source file in this batch is pure and tested in the `node` environment. Fi
   - Property test `decode-bytes.property.test.ts`: **P12**.
   - _Requirements: 3.10, 4.3, 4.4, 4.5_
 
-- [ ] 13. Assumed-value notes and live-region text (`assumed-values.ts`, `announce.ts`)
+- [x] 13. Assumed-value notes and live-region text (`assumed-values.ts`, `announce.ts`)
   - Write `assumedValueNotes(facts)` with the sentences of design "Assumed values", in the order currency, date format, sign convention.
   - Write `announcement(view, locale?)` with the texts of design "Live region". It takes the `PageView` type from `../page-state`, which task 14 creates: in this task, declare `PageView` in `page-state.ts` with only the type exactly as in design "Page state" (no reducer yet), so task 14 adds the rest to the same file.
   - Unit tests `assumed-values.test.ts`: each Assumed value alone; all three together in order; no notes when nothing is assumed; every date-format label; both sign-convention sentences.

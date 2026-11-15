@@ -112,3 +112,171 @@ export const headerRowArb: fc.Arbitrary<string[]> = fc.array(headerCellArb, {
   minLength: 3,
   maxLength: 8,
 });
+
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+
+/**
+ * A date cell in one of the parser's five formats. The four non-ISO formats get a 2- or 4-digit year
+ * and the cell may be padded with spaces. Day is 1–28, so every value is a real date.
+ */
+export const dateCellArb: fc.Arbitrary<string> = fc
+  .tuple(
+    fc.constantFrom("iso", "dd/mm", "mm/dd", "dd.mm", "dd-mm"),
+    fc.integer({ min: 2000, max: 2099 }),
+    fc.integer({ min: 1, max: 12 }),
+    fc.integer({ min: 1, max: 28 }),
+    fc.boolean(),
+    fc.constantFrom("", " ", "  "),
+    fc.constantFrom("", " ", "  "),
+  )
+  .map(([format, year, month, day, shortYear, before, after]) => {
+    const y = shortYear ? pad2(year % 100) : String(year);
+    const d = pad2(day);
+    const m = pad2(month);
+    const text =
+      format === "iso"
+        ? `${year}-${m}-${d}`
+        : format === "dd/mm"
+          ? `${d}/${m}/${y}`
+          : format === "mm/dd"
+            ? `${m}/${d}/${y}`
+            : format === "dd.mm"
+              ? `${d}.${m}.${y}`
+              : `${d}-${m}-${y}`;
+    return `${before}${text}${after}`;
+  });
+
+/**
+ * An amount cell: digits grouped with `.`, `,`, `'` or space, an optional sign or brackets, and an
+ * optional currency symbol. Every value contains at least one digit.
+ */
+export const amountCellArb: fc.Arbitrary<string> = fc
+  .tuple(
+    fc.integer({ min: 0, max: 99_999 }),
+    fc.integer({ min: 0, max: 99 }),
+    fc.constantFrom(".", ","),
+    fc.constantFrom("", ",", ".", "'", " "),
+    fc.constantFrom("none", "minus", "plus", "trailing-minus", "brackets"),
+    fc.constantFrom("", "$", "£", "€", "¥"),
+  )
+  .map(([whole, cents, decimalMark, groupMark, sign, symbol]) => {
+    const digits = String(whole);
+    const grouped = groupMark === "" ? digits : digits.replace(/\B(?=(\d{3})+(?!\d))/g, groupMark);
+    const body = `${symbol}${grouped}${decimalMark}${pad2(cents)}`;
+    switch (sign) {
+      case "minus":
+        return `-${body}`;
+      case "plus":
+        return `+${body}`;
+      case "trailing-minus":
+        return `${body}-`;
+      case "brackets":
+        return `(${body})`;
+      default:
+        return body;
+    }
+  });
+
+const DELIMITERS = [",", ";", "\t", "|"] as const;
+
+const MERCHANT_WORDS = [
+  "NETFLIX.COM",
+  "SPOTIFY",
+  "Gym Membership",
+  "TESCO STORES 1234",
+  "Coffee",
+  "ACME",
+];
+
+/** Quotes a cell when it holds a delimiter, a quote or a line break; doubles inner quotes. */
+function quoteCell(cell: string): string {
+  return /[",;\t|\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
+}
+
+/** A cell for the free-form branch: a date, an amount, a merchant word, empty, or a quoted odd one. */
+const looseCellArb: fc.Arbitrary<string> = fc.oneof(
+  dateCellArb,
+  amountCellArb,
+  fc.constantFrom(...MERCHANT_WORDS),
+  fc.constant(""),
+  fc.constantFrom("a,b", "line\nbreak", 'say "hi"', "x;y|z", "tab\there", "\r\n"),
+);
+
+/** A header row of three cells, either real header names or noise. */
+const csvHeaderArb: fc.Arbitrary<string[]> = fc.oneof(
+  fc
+    .constantFrom<string[][]>(
+      ["Date", "Description", "Amount"],
+      ["date", "description", "debit", "credit"],
+      ["Posting Date", "Description", "Paid out", "Paid in"],
+      ["Date", "Details", "Amount", "Balance"],
+    )
+    .map((header) => [...header]),
+  headerRowArb,
+  fc.array(fc.constantFrom(...NOISE_HEADER_NAMES), { minLength: 1, maxLength: 4 }),
+);
+
+const preambleArb: fc.Arbitrary<string> = fc.constantFrom(
+  "",
+  "",
+  "Account statement\n",
+  "Account: 12345\nPeriod: Jan to Mar\n\n",
+);
+
+/** Rows of loose cells under a header, 0 to 40 rows. */
+const looseCsvArb: fc.Arbitrary<{ header: string[]; rows: string[][] }> = csvHeaderArb.chain(
+  (header) =>
+    fc.record({
+      header: fc.constant(header),
+      rows: fc.array(fc.array(looseCellArb, { minLength: 1, maxLength: header.length + 1 }), {
+        maxLength: 40,
+      }),
+    }),
+);
+
+/** A statement that repeats one merchant monthly, so the parser maps it and the detector finds it. */
+const recurringCsvArb: fc.Arbitrary<{ header: string[]; rows: string[][] }> = fc
+  .record({
+    merchant: fc.constantFrom(...MERCHANT_WORDS),
+    months: fc.integer({ min: 3, max: 12 }),
+    day: fc.integer({ min: 1, max: 28 }),
+    cents: fc.integer({ min: 99, max: 99_999 }),
+    others: fc.array(
+      fc.tuple(fc.integer({ min: 1, max: 12 }), fc.constantFrom(...MERCHANT_WORDS)),
+      {
+        maxLength: 5,
+      },
+    ),
+  })
+  .map(({ merchant, months, day, cents, others }) => {
+    const money = (c: number): string => `-${Math.floor(c / 100)}.${pad2(c % 100)}`;
+    const rows = Array.from({ length: months }, (_, i) => [
+      `2025-${pad2(i + 1)}-${pad2(day)}`,
+      merchant,
+      money(cents),
+    ]);
+    for (const [month, name] of others) {
+      rows.push([`2025-${pad2(month)}-${pad2(Math.min(28, day + 3))}`, name, money(cents + 1_234)]);
+    }
+    return { header: ["Date", "Description", "Amount"], rows };
+  });
+
+/**
+ * A CSV-like text: a header row, a delimiter from `, ; \t |`, 0–40 rows, optionally a preamble and a
+ * BOM. One branch repeats a merchant monthly so the `"results"` kind is reached often enough for P3.
+ */
+export const csvLikeArb: fc.Arbitrary<string> = fc
+  .tuple(
+    fc.oneof(looseCsvArb, recurringCsvArb, recurringCsvArb),
+    fc.constantFrom(...DELIMITERS),
+    preambleArb,
+    fc.boolean(),
+  )
+  .map(([{ header, rows }, delimiter, preamble, bom]) => {
+    const quoted = (cells: readonly string[]): string =>
+      cells
+        .map((c) => (c.includes(delimiter) || /["\r\n]/.test(c) ? quoteCell(c) : c))
+        .join(delimiter);
+    const body = [header, ...rows].map(quoted).join("\n");
+    return `${bom ? "\uFEFF" : ""}${preamble}${body}\n`;
+  });
