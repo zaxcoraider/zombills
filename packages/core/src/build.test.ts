@@ -154,6 +154,28 @@ describe("the built package in plain Node (Req 12.3)", () => {
   );
 
   it(
+    "classifies the US Sample from dist/index.js: Netflix is possessed",
+    () => {
+      const run = runModule(
+        `
+        import { readFileSync } from "node:fs";
+        const api = await import(${JSON.stringify(pathToFileURL(join(distRoot, "index.js")).href)});
+        const parsed = api.parseStatement(readFileSync(${JSON.stringify(samplePath)}, "utf8"));
+        const normalized = api.normalizeTransactions(parsed.transactions);
+        const detected = api.detectSubscriptions(normalized);
+        const classified = api.classifySubscriptions(detected.subscriptions);
+        const netflix = classified.find((sub) => sub.merchantKey === "netflix");
+        console.log(JSON.stringify(netflix.labels));
+      `,
+        repoRoot,
+      );
+      expect(run.status, run.stderr).toBe(0);
+      expect(JSON.parse(run.stdout)).toEqual(["possessed"]);
+    },
+    TIMEOUT,
+  );
+
+  it(
     "exports the public functions and nothing that needs a browser",
     () => {
       const run = runModule(
@@ -181,6 +203,7 @@ describe("the built package in plain Node (Req 12.3)", () => {
           "EMPTY_CSV_REASON",
           "KNOWN_SERVICES",
           "NO_CONTENT_ROWS_REASON",
+          "classifySubscriptions",
           "detectSubscriptions",
           "getKnownService",
           "normalizeHeader",

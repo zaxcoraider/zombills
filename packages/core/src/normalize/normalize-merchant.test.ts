@@ -46,6 +46,7 @@ describe("normalizeMerchant: Req 3.12", () => {
       null,
     ],
     ["  joe's   pizza  ", "generic", "merchant:joe-s-pizza", "Joe's Pizza", null],
+    ["PRIMEVIDEO MEMBERSHIP", "known", "amazon-prime", "Amazon Prime", null],
   ];
 
   it.each(ROWS)("%s", (...row) => {
@@ -108,6 +109,9 @@ describe("normalizeMerchant: Req 4.8 tables", () => {
     ["AMAZON PRIME", "amazon-prime"],
     ["AMAZON PRIME MEMBERSHIP", "amazon-prime"],
     ["AMZN PRIME", "amazon-prime"],
+    ["PRIMEVIDEO MEMBERSHIP", "amazon-prime"],
+    ["PRIME VIDEO MEMBERSHIP", "amazon-prime"],
+    ["AMAZON PRIME VIDEO MEMBERSHIP", "amazon-prime"],
   ];
 
   it.each(KNOWN)("%s → %s", (description, serviceId) => {
@@ -130,6 +134,7 @@ describe("normalizeMerchant: Req 4.8 tables", () => {
     ["EA *ORIGIN", null],
     ["KINDLE SVCS*2K4LJ8MB3", "merchant:kindle-svcs"],
     ["PRIME VIDEO*2K4LJ8MB3", "merchant:prime-video"],
+    ["PRIMEVIDEO*2K4LJ8MB3", null],
     ["PRIME VIDEO CHANNELS", "merchant:prime-video-channels"],
   ];
 
@@ -155,6 +160,7 @@ describe("normalizeMerchant: Req 4.8 tables", () => {
       "EA",
       "KINDLE",
       "PRIME VIDEO",
+      "PRIMEVIDEO",
     ]) {
       expect(normalizeMerchant(description).source, description).not.toBe("known");
     }

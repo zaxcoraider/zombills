@@ -100,7 +100,7 @@ const SAMPLES: Expected[] = [
       ["Fitzone Gym Ltd", 29988],
       ["Netflix", 15588],
       ["Spotify", 14388],
-      ["Primevideo Membership", 10788],
+      ["Amazon Prime", 10788],
       ["Disney+", 9588],
     ],
   },

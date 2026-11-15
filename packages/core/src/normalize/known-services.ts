@@ -59,6 +59,8 @@ const VIDEO_STREAMING: readonly KnownService[] = [
     contains("amazon prime"),
     contains("amzn prime"),
     contains("amazon prime membership"),
+    contains("prime video membership"),
+    contains("primevideo membership"),
   ]),
   service("crunchyroll", "Crunchyroll", "video-streaming", [
     contains("crunchyroll"),

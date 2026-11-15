@@ -90,6 +90,7 @@ const EXCLUDED_TEXTS = [
   "amazon",
   "amzn",
   "prime video",
+  "primevideo",
   "apple",
   "google",
   "youtube",

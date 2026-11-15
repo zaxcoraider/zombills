@@ -57,6 +57,13 @@ exports[`sample statements, normalized > eu-semicolon.csv: distinct merchant ide
 exports[`sample statements, normalized > uk-debit-credit.csv: distinct merchant identities 1`] = `
 [
   {
+    "displayName": "Amazon Prime",
+    "key": "amazon-prime",
+    "processor": null,
+    "serviceId": "amazon-prime",
+    "source": "known",
+  },
+  {
     "displayName": "Disney+",
     "key": "disney-plus",
     "processor": null,
@@ -94,13 +101,6 @@ exports[`sample statements, normalized > uk-debit-credit.csv: distinct merchant 
   {
     "displayName": "Online Shop Refund Ref",
     "key": "merchant:online-shop-refund-ref",
-    "processor": null,
-    "serviceId": null,
-    "source": "generic",
-  },
-  {
-    "displayName": "Primevideo Membership",
-    "key": "merchant:primevideo-membership",
     "processor": null,
     "serviceId": null,
     "source": "generic",

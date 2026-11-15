@@ -44,6 +44,7 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
       "EMPTY_CSV_REASON",
       "KNOWN_SERVICES",
       "NO_CONTENT_ROWS_REASON",
+      "classifySubscriptions",
       "detectSubscriptions",
       "getKnownService",
       "normalizeHeader",

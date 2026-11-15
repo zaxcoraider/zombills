@@ -82,7 +82,7 @@ const UK: ExpectedSample = {
     sub("merchant:fitzone-gym-ltd", "Fitzone Gym Ltd", 2499, 29988, ["2026-01-10", 2499]),
     sub("netflix", "Netflix", 1299, 15588, ["2026-01-02", 1099], ["2026-03-02", 1299]),
     sub("spotify", "Spotify", 1199, 14388, ["2026-01-05", 1199]),
-    sub("merchant:primevideo-membership", "Primevideo Membership", 899, 10788, ["2026-01-09", 899]),
+    sub("amazon-prime", "Amazon Prime", 899, 10788, ["2026-01-09", 899]),
     sub("disney-plus", "Disney+", 799, 9588, ["2026-01-15", 799]),
   ],
   notRecurring: [
@@ -156,6 +156,15 @@ function detectSample(file: string) {
   const result: DetectionResult = detectSubscriptions(rows);
   return { rows, result };
 }
+
+describe("Req 10.6: uk-debit-credit.csv Prime Video membership", () => {
+  it("is the known service amazon-prime", () => {
+    const { result } = detectSample("uk-debit-credit.csv");
+    const prime = result.subscriptions.find((s) => s.merchant === "Amazon Prime");
+    expect(prime?.source).toBe("known");
+    expect(prime?.serviceId).toBe("amazon-prime");
+  });
+});
 
 describe.each([US, UK, EU, PREAMBLE])("Req 10.1: $file", (expected) => {
   const { rows, result } = detectSample(expected.file);

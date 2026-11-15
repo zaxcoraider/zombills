@@ -22,7 +22,7 @@ Rules that apply to every task:
 
 ## Batch 1: merchant-normalizer amendment (Requirement 10)
 
-- [ ] 1. Prime Video membership as Amazon Prime (`normalize/known-services.ts`)
+- [x] 1. Prime Video membership as Amazon Prime (`normalize/known-services.ts`)
   - In `known-services.ts`, append `contains("prime video membership")` and `contains("primevideo membership")` to the `amazon-prime` Variants, after the existing three. No service added, removed or reordered; 59 services; ids unchanged (Req 10.1).
   - Existing tests this task may change, and only as listed:
     - `normalize/known-services.test.ts`: `EXCLUDED_TEXTS` gains `"primevideo"` next to `"prime video"` (Req 10.2, 10.4).
@@ -41,7 +41,7 @@ Rules that apply to every task:
 
 Every file in this batch is pure and tested in Vitest's default `node` environment. The detector, parser and normalizer suites stay unchanged.
 
-- [ ] 2. Types, Band rise, cadence factor and the fixture builder (`classify/types.ts`, `classify/band.ts`, `classify/test-fixtures.ts`)
+- [x] 2. Types, Band rise, cadence factor and the fixture builder (`classify/types.ts`, `classify/band.ts`, `classify/test-fixtures.ts`)
   - `types.ts`: `UsageAnswer`, `SubscriptionLabel` (internal alias), `PriceRise`, `TrialDetails` and `ClassifiedSubscription`, exactly as design "Data models"; it imports `PricePoint` and `Subscription` from `../detect/types.js` as types and does not re-export them.
   - `band.ts`: the frozen `CADENCE_FACTOR` (`weekly: 52`, `monthly: 12`, `yearly: 1`) and `isBandRise(from, to)` as in design "Band rise and cadence factor" (`to <= from` → `false`, else `to − from > (from − from % 20) / 20`).
   - `test-fixtures.ts`: `makeSubscription({ cadence?, currency?, source?, merchantKey?, charges, intro?, freeTrialDate?, startedInStatement?, status?, cadenceAssumed? })`, deriving every other field as step 5 of design "Generators" does. `startedInStatement` defaults to `false`. Literal factors `52`/`12`/`1`, not `CADENCE_FACTOR`.
@@ -50,25 +50,25 @@ Every file in this batch is pure and tested in Vitest's default `node` environme
   - No existing test changes.
   - _Requirements: 1.2 (types), glossary Band rise and Cadence factor (used by 2.1, 2.2)_
 
-- [ ] 3. Inferred intro and Paid price history (`classify/paid-history.ts`)
+- [x] 3. Inferred intro and Paid price history (`classify/paid-history.ts`)
   - `findInferredIntro(s)` and `paidPriceHistory(s, inferred)` as in design "Inferred intro and Paid price history", with the checks in glossary order. `paidPriceHistory` returns a slice of `priceHistory` and does not copy entries.
   - New `paid-history.test.ts`: every row of the design's worked-examples table, built with `makeSubscription`, plus an `introCharge` that does not match `priceHistory[0]` (Paid price history unchanged).
   - No existing test changes.
   - _Requirements: glossary Inferred intro charge and Paid price history (used by 2.1, 3.1, 4.2)_
 
-- [ ] 4. Possessed (`classify/possessed.ts`)
+- [x] 4. Possessed (`classify/possessed.ts`)
   - `findPriceRise(s, paid)` as in design "Possessed": first paid price against `currentAmountCents`; `latestRise` from the last consecutive Band-rise pair; `increasePerYearCents` checked with `Number.isSafeInteger` (Req 2.4); `firstSeen` is a new object.
   - New `possessed.test.ts`: every Req 2.5 row with its full expected `priceRise`, and the overflow case of design "Example-based unit tests" (weekly, first `1`, current `floor(MAX_SAFE / 52) + 2` → `null`; `+ 1` still gives a `priceRise`). `classifySubscriptions` does not exist yet, so the rows go through a local helper `rise(s) = findPriceRise(s, paidPriceHistory(s, findInferredIntro(s)))`; task 6 switches the helper to `classifySubscriptions`.
   - No existing test changes.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 5. Trial trap (`classify/trial-trap.ts`)
+- [x] 5. Trial trap (`classify/trial-trap.ts`)
   - `findTrial(s, inferred)` as in design "Trial trap": the three trial signals (a `freeTrialDate` equal to `firstChargeDate` does not count), the full-price charge count cut-off at 3 (`regularChargeCount − 1` with an Inferred intro), `firstFullCharge` from `priceHistory[1]` or from the charge on `firstChargeDate`, the Req 3.3 guard, and new objects for `introCharge` and `firstFullCharge`.
   - New `trial-trap.test.ts`: every Req 3.5 row; full-price charge count exactly 3 and 4 for `introCharge`, Inferred intro and `freeTrialDate`; the Req 3.3 guard (`firstChargeDate` not in `charges` → `null`). The rows go through a local helper `trial(s) = findTrial(s, findInferredIntro(s))`; the "not `possessed`" parts of the Req 3.5 rows use the task 4 helper. Task 6 switches both to `classifySubscriptions`.
   - No existing test changes.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 6. Zombie answers, `classifySubscriptions` and the public export (`classify/classify-subscriptions.ts`, `classify/index.ts`, `index.ts`)
+- [x] 6. Zombie answers, `classifySubscriptions` and the public export (`classify/classify-subscriptions.ts`, `classify/index.ts`, `index.ts`)
   - `classify-subscriptions.ts`: `classifySubscriptions`, `classifyOne` and `answerFor` as in design "Entry point", with the TSDoc read-only note of design "Function signatures". Non-array → `TypeError("classifySubscriptions: subscriptions must be an array")`; non-`Map` `answers` (including duck-typed objects with `get`) → empty; `"ended"` → `labels: []`; `cadenceAssumed` → only `"zombie"` possible; labels pushed in Canonical label order; result keys spread last so stale `labels`, `priceRise` and `trial` are replaced.
   - `classify/index.ts` as in design "Data models"; `packages/core/src/index.ts` gains `export * from "./classify/index.js";` after the detector line.
   - New `classify-subscriptions.test.ts`: the cases of design "Example-based unit tests" for this file (every Req 5.4 row; both labels with and without `"not-using"`, the Req 4.2 example; non-array inputs `undefined`, `null`, `{}`, `"x"`; `answers` absent, `null`, `{}`, `[]`, `{ get: () => "not-using" }`; the Req 6.4 values; Req 6.5 unknown and non-string keys; an element carrying stale `["zombie", "possessed", "trial-trap"]`, `priceRise` and `trial`, and re-classifying with `"still-using"` removing `"zombie"`; an extra own property surviving; `[]` → `[]`).
