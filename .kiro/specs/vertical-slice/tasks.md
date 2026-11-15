@@ -134,7 +134,7 @@ Every source file in this batch is pure and tested in the `node` environment. Fi
   - Unit tests `announce.test.ts`: each view's text; `1 recurring charge` and `4 recurring charges`; two currency totals give two total sentences; the expected money text is built with `formatMoney` and the same `locale`.
   - _Requirements: 5.1a, 8.3 (text)_
 
-- [ ] 14. Page reducer and paint helpers (`src/slice/page-state.ts`, `src/slice/frame.ts`)
+- [x] 14. Page reducer and paint helpers (`src/slice/page-state.ts`, `src/slice/frame.ts`)
   - Complete `page-state.ts` with `PageModel`, `PageAction`, `INITIAL_PAGE_MODEL` and the pure `pageReducer`, following the transition table in design "Page state". `finish` uses `errorFromOutcome` for the four error kinds. A replaced view keeps no reference to the previous outcome.
   - Write `nextFrame()` (one `requestAnimationFrame`) and `nextTask()` (one `setTimeout(…, 0)`) in `frame.ts`.
   - Unit tests `page-state.test.ts`: every row of the transition table, including `start` and `reject` ignored while `working`, a stale `finish` and `fail` ignored, and `reset` from `idle` and `working` unchanged.
@@ -150,24 +150,24 @@ Every source file in this batch is pure and tested in the `node` environment. Fi
 
 Components are written first and tested through `SlicePage` in tasks 18 and 19, because the design puts their tests in `slice-page.test.tsx`. Tasks 15–17 must pass `npm run typecheck` and `npm run lint`, and the suite must stay green. Colours come only from the theme tokens in `index.css`; no hex values in components (Req 8.5). State and status are always given as text, not by colour alone (Req 8.6). No logos (Req 5.10).
 
-- [ ] 15. Subscription list (`subscription-item.tsx`, `results-view.tsx`)
+- [x] 15. Subscription list (`subscription-item.tsx`, `results-view.tsx`)
   - Write `SubscriptionItem` as in design "Result views": `merchant` in a `strong`; `Monthly · <price> · <yearly> a year` from `CADENCE_LABELS` and `formatMoney`; for a guessed cadence `Guessed from a single charge` and `about <yearly> a year (estimate)`; for `status: "ended"`, `Ended · last charged <date>`; a nested `ol` labelled `Price history` only when `priceHistory.length > 1`, oldest first. Every money figure is in a span with class `money`.
   - Write `ResultsView` with the layout of design "Result views": the `h2` "Recurring charges found" with `tabIndex={-1}` and `headingRef`; the summary line with the dates through `formatDisplayDate` and the skipped-row clause (singular and plural); the Assumed-value notes as a `ul`; one `section` per `groupForDisplay` group (computed with `useMemo`) with an `h3` naming the currency, a `ul` of items, `Yearly total (<code>): <money>` when `total` is not null, and the not-included note when `hasExcluded`; a Start again button whose handler comes from props.
   - _Requirements: 5.1, 5.1a (results), 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.9, 5.10, 6.5_
 
-- [ ] 16. Other state views and the fade (`no-subscriptions-view.tsx`, `error-view.tsx`, `fade-in.tsx`)
+- [x] 16. Other state views and the fade (`no-subscriptions-view.tsx`, `error-view.tsx`, `fade-in.tsx`)
   - Write `NoSubscriptionsView` (the `h2` "No recurring charges found", the sentence with transaction count and dates, which leaves out the date clause when `firstDate` is null, the Assumed-value notes, Start again) and `ErrorView` (the `h2` with `summary`, `File: <name>` when not null, the `detail` paragraph when present, Start again), both with `tabIndex={-1}` headings on `headingRef`. `ErrorView` may use `role="alert"`.
   - Write `fadeInMotion(reduced)` and `FadeIn` as in design "Result views" and "Design decisions": opacity only, 150 ms, duration 0 when `useReducedMotion()` is true.
   - Unit test `fade-in.test.tsx` (jsdom, own file because of the partial `vi.mock("framer-motion")` via `vi.importActual`): `fadeInMotion(true)` and `fadeInMotion(false)` set only `opacity` in `initial` and `animate`, with durations 0 and 0.15; `FadeIn` with `useReducedMotion` mocked to `true` renders its children.
   - _Requirements: 4.6 (view), 4.7, 5.1a (no-subscriptions), 8.7_
 
-- [ ] 17. Statement inputs (`samples.ts`, `drop-zone.tsx`, `sample-buttons.tsx`)
+- [x] 17. Statement inputs (`samples.ts`, `drop-zone.tsx`, `sample-buttons.tsx`)
   - Write `Sample` and `SAMPLES` with the four `?raw` imports from `../../../../samples/` and the labels in design "Samples".
   - Write `DropZone` (with `forwardRef` and a `focus()` handle) exactly as in design "Drop zone": `role="button"`, `tabIndex={0}`, the `aria-label`, `aria-disabled`, Enter on `keydown` and Space on `keyup` call `input.click()`; texts `Drop a CSV statement here`, `Release to read this file` and `Reading…`; a depth counter for `dragenter`/`dragleave`; `drop` calls `preventDefault()` and `stopPropagation()` and passes files only when not disabled; the `Choose a file` button; the hidden labelled input with `accept=".csv,text/csv"` and `tabIndex={-1}` whose `change` resets `value`.
   - Write `SampleButtons`: native buttons in a `ul` under the heading "Or try a sample statement", disabled while working.
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 2.7 (controls), 2.8, 8.2, 8.6 (drag-over text)_
 
-- [ ] 18. The Page and its main component tests (`slice-page.tsx`, `slice-page.test.tsx`)
+- [x] 18. The Page and its main component tests (`slice-page.tsx`, `slice-page.test.tsx`)
   - Write `SlicePage` as in design "Analysis run" and "Look and layout": `useReducer(pageReducer, INITIAL_PAGE_MODEL)`; a `useRef` run counter; `runAnalysis(source)` that dispatches `start`, then for a file reads `file.arrayBuffer()` in `try`/`catch` (`fail` with `unreadable-file`), decodes, and dispatches `fail` with `not-csv` when `containsNul`; then `await nextFrame()`, `await nextTask()`, `analyzeStatement(text)` and `finish`. The text and bytes stay local to the call, never in state.
   - `onFiles` runs `checkFiles`: an empty list does nothing, a rejection dispatches `reject`, a pass calls `runAnalysis`.
   - The window `dragover`/`drop` guard in a `useEffect`; focus on the state heading on entering `results`, `no-subscriptions` or `error`, and on the drop area after Start again only (`focusDropZoneRef` flag); the always-mounted `<p role="status" className="sr-only">` with `announcement(view)`; the `main` with `max-w-[640px] mx-auto px-4`, the `h1` "Zombills" with `font-display`, the privacy and history sentence, the visible `Reading <name>…` text, each state's content in `FadeIn`, and the footer link `<a href="#spike">See the burial art spike</a>`.
@@ -175,7 +175,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
   - Component tests `slice-page.test.tsx` (jsdom, `render(<App />)`, helpers as in design "Component tests"), for these rows of the design table: Idle; Working (held `requestAnimationFrame`); Results from a Sample; No subscriptions; Start again; Replace result; Keyboard; Drag-over text; Drop outside.
   - _Requirements: 2.4, 2.6, 2.7, 3.8, 4.1, 4.2, 4.7, 4.8, 4.10, 4.11, 5.1, 5.2, 5.3, 5.4, 5.7, 5.9, 6.5, 7.5, 8.1, 8.2, 8.3, 8.4, 8.6, 8.8, 10.3 (main states)_
 
-- [ ] 19. Component tests for errors and edge cases (`slice-page.test.tsx`)
+- [x] 19. Component tests for errors and edge cases (`slice-page.test.tsx`)
   - Add the remaining rows of design "Component tests" to the same file: Skipped rows; Error: two files (no `arrayBuffer` call); Error: too large; Error: not CSV (picked with `userEvent.setup({ applyAccept: false })`, dropped, and a `.csv` containing U+0000); Error: empty; Error: columns missing; Error: headerless (`NETFLIX.COM` listed, neither `01/02/2026` nor `-15.49` shown); Error: unreadable; Windows-1252 file (asserting the Sample has no other non-ASCII character); Guessed-only group; Assumed value; Ended.
   - Each error case also checks focus on the error heading and the live-region or alert text.
   - No source change is expected. If a test finds a bug, fix it in the smallest file that owns the behaviour.

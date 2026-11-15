@@ -1,5 +1,6 @@
-import { BurialSpike } from "./spike/BurialSpike";
+import { SlicePage } from "./slice/slice-page";
 
+// Temporary: task 20 adds routing and the spike view.
 export function App() {
-  return <BurialSpike />;
+  return <SlicePage />;
 }
