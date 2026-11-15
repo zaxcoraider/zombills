@@ -109,7 +109,7 @@ The reducer stays pure and lives in `src/slice/page-state.ts`. The vertical-slic
 
 Each task copies Spike code into `src/slice/graveyard/` following design "What becomes of each Spike file", and changes only what that table lists. The Spike originals stay in place and keep working until task 19. Nothing in this batch is rendered by `SlicePage` yet, so no existing component test changes. Moved components import their motion values from `motion.ts` instead of keeping local copies.
 
-- [ ] 10. Motion values and the burial fallback (`graveyard/motion.ts`, `graveyard/use-burial-fallback.ts`)
+- [x] 10. Motion values and the burial fallback (`graveyard/motion.ts`, `graveyard/use-burial-fallback.ts`)
   - Create `motion.ts` with every constant and helper in design "Motion values": `CARD_RISE_SPRING`, `CARD_SETTLE_SPRING`, `SHUDDER`, `SINK_EASE`, `SINK`, `TOMBSTONE_RISE_SPRING`, `COUNTER_TWEEN`, `REDUCED_FADE`, `BURIAL_FALLBACK_MS`, `CARD_VARIANTS` and `CARD_REDUCED_VARIANTS` (the Spike's `MOTION_VARIANTS` and `REDUCED_VARIANTS` from `spike/undead-card.tsx`), `cardVariants`, `tombstoneMotion`, `moundMotion`, `counterFade` and `fogFade`. Copy the Spike values; do not retune them.
   - Create `useBurialFallback(stage, dispatch)`: one `setTimeout(BURIAL_FALLBACK_MS)` keyed on the burying id (not the phase) that dispatches `burial-finish(id)`, cleared on cleanup.
   - Unit tests `motion.test.ts` (node), as in design "Unit tests (logic)": every `…(true)` result animates only `opacity` with `duration ≤ 0.15`; `…(false)` uses `120/14`, `0.6 s` ease-in, `80/12` and `0.8 s`; `fogFade(_, true)` → opacity `0.45`, `fogFade(_, false)` → `1`; `BURIAL_FALLBACK_MS === 2000`; no exported value animates a colour or opacity with `repeat`.
@@ -117,7 +117,7 @@ Each task copies Spike code into `src/slice/graveyard/` following design "What b
   - Existing tests: none change.
   - _Requirements: 13.1, 13.2, 13.5, 13.6_
 
-- [ ] 11. Icons, label chips and their contrast (`graveyard/icons.tsx`, `graveyard/label-chip.tsx`, `src/contrast.test.ts`)
+- [x] 11. Icons, label chips and their contrast (`graveyard/icons.tsx`, `graveyard/label-chip.tsx`, `src/contrast.test.ts`)
   - Copy `spike/spike-icons.tsx` to `icons.tsx`: keep `Icon`, `EyeOpenIcon`, `EyeClosedIcon` and `ShovelIcon`; drop `ReplayIcon`; add `EmberIcon` and `HourglassIcon` in the same 24-unit, 1.75-stroke style. Every `svg` is `aria-hidden="true"`.
   - Create `LabelChip({ kind, reduceMotion })` with the five kinds, words, icons and classes of design "Label chip"; the state chip keeps the Spike's `AnimatePresence mode="wait"` swap (4 px `y`, 0 px when reduced); data chips are static. The chip always shows the word next to the icon (Req 3.3–3.5, 14.5).
   - Unit tests `label-chip.test.tsx` (jsdom): each kind renders its word; the icon is `aria-hidden`; no `img` element.
@@ -125,14 +125,14 @@ Each task copies Spike code into `src/slice/graveyard/` following design "What b
   - Existing tests: `src/contrast.test.ts` (new pairs only; existing assertions unchanged).
   - _Requirements: 3.3, 3.4, 3.5, 3.10, 14.4, 14.5, 14.6_
 
-- [ ] 12. Night scene and burial earth (`graveyard/graveyard-backdrop.tsx`, `graveyard/burial-earth.tsx`, `graveyard/night-scene.tsx`)
+- [x] 12. Night scene and burial earth (`graveyard/graveyard-backdrop.tsx`, `graveyard/burial-earth.tsx`, `graveyard/night-scene.tsx`)
   - Copy `spike/graveyard-backdrop.tsx` (`BackdropLayers`, `ForegroundFog`, `Ground`, `SKY_BACKGROUND`, `GROUND_TOP`) and `spike/burial-earth.tsx` (`SinkCrumbs`, `BurialMound`) unchanged apart from import paths and taking their motion values from `motion.ts` (`fogFade`, `moundMotion`).
   - Create `NightScene({ fogCleared, reduceMotion, children })` as in design "Night scene": `relative isolate min-h-svh text-bone` with the Spike's `SCENE_STYLE` (`--ground-h: clamp(7rem, 24svh, 15rem)`, `SKY_BACKGROUND`) and `VIGNETTE` from `spike/BurialSpike.tsx`; the backdrop in a `fixed inset-0` element, `Ground` and `ForegroundFog` fixed to the viewport bottom; every layer `aria-hidden` and `pointer-events-none`. The page scrolls; the scene is not `h-svh overflow-clip`.
   - Unit tests `night-scene.test.tsx` (jsdom): children render; every `svg` and backdrop layer has `aria-hidden="true"`; no `img`; `fogCleared` switches the fog opacity target (`0.45` / `1`) under `skipAnimations`.
   - Existing tests: none change.
   - _Requirements: 1.1, 13.1, 13.4, 14.4_
 
-- [ ] 13. Money text and the tombstone (`graveyard/money-text.tsx`, `graveyard/tombstone.tsx`, `subscription-item.tsx`)
+- [x] 13. Money text and the tombstone (`graveyard/money-text.tsx`, `graveyard/tombstone.tsx`, `subscription-item.tsx`)
   - Move `Money` (the `.money` span) and `TextLine` (the `TextPart` renderer) out of `subscription-item.tsx` into `money-text.tsx`; `subscription-item.tsx` imports them from there until task 18 deletes it.
   - Copy `spike/tombstone.tsx` to `tombstone.tsx` and generalise it as in design "Tombstone": props `record`, `displayName`, `size: "stage" | "list"`, `entering`, `reduceMotion`, `action`; keep `StoneArt`, `Flourish`, `STONE`, `SLAB`, `BEVEL`, the lean and `.engraved`; `section` with `aria-labelledby` on "Here lies <name>.", `tabIndex={-1}`, `useFocusRequest("tombstone:<id>")` in place of the mount `focus()`; text "Fed on you every <period>.", "Saves <Money>/year." or "Saving unknown: guessed from one charge", and "Cancel it with the provider to stop the charges."; drop "since March"; `tombstoneMotion` when `entering`.
   - Unit tests `tombstone.test.tsx` (jsdom): region name "Here lies Netflix."; the "Saves" figure via `formatMoney`; the unknown-saving text for a `null` saving; the cancel line; no text containing "cancelled"; the `action` slot renders only in the list size.
@@ -148,27 +148,27 @@ Each task copies Spike code into `src/slice/graveyard/` following design "What b
 
 Tasks 14–17 build components that `SlicePage` does not render yet, tested on their own with `graveyard/test-fixtures.ts` and Pipeline output from `@zombills/core`. Task 18 switches the Page over, and is the only task in this batch that changes existing component tests.
 
-- [ ] 14. Undead card (`graveyard/undead-card.tsx`)
+- [x] 14. Undead card (`graveyard/undead-card.tsx`)
   - Copy `spike/undead-card.tsx` and generalise it as in design "Undead card": props as in `UndeadCardProps`; keep `CardPhase`, `VARIANT_FOR_PHASE`, `swayFor`, the grave-light overlay, `BUTTON_BASE`, the 22.5 rem fog surface and its shadows; variants from `motion.ts`; `article` → `section aria-labelledby`; `h2` → `h3` with `useFocusRequest("card-heading:<id>")`; `StateLabel` → `LabelChip`; correct the yearly-figure comment to 4.53:1.
   - Content rows as in the design table: state chip from `labels.includes("zombie")` / `resting` phase; data chips with the price-rise and trial `TextLine`s, possessed first; money via `Money`; the guessed texts; "Seen since" / "Seen since at least"; the `Price history` list when `priceHistory.length > 1`; "Still using this?", the two buttons and "Skip for now" when `canSkip`; `KeptNote` with `useFocusRequest("outcome:<id>")` and "It goes on charging …". While `condemned` or `sinking` the buttons stay rendered with `aria-disabled="true"` and ignore clicks. No logo or image.
   - Unit tests `undead-card.test.tsx` (jsdom), taking over the label-line, order, `.money` and "no zombie text" cases of `subscription-item.test.tsx` (the last becomes "the Zombie chip comes from `labels`"): possessed sentence; "Trial trap" chip and `Intro price ended on 10 Feb 2026 ($1.00 on 10 Jan 2026, then $14.99)`; both labels, possessed first; price-history list; "Seen since at least 2 Jan 2026"; guessed text; every money figure in a `.money` span; no `img`; buttons `aria-disabled` and inert in `condemned`; "Skip for now" absent when `canSkip` is false.
   - Existing tests: none change (`subscription-item.test.tsx` is deleted in task 18).
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.3, 5.1, 5.3_
 
-- [ ] 15. Burial stage and the Rising (`graveyard/burial-stage.tsx`, `graveyard/rising-view.tsx`)
+- [x] 15. Burial stage and the Rising (`graveyard/burial-stage.tsx`, `graveyard/rising-view.tsx`)
   - Create `BurialStage` as in design "Burial stage": the stage container (`tabIndex={-1}`, `role="group"`, `useFocusRequest("stage:<id>")`, `aria-label="Burying <name>"` while burying), keyed by subscription id; the Spike stage layout from `spike/BurialSpike.tsx` (clip at `bottom: var(--ground-h)`, card at `-bottom-3`, tombstone at `-bottom-7`, mound at `calc(var(--ground-h) - 22px)`, crumbs only while `sinking` and not reduced); the card-phase mapping and the `burial-step` callbacks.
   - Create `RisingView` as in design "Rising": `h2` "Recurring charges found" and a `StatementSummary` moved from `results-view.tsx`; the Still-draining lines and not-included notes (including the code-prefixed note alone for a currency with `remainingCents: null`); the progress line and "Open the graveyard"; the no-Risen state ("No undead here.", "Every recurring charge found has already stopped.", `EndedList`); the all-answered state; "Next" / "Visit the graveyard" below the stage, `aria-disabled` while burying.
   - Unit tests `rising-view.test.tsx` (jsdom), rendering `RisingView` with a model built through `pageReducer` and `deriveHaunt`: first card and "0 of 4 answered" for `us-signed.csv`; the burial sequence reaches the tombstone and dispatches `burial-step` three times; the stage group is named "Burying Netflix" while burying; "Next" reads "Visit the graveyard" when the Queue is empty; the no-Risen and all-answered states; the EUR note shows alone for the "Guessed-only group" CSV.
   - Existing tests: none change.
   - _Requirements: 1.6, 1.6a, 2.1, 2.2, 2.5, 2.6, 2.7, 5.3, 5.5_
 
-- [ ] 16. Savings counter (`graveyard/savings-counter.tsx`)
+- [x] 16. Savings counter (`graveyard/savings-counter.tsx`)
   - Copy `spike/savings-counter.tsx` and change it as in design "Savings counter": one `CounterLine` per currency, keyed by currency, inside `role="group" aria-label="Saved per year"` with the Spike caption; `formatMoney` in place of `formatCents`; `COUNTER_TWEEN` with no delay; `initialCents` = `cents` for lines present at first mount and 0 for lines added later; a drop or reduced motion sets the value at once; figure `aria-hidden` with a sibling `sr-only` value; `min-w-[7ch]`. Returns `null` with no totals and no fallback.
   - Unit tests `savings-counter.test.tsx` (jsdom): nothing rendered with no totals and no fallback; `formatMoney(0, "USD")` with the fallback; two lines in `GBP`, `USD` order; the `sr-only` value; a decrease shows the new value at once; a USD line added after a `€0.00` fallback line reaches its value.
   - Existing tests: none change.
   - _Requirements: 6.2, 6.3, 6.4, 6.8_
 
-- [ ] 17. Graveyard view (`graveyard/graveyard-view.tsx`, `graveyard/test-a11y.ts`)
+- [x] 17. Graveyard view (`graveyard/graveyard-view.tsx`, `graveyard/test-a11y.ts`)
   - Create `GraveyardView` as in design "Graveyard view": `h2` "Your graveyard" with `useFocusRequest("graveyard-heading")`; "You buried <Money> a year." per currency or "Nothing buried yet."; the tombstone grid with "Unbury <name>" for Current records; "Resting" with `resting-item:<id>` focus targets and "Bury after all <name>"; "Not answered yet" with "Answer now <name>"; "Already stopped"; "Back to the rising" or "Back to the start", never both. Empty sections are left out; only the entering tombstone animates.
   - Create `test-a11y.ts` with `expectUniqueButtonNames(container)`; only tests import it.
   - Unit tests `graveyard-view.test.tsx` (jsdom): totals text via `formatMoney`; tombstones in Graveyard order; the Resting, Not answered yet and Already stopped sections; an Earlier record shows a tombstone with no "Unbury"; "Nothing buried yet."; `hasStatement: false` shows "Back to the start" only; the two Apple fixtures give "Unbury Apple payment (merchant not shown), $0.99 a month" and the $2.99 one, and `expectUniqueButtonNames` passes.

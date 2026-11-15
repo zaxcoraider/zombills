@@ -1,0 +1,126 @@
+// The stage where one card is asked, rests or is buried. It stays mounted for the whole burial
+// and is keyed by subscription id, so the next card remounts it.
+
+import type { ClassifiedSubscription } from "@zombills/core";
+import type { CSSProperties, Dispatch } from "react";
+import type { PageAction, RisingStage } from "../page-state";
+import type { AnswerRecord } from "../logic/graveyard";
+import { BurialMound, SinkCrumbs } from "./burial-earth";
+import { Ground } from "./graveyard-backdrop";
+import { Tombstone } from "./tombstone";
+import { UndeadCard, type CardPhase } from "./undead-card";
+import { useFocusRequest } from "./use-focus-request";
+
+export interface BurialStageProps {
+  subscription: ClassifiedSubscription;
+  /** The Current record, for the tombstone */
+  record: AnswerRecord | null;
+  displayName: string;
+  /** Never "ask" with an empty Queue */
+  stage: RisingStage;
+  /** Queue length > 1 */
+  canSkip: boolean;
+  reduceMotion: boolean;
+  dispatch: Dispatch<PageAction>;
+}
+
+// The stage's own earth band: whatever is below the ground line is underground.
+const STAGE_STYLE = {
+  "--ground-h": "clamp(7rem, 24svh, 15rem)",
+  height: "clamp(30rem, 70svh, 40rem)",
+} as CSSProperties;
+
+function cardPhaseFor(stage: RisingStage): CardPhase | null {
+  switch (stage.kind) {
+    case "ask":
+      return "undead";
+    case "rested":
+      return "resting";
+    case "burying":
+      if (stage.phase === "condemned") return "condemned";
+      if (stage.phase === "sinking") return "sinking";
+      return null;
+    case "buried":
+      return null;
+  }
+}
+
+export function BurialStage({
+  subscription,
+  record,
+  displayName,
+  stage,
+  canSkip,
+  reduceMotion,
+  dispatch,
+}: BurialStageProps) {
+  const { id } = subscription;
+  const stageRef = useFocusRequest(`stage:${id}`);
+  const burying = stage.kind === "burying";
+  const cardPhase = cardPhaseFor(stage);
+  const sinking = stage.kind === "burying" && stage.phase === "sinking";
+  const earthShown =
+    stage.kind === "buried" || (stage.kind === "burying" && stage.phase === "closing");
+  const buried = stage.kind === "buried";
+
+  return (
+    <div
+      ref={stageRef}
+      tabIndex={-1}
+      role="group"
+      {...(burying ? { "aria-label": `Burying ${displayName}` } : {})}
+    >
+      <div className="relative isolate overflow-clip rounded-2xl" style={STAGE_STYLE}>
+        {/* Clipped at the ground line, so whatever is below it is underground. */}
+        <div
+          className="absolute inset-x-0 top-0 overflow-clip"
+          style={{ bottom: "var(--ground-h)" }}
+        >
+          {cardPhase !== null && (
+            <div className="absolute inset-x-0 -bottom-3 flex justify-center">
+              <UndeadCard
+                subscription={subscription}
+                displayName={displayName}
+                phase={cardPhase}
+                canSkip={canSkip}
+                reduceMotion={reduceMotion}
+                onRest={() => dispatch({ type: "keep", id })}
+                onBury={() => dispatch({ type: "bury", id, reducedMotion: reduceMotion })}
+                onSkip={() => dispatch({ type: "skip", id })}
+                onCondemned={() => dispatch({ type: "burial-step", id, from: "condemned" })}
+                onSunk={() => dispatch({ type: "burial-step", id, from: "sinking" })}
+              />
+            </div>
+          )}
+          {buried && record !== null && (
+            <div className="absolute inset-x-0 -bottom-7 flex justify-center">
+              <Tombstone
+                record={record}
+                displayName={displayName}
+                size="stage"
+                entering
+                reduceMotion={reduceMotion}
+              />
+            </div>
+          )}
+        </div>
+
+        <Ground />
+
+        {sinking && !reduceMotion && <SinkCrumbs />}
+
+        {earthShown && (
+          <div
+            className="pointer-events-none absolute inset-x-0 flex justify-center"
+            style={{ bottom: "calc(var(--ground-h) - 22px)" }}
+          >
+            <BurialMound
+              reduceMotion={reduceMotion}
+              onClosed={() => dispatch({ type: "burial-step", id, from: "closing" })}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
