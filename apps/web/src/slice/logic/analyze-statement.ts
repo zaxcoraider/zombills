@@ -1,16 +1,17 @@
 import {
   EMPTY_CSV_REASON,
   NO_CONTENT_ROWS_REASON,
+  classifySubscriptions,
   detectSubscriptions,
   normalizeTransactions,
   parseStatement,
 } from "@zombills/core";
 import type {
+  ClassifiedSubscription,
   CurrencyInfo,
   DateFormatInfo,
   SignConventionInfo,
   StatementInfo,
-  Subscription,
 } from "@zombills/core";
 import { findColumns } from "./missing-columns";
 import type { ColumnPresence } from "./missing-columns";
@@ -36,7 +37,7 @@ export type AnalysisOutcome =
   | { kind: "columns-unreadable"; columns: string[]; found: ColumnPresence }
   | { kind: "no-transactions"; rowErrorCount: number }
   | ({ kind: "no-subscriptions" } & StatementFacts)
-  | ({ kind: "results"; subscriptions: Subscription[]; totals: CurrencyTotal[] } & StatementFacts);
+  | ({ kind: "results"; subscriptions: ClassifiedSubscription[]; totals: CurrencyTotal[] } & StatementFacts);
 
 export type ResultsOutcome = Extract<AnalysisOutcome, { kind: "results" }>;
 export type NoSubscriptionsOutcome = Extract<AnalysisOutcome, { kind: "no-subscriptions" }>;
@@ -75,7 +76,7 @@ export function analyzeStatement(csv: string): AnalysisOutcome {
       detectedSignConvention: parsed.detectedSignConvention,
     };
 
-    const { subscriptions } = detection;
+    const subscriptions = classifySubscriptions(detection.subscriptions);
     if (subscriptions.length === 0) {
       return { kind: "no-subscriptions", ...facts };
     }

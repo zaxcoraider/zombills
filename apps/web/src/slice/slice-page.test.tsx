@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
+import { analyzeStatement } from "./logic/analyze-statement";
+import { partsToText, priceRiseParts } from "./logic/label-text";
 import { formatMoney } from "./logic/money";
 import { SAMPLES } from "./samples";
 
@@ -147,6 +149,17 @@ describe("SlicePage: Results from a Sample", () => {
       `2 Jan 2026: ${formatMoney(1549, "USD")}`,
       `2 Mar 2026: ${formatMoney(1799, "USD")}`,
     ]);
+
+    const outcome = analyzeStatement(SAMPLES[0]?.text ?? "");
+    if (outcome.kind !== "results") throw new Error("expected results for the US Sample");
+    const netflixRise = outcome.subscriptions.find(
+      (entry) => entry.merchant === "Netflix",
+    )?.priceRise;
+    if (netflixRise === null || netflixRise === undefined) throw new Error("expected a price rise");
+    expect(netflix.textContent).toContain(partsToText(priceRiseParts(netflixRise, "USD")));
+    items.forEach((item, index) => {
+      if (index !== 2) expect(item.textContent).not.toContain("Price went up");
+    });
 
     const moneySpans = Array.from(document.querySelectorAll("main span")).filter(
       (span) => span.children.length === 0 && /\$\d/.test(span.textContent ?? ""),

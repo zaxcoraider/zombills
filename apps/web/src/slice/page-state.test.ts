@@ -7,7 +7,7 @@ import type {
 } from "./logic/analyze-statement";
 import type { PageError } from "./logic/messages";
 import { errorFromOutcome } from "./logic/messages";
-import { subscriptionArb } from "./logic/test-arbitraries";
+import { classifiedSubscriptionArb } from "./logic/test-arbitraries";
 import { INITIAL_PAGE_MODEL, pageReducer } from "./page-state";
 import type { PageModel } from "./page-state";
 
@@ -26,7 +26,7 @@ const FACTS = {
   detectedSignConvention: null,
 };
 
-const [SUB] = fc.sample(subscriptionArb, { seed: 1, numRuns: 1 });
+const [SUB] = fc.sample(classifiedSubscriptionArb, { seed: 1, numRuns: 1 });
 if (!SUB) throw new Error("no sample");
 
 const RESULTS: ResultsOutcome = {

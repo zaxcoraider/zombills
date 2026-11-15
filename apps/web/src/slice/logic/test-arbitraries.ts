@@ -6,6 +6,7 @@ import {
   DATE_HEADERS,
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
+  type ClassifiedSubscription,
   type Subscription,
 } from "@zombills/core";
 
@@ -73,6 +74,11 @@ export const subscriptionArb: fc.Arbitrary<Subscription> = fc
       },
     };
   });
+
+/** A Subscription with the classifier's two extra fields set to null, as for an unlabelled one. */
+export const classifiedSubscriptionArb: fc.Arbitrary<ClassifiedSubscription> = subscriptionArb.map(
+  (s): ClassifiedSubscription => ({ ...s, priceRise: null, trial: null }),
+);
 
 /** An array of subscriptions with unique ids (design "Generators"). */
 export function subscriptionListArb(maxLength: number): fc.Arbitrary<Subscription[]> {

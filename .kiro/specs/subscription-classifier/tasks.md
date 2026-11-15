@@ -140,34 +140,35 @@ Generators go in `classify/test-arbitraries.ts`, which only tests import. The re
 
 Paths in this batch start with `apps/web/`. Pure-logic tests run in the `node` environment; component test files start with `// @vitest-environment jsdom`. Expected text in jsdom tests is built in the machine's default locale with the label-text functions, like the existing component tests; the exact `en-US` strings are pinned only in `label-text.test.ts` and the E2E test (design review decision 5).
 
-- [ ] 13. Label text (`apps/web/src/slice/logic/label-text.ts`)
+- [x] 13. Label text (`apps/web/src/slice/logic/label-text.ts`)
   - `TextPart`, `priceRiseParts(rise, currency, locale?)`, `trialParts(trial, currency, locale?)` and `partsToText(parts)` exactly as in design "Label text", using `formatMoney` and `formatDisplayDate`. No other file formats money.
   - New `label-text.test.ts`: through `partsToText`, the three Req 9.3 examples (hand-built `en-US`, `us-signed` `en-US` `Price went up from $15.49 (2 Jan 2026) to $17.99 (+$30.00 a year)`, `uk-debit-credit` `en-GB`) and the three Req 9.4 examples in `en-US`; the money parts are `kind: "money"` and equal the `formatMoney` outputs; `trialParts` with neither field gives `[]`. Values are hand-built `PriceRise` and `TrialDetails` typed from `@zombills/core`.
   - No existing test changes.
   - _Requirements: 9.3, 9.4, 9.9 (label-text test)_
 
-- [ ] 14. Analyzer wiring and result types (`apps/web/src/slice/logic/analyze-statement.ts`, `apps/web/src/slice/logic/totals.ts`, `apps/web/src/slice/logic/test-arbitraries.ts`)
+- [x] 14. Analyzer wiring and result types (`apps/web/src/slice/logic/analyze-statement.ts`, `apps/web/src/slice/logic/totals.ts`, `apps/web/src/slice/logic/test-arbitraries.ts`)
   - `analyze-statement.ts`: import `classifySubscriptions` and `ClassifiedSubscription` from `@zombills/core`; inside the existing `try`, `const subscriptions = classifySubscriptions(detection.subscriptions);` with no answers; the `"results"` outcome is typed `subscriptions: ClassifiedSubscription[]`. The no-subscriptions check, `currencyTotals` and `facts` are unchanged (Req 9.1, 9.2).
   - `totals.ts`: make `CurrencyGroup<S extends Subscription = Subscription>` and `groupForDisplay<S extends Subscription>` generic, type-only; logic, `currencyTotals` and `isCounted` unchanged (design review decision 6).
   - `test-arbitraries.ts`: add `classifiedSubscriptionArb` = `subscriptionArb` mapped with `(s) => ({ ...s, priceRise: null, trial: null })`.
   - Existing tests this task may change, types only, assertions unchanged: `src/slice/page-state.test.ts` and `src/slice/logic/announce.test.ts` build results outcomes from `classifiedSubscriptionArb` or hand-built values mapped the same way. If `npm run typecheck` reports another existing test that builds a `"results"` outcome from plain `Subscription`s, give it the same type-only change and name it in the task report. `subscription-item.tsx` may need its prop type widened only if typecheck requires it; task 16 owns its rendering.
-  - Check: root `npm test` and `npm run typecheck` green; `totals.test.ts`, `totals.property.test.ts`, `analyze-statement.throw.test.ts`, `analyze-statement.property.test.ts` pass unchanged.
+  - Existing test this task may change: `analyze-statement.property.test.ts` P3 (keep the `P3:` name prefix) expects `classifySubscriptions(detectSubscriptions(…).subscriptions)`, and with `priceRise`, `trial` and `labels` removed from each item, the detector's subscriptions in the same order; reason: the old P3 expected the detector's output verbatim, which the classifier now extends.
+  - Check: root `npm test` and `npm run typecheck` green; `totals.test.ts`, `totals.property.test.ts` and `analyze-statement.throw.test.ts` pass unchanged; in `analyze-statement.property.test.ts` only P3 changes (below) and P1, P2, P4 pass unchanged.
   - _Requirements: 9.1, 9.2 (wiring)_
 
-- [ ] 15. Analyzer tests for labels and a classifier throw (`apps/web/src/slice/logic/analyze-statement.test.ts`, `apps/web/src/slice/logic/analyze-statement.classify-throw.test.ts`)
+- [x] 15. Analyzer tests for labels and a classifier throw (`apps/web/src/slice/logic/analyze-statement.test.ts`, `apps/web/src/slice/logic/analyze-statement.classify-throw.test.ts`)
   - Tests only; no source file.
   - Existing test this task may change: in `analyze-statement.test.ts` the per-Sample table becomes `outcome.subscriptions.map((s) => [s.merchant, s.yearlyCostCents, s.labels])`, with `["possessed"]` on the Req 8.1 row and `[]` elsewhere (the UK row is `["Amazon Prime", 10788, []]`), and the labelled row's `priceRise` deep-equals Req 8.1. Totals assertions unchanged.
   - New `analyze-statement.classify-throw.test.ts`: `vi.mock("@zombills/core", …)` keeps the real module and replaces `classifySubscriptions` with one that throws `new Error("boom: Netflix 17.99")`; `analyzeStatement(usSigned)` returns `{ kind: "parse-error", reason: GENERIC_FAILURE_REASON }` and the reason contains none of `Netflix`, `17.99`, `boom`.
   - _Requirements: 9.1, 9.2, 9.9 (Analyzer per Sample)_
 
-- [ ] 16. Label lines in the list item (`apps/web/src/slice/subscription-item.tsx`)
+- [x] 16. Label lines in the list item (`apps/web/src/slice/subscription-item.tsx`)
   - Prop type `ClassifiedSubscription`. Add the `Line` component of design "List item": money parts in `<span className="money">`, other parts as plain text. Render the price-rise line, then the trial line, after the cost and "Ended" lines and before the price-history list, each only when `priceRise` / `trial` is not `null`. No locale argument, no colour, icon, art or animation, no new CSS; no text for `"zombie"` (Req 9.5, 9.6, 9.7).
   - `results-view.tsx` needs no code change; if typecheck says otherwise, stop and report.
   - New `subscription-item.test.tsx` (jsdom), rendering `SubscriptionItem` inside a `<ul>` for hand-built `ClassifiedSubscription` values from a local builder: each Req 9.4 row shows exactly its line; with both labels the price-rise line comes before the trial line and the price-history list after both (document order); with neither, no "Price went up" or "ended on" text; every money figure in the lines is inside a `.money` span; no `zombie` text when `labels` contains `"zombie"`.
   - No existing test changes.
   - _Requirements: 9.3, 9.4, 9.5, 9.6, 9.7, 9.9 (item component tests)_
 
-- [ ] 17. Page and E2E checks (`apps/web/src/slice/slice-page.test.tsx`, `apps/web/e2e/demo-path.spec.ts`)
+- [x] 17. Page and E2E checks (`apps/web/src/slice/slice-page.test.tsx`, `apps/web/e2e/demo-path.spec.ts`)
   - Tests only; no source file.
   - Existing tests this task may change, additions only: in `slice-page.test.tsx` "Results from a Sample" (us-signed), assert the Netflix item contains `partsToText(priceRiseParts(netflix.priceRise, "USD"))` and that no other item contains `Price went up`. In `demo-path.spec.ts`, after the US Sample's results appear (locale `en-US`), assert the page contains `Price went up from $15.49 (2 Jan 2026) to $17.99 (+$30.00 a year)`. Existing assertions unchanged.
   - Check: root `npm test` green, then `npm run test:e2e --workspace @zombills/web` passes.
@@ -177,7 +178,7 @@ Paths in this batch start with `apps/web/`. Pure-logic tests run in the `node` e
 
 ---
 
-- [ ] 18. Checkpoint: run everything and check traceability
+- [x] 18. Checkpoint: run everything and check traceability
   - On a clean core build (delete only `packages/core/dist`, which the build recreates), run from the repo root `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass with no skipped or `.only` tests. Then run `npm run test:e2e --workspace @zombills/web`.
   - Check with `git diff --stat` that the only changed existing tests and snapshots are those named in tasks 1, 6, 14, 15 and 17 (and any extra type-only change reported in task 14), that `parse/__snapshots__/parse-statement.test.ts.snap` and `samples/` are unchanged, and that no detector or parser source file changed.
   - Check that every property P1–P9 has a passing test whose name starts with its ID.

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import type { Subscription } from "@zombills/core";
+import type { ClassifiedSubscription } from "@zombills/core";
 import type { NoSubscriptionsOutcome, ResultsOutcome } from "./analyze-statement";
 import { announcement } from "./announce";
 import { errorMessage } from "./messages";
 import { formatMoney } from "./money";
-import { subscriptionArb } from "./test-arbitraries";
+import { classifiedSubscriptionArb } from "./test-arbitraries";
 import type { PageView } from "../page-state";
 
 const STATEMENT = {
@@ -25,8 +25,8 @@ const FACTS = {
   detectedSignConvention: null,
 };
 
-function sub(index: number): Subscription {
-  const [base] = fc.sample(subscriptionArb, { seed: 1, numRuns: 1 });
+function sub(index: number): ClassifiedSubscription {
+  const [base] = fc.sample(classifiedSubscriptionArb, { seed: 1, numRuns: 1 });
   if (!base) throw new Error("no sample");
   return { ...base, id: `id-${index}` };
 }

@@ -5,10 +5,10 @@ export interface CurrencyTotal {
   totalCents: number;
 }
 
-export interface CurrencyGroup {
+export interface CurrencyGroup<S extends Subscription = Subscription> {
   currency: string;
   /** Counted first, then the rest; each part ordered by yearlyCostCents desc, merchant asc, id asc */
-  subscriptions: Subscription[];
+  subscriptions: S[];
   /** null when the group has no Counted subscription (Req 5.7) */
   total: CurrencyTotal | null;
   /** true when any subscription in the group is not Counted */
@@ -64,12 +64,12 @@ function compareDisplay(a: Subscription, b: Subscription): number {
 }
 
 /** Req 5.2, 5.7, 5.12. Groups follow `currencyOrder`; unlisted currencies follow in code-unit order. */
-export function groupForDisplay(
-  subscriptions: readonly Subscription[],
+export function groupForDisplay<S extends Subscription>(
+  subscriptions: readonly S[],
   totals: readonly CurrencyTotal[],
   currencyOrder: readonly string[],
-): CurrencyGroup[] {
-  const byCurrency = new Map<string, Subscription[]>();
+): CurrencyGroup<S>[] {
+  const byCurrency = new Map<string, S[]>();
   for (const subscription of subscriptions) {
     const list = byCurrency.get(subscription.currency);
     if (list) list.push(subscription);

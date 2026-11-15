@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_CSV_REASON,
   NO_CONTENT_ROWS_REASON,
+  classifySubscriptions,
   detectSubscriptions,
   normalizeTransactions,
   parseStatement,
@@ -46,7 +47,7 @@ describe("analyzeStatement", () => {
     );
   });
 
-  it("P3: passes the detector's subscriptions through in order", () => {
+  it("P3: returns the classified detector subscriptions, with every detector field unchanged", () => {
     let results = 0;
     fc.assert(
       fc.property(csvLikeArb, (csv) => {
@@ -55,10 +56,18 @@ describe("analyzeStatement", () => {
         results += 1;
         const parsed = parseStatement(csv);
         if (parsed.status !== "mapped") throw new Error("results outcome needs a mapped parse");
-        const expected = detectSubscriptions(
+        const detected = detectSubscriptions(
           normalizeTransactions(parsed.transactions),
         ).subscriptions;
-        expect(outcome.subscriptions).toEqual(expected);
+        expect(outcome.subscriptions).toEqual(classifySubscriptions(detected));
+        // The classifier owns priceRise, trial and labels; nothing else may change, order included.
+        const without = (s: object, keys: string[]) =>
+          Object.fromEntries(Object.entries(s).filter(([key]) => !keys.includes(key)));
+        const stripped = outcome.subscriptions.map((s) =>
+          without(s, ["priceRise", "trial", "labels"]),
+        );
+        const original = detected.map((s) => without(s, ["labels"]));
+        expect(stripped).toEqual(original);
       }),
     );
     // csvLikeArb has to reach "results" for P3 to test anything

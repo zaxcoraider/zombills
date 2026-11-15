@@ -55,6 +55,9 @@ test("demo path: sample statement to results and back, with no stray requests", 
   const names = await usdSection.locator("> ul > li > strong").allTextContents();
   expect(names).toEqual(["Adobe Creative Cloud", "Riverside Gym Membership", "Netflix", "Spotify"]);
   await expect(usdSection.getByText("Yearly total (USD): $1,355.64")).toBeVisible();
+  await expect(
+    page.getByText("Price went up from $15.49 (2 Jan 2026) to $17.99 (+$30.00 a year)"),
+  ).toBeVisible();
 
   // Step 6: Start again, focus, and nothing stored.
   await page.getByRole("button", { name: "Start again" }).click();
