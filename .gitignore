@@ -26,3 +26,6 @@ coverage/
 # Playwright output
 /apps/web/test-results/
 /apps/web/playwright-report/
+
+# Netlify CLI local state
+.netlify/
