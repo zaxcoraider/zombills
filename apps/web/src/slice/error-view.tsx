@@ -1,15 +1,15 @@
-import type { Ref } from "react";
+import { useFocusRequest } from "./graveyard/use-focus-request";
 import { errorMessage } from "./logic/messages";
 import type { PageError } from "./logic/messages";
 
 export interface ErrorViewProps {
   sourceName: string | null;
   error: PageError;
-  headingRef: Ref<HTMLHeadingElement>;
   onStartAgain: () => void;
 }
 
-export function ErrorView({ sourceName, error, headingRef, onStartAgain }: ErrorViewProps) {
+export function ErrorView({ sourceName, error, onStartAgain }: ErrorViewProps) {
+  const headingRef = useFocusRequest("state-heading");
   const { summary, detail } = errorMessage(error);
 
   return (

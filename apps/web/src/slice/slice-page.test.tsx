@@ -171,7 +171,9 @@ describe("SlicePage: Results from a Sample", () => {
       formatMoney(135564, "USD"),
     );
     expect(liveRegion().textContent).toBe(
-      `Found 4 recurring charges. Yearly total in USD: ${formatMoney(135564, "USD")}.`,
+      `Found 4 recurring charges. Still draining ${formatMoney(135564, "USD")} a year. ` +
+        `Adobe Creative Cloud. Monthly, ${formatMoney(5499, "USD")}. ` +
+        `${formatMoney(65988, "USD")} a year. Still using this?`,
     );
     expect(
       screen.getByText("No currency was found in the statement, so amounts are shown in USD."),

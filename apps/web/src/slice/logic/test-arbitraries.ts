@@ -8,7 +8,9 @@ import {
   DESCRIPTION_HEADERS,
   type ClassifiedSubscription,
   type Subscription,
+  type UsageAnswer,
 } from "@zombills/core";
+import type { AnswerRecord } from "./graveyard";
 
 export const MAX_YEARLY_COST_CENTS = 999_999_9900 * 52;
 
@@ -289,3 +291,97 @@ export const csvLikeArb: fc.Arbitrary<string> = fc
     const body = [header, ...rows].map(quoted).join("\n");
     return `${bom ? "\uFEFF" : ""}${preamble}${body}\n`;
   });
+
+const CADENCE_FACTOR = { weekly: 52, monthly: 12, yearly: 1 } as const;
+
+/** Largest `currentAmountCents` the answerable generators draw (design "Generators"). */
+const MAX_AMOUNT_CENTS = 999_999_9900;
+
+const answerableMerchantArb = fc.constantFrom("Apple", "Netflix", "Spotify", "Gym", "Z", "a", "");
+
+/**
+ * Like `subscriptionArb`, but `yearlyCostCents = currentAmountCents × factor(cadence)`, which is the
+ * detector's guarantee that the answer-record saving rule relies on. `charges` stays `[]`.
+ */
+export const answerableSubscriptionArb: fc.Arbitrary<Subscription> = fc
+  .tuple(
+    subscriptionArb,
+    fc.oneof(fc.constantFrom(0, 99, 1_599, 21_588), fc.integer({ min: 0, max: MAX_AMOUNT_CENTS })),
+    answerableMerchantArb,
+  )
+  .map(([s, currentAmountCents, merchant]): Subscription => ({
+    ...s,
+    merchant,
+    merchantKey: merchant.toLowerCase(),
+    currentAmountCents,
+    yearlyCostCents: currentAmountCents * CADENCE_FACTOR[s.cadence],
+  }));
+
+/** Unique ids, small merchant set, and at least two currencies once the list has two items. */
+export function answerableListArb(max: number): fc.Arbitrary<Subscription[]> {
+  return fc
+    .uniqueArray(answerableSubscriptionArb, { maxLength: max, selector: (s) => s.id })
+    .map((list) =>
+      list.map((s, i): Subscription => {
+        if (list.length < 2 || i > 1) return s;
+        const currency = CURRENCIES[i] ?? "USD";
+        return { ...s, currency };
+      }),
+    );
+}
+
+const SAVING_CURRENCIES = [...CURRENCIES, "CHF", "SEK"] as const;
+
+/** Records over at least three currency codes; `yearlySavingCents` is `null`, small or large. */
+export const answerRecordArb: fc.Arbitrary<AnswerRecord> = fc
+  .record({
+    id: fc.string({ minLength: 1, maxLength: 6 }),
+    merchant: answerableMerchantArb,
+    currency: fc.constantFrom(...SAVING_CURRENCIES),
+    cadence: fc.constantFrom("weekly", "monthly", "yearly"),
+    currentAmountCents: fc.integer({ min: 0, max: MAX_AMOUNT_CENTS }),
+    answer: fc.constantFrom("still-using", "not-using"),
+    cadenceAssumed: fc.boolean(),
+    yearlySavingCents: fc.oneof(
+      fc.constant(null),
+      fc.constantFrom(0, 100, 1_000, 15_000),
+      fc.integer({ min: 0, max: MAX_YEARLY_COST_CENTS }),
+    ),
+  })
+  .map((r): AnswerRecord => r);
+
+export type GraveyardAction =
+  | { type: "record"; id: string; answer: UsageAnswer }
+  | { type: "unbury"; id: string }
+  | { type: "bury-after-all"; id: string }
+  | { type: "skip"; id: string }
+  | { type: "answer-now"; id: string }
+  | { type: "refresh"; seed: number };
+
+/** Actions over a given id pool. `refresh` carries a seed the test uses to redraw the list. */
+export function graveyardActionArb(ids: readonly string[]): fc.Arbitrary<GraveyardAction> {
+  const idArb = ids.length > 0 ? fc.constantFrom(...ids) : fc.constant("none");
+  return fc.oneof(
+    fc.record({
+      type: fc.constant("record" as const),
+      id: idArb,
+      answer: fc.constantFrom<UsageAnswer>("still-using", "not-using"),
+    }),
+    fc.record({ type: fc.constant("unbury" as const), id: idArb }),
+    fc.record({ type: fc.constant("bury-after-all" as const), id: idArb }),
+    fc.record({ type: fc.constant("skip" as const), id: idArb }),
+    fc.record({ type: fc.constant("answer-now" as const), id: idArb }),
+    fc.record({ type: fc.constant("refresh" as const), seed: fc.integer() }),
+  );
+}
+
+/** Freezes a value and everything reachable from it, so any mutation throws in strict mode. */
+export function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Reflect.ownKeys(value)) {
+      deepFreeze((value as Record<PropertyKey, unknown>)[key]);
+    }
+  }
+  return value;
+}

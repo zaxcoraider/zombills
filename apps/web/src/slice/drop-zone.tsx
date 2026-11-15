@@ -1,4 +1,4 @@
-import { forwardRef, useId, useImperativeHandle, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, KeyboardEvent } from "react";
 
 export interface DropZoneProps {
@@ -6,21 +6,11 @@ export interface DropZoneProps {
   onFiles: (files: File[]) => void;
 }
 
-export interface DropZoneHandle {
-  focus: () => void;
-}
-
-export const DropZone = forwardRef<DropZoneHandle, DropZoneProps>(function DropZone(
-  { disabled, onFiles },
-  ref,
-) {
-  const areaRef = useRef<HTMLDivElement>(null);
+export function DropZone({ disabled, onFiles }: DropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const depthRef = useRef(0);
   const [dragging, setDragging] = useState(false);
   const textId = useId();
-
-  useImperativeHandle(ref, () => ({ focus: () => areaRef.current?.focus() }), []);
 
   const openPicker = () => {
     if (disabled) return;
@@ -83,7 +73,7 @@ export const DropZone = forwardRef<DropZoneHandle, DropZoneProps>(function DropZ
   return (
     <div className="flex flex-col items-start gap-3">
       <div
-        ref={areaRef}
+        data-focus="drop-zone"
         role="button"
         tabIndex={0}
         aria-label="Drop area: choose or drop a CSV statement"
@@ -120,4 +110,4 @@ export const DropZone = forwardRef<DropZoneHandle, DropZoneProps>(function DropZ
       />
     </div>
   );
-});
+}

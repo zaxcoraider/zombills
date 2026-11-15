@@ -1,4 +1,4 @@
-import type { Ref } from "react";
+import { useFocusRequest } from "./graveyard/use-focus-request";
 import type { NoSubscriptionsOutcome } from "./logic/analyze-statement";
 import { assumedValueNotes } from "./logic/assumed-values";
 import { formatDisplayDate } from "./logic/display-date";
@@ -6,15 +6,11 @@ import { formatDisplayDate } from "./logic/display-date";
 export interface NoSubscriptionsViewProps {
   sourceName: string;
   outcome: NoSubscriptionsOutcome;
-  headingRef: Ref<HTMLHeadingElement>;
   onStartAgain: () => void;
 }
 
-export function NoSubscriptionsView({
-  outcome,
-  headingRef,
-  onStartAgain,
-}: NoSubscriptionsViewProps) {
+export function NoSubscriptionsView({ outcome, onStartAgain }: NoSubscriptionsViewProps) {
+  const headingRef = useFocusRequest("state-heading");
   const { firstDate, lastDate } = outcome.statement;
   const dates =
     firstDate !== null && lastDate !== null

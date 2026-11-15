@@ -26,7 +26,7 @@ Rules that apply to every task:
 
 Every source file in this batch is pure and tested in the `node` environment. Generators go in `src/slice/logic/test-arbitraries.ts`, which only tests import. Nothing in this batch is rendered yet, so no existing component test changes.
 
-- [ ] 1. Answer records and the Graveyard (`logic/graveyard.ts`, `logic/test-arbitraries.ts`)
+- [x] 1. Answer records and the Graveyard (`logic/graveyard.ts`, `logic/test-arbitraries.ts`)
   - Create `graveyard.ts` with `AnswerRecord`, `Graveyard`, `EMPTY_GRAVEYARD`, `answerRecordFor`, `recordAnswer`, `isCurrentRecord`, `answersMap`, `refreshGraveyard` and `settledGraveyard`, following the signatures and "Rules inside the module" in design "Graveyard logic". `answerRecordFor` reads only the eight fields it copies, so no charge, date or description reaches a record (Req 9.1).
   - In `test-arbitraries.ts`, add `answerableSubscriptionArb`, `answerableListArb(max)`, `answerRecordArb`, `graveyardActionArb(ids)` and `deepFreeze` as listed in design "Correctness properties". Leave `subscriptionArb` as it is.
   - Unit tests `graveyard.test.ts`: the Req 5.8 table (Netflix `21588`, then Spotify, then the guessed Amazon Prime with `cadenceAssumed: true` and `yearlySavingCents: null`); Req 8.6 unbury keeps the record in its position; refresh cases (Current record refreshed, Earlier record kept by identity, record removed when its subscription turned guessed); a record built from a `us-signed.csv` subscription has exactly the eight `AnswerRecord` keys. Use hand-built guessed subscriptions inline here; task 6 adds the shared `test-fixtures.ts`.
@@ -34,28 +34,28 @@ Every source file in this batch is pure and tested in the `node` environment. Ge
   - Existing tests: none change.
   - _Requirements: 4.2, 5.2, 5.6, 5.8, 8.5, 8.6, 9.1, 9.2, 9.3, 9.4, 9.5, 9.8, 9.9, 16.1_
 
-- [ ] 2. Savings totals and Still draining (`logic/graveyard.ts`)
+- [x] 2. Savings totals and Still draining (`logic/graveyard.ts`)
   - Add `savingsTotals` and `StillDraining`/`stillDraining` to `graveyard.ts` as in design "Graveyard logic": one entry per currency in code-unit order; `RangeError` as soon as a running sum is not a safe integer; Still draining subtracts only Counted `not-using` Current records, clamps at 0, and gives a currency with no Currency total `remainingCents: null` and `hasExcluded: true`.
   - Unit tests in `graveyard.test.ts`: Req 6.8 (no Tombstones → `[]`; USD `21588` then GBP `15588` → `[GBP, USD]`); Req 6.6 two `Number.MAX_SAFE_INTEGER` savings throw `RangeError`; Still draining for `us-signed.csv` is `135564`, `113976` after burying Netflix and `135564` after unbury; a guessed burial subtracts nothing; `settledGraveyard` leaves the burying record out of both figures.
   - Property tests in `graveyard.property.test.ts`: **P2** and **P3**.
   - Existing tests: none change.
   - _Requirements: 1.6a, 1.6b, 5.5, 6.2, 6.3, 6.5, 6.6, 6.7, 6.8, 16.1_
 
-- [ ] 3. Display names (`logic/graveyard.ts`)
+- [x] 3. Display names (`logic/graveyard.ts`)
   - Add `Nameable` and `displayNames(items, locale?)` to `graveyard.ts`: plain merchant when unique, long form `"<merchant>, <formatMoney(amount)> a <week|month|year>"` when another distinct id shares the merchant, then one suffix pass (` (2)`, ` (3)`, …) in input order over all final names, skipping suffixed names already taken. Items with the same id are one item. Comparisons use the raw `merchant` string.
   - Unit tests in `graveyard.test.ts`: the two Apple subscriptions at `99` and `299` monthly; a unique merchant keeps its plain name; equal long forms get " (2)"; two `A` items at `$1.00` monthly plus an item whose merchant is literally `"A, $1.00 a month (2)"` give three distinct names. Pin `en-US` strings here.
   - Property test in `graveyard.property.test.ts`: **P6**.
   - Existing tests: none change.
   - _Requirements: 14.1 (Glossary "Display name"), 16.1_
 
-- [ ] 4. Rising order and the Queue (`logic/queue.ts`)
+- [x] 4. Rising order and the Queue (`logic/queue.ts`)
   - Create `queue.ts` with `risingOrder`, `queueOf`, `skipInOrder` and `answerNowInOrder` as in design "Queue". `risingOrder` filters `status === "active"` and flattens `groupForDisplay(subscriptions, [], statement.currencies)` from `totals.ts`; it does not reimplement the order rule.
   - Unit tests `queue.test.ts`: `risingOrder` for `us-signed.csv` is Adobe Creative Cloud, Riverside Gym Membership, Netflix, Spotify; Ended ids are left out; currencies follow `StatementInfo.currencies`; skip and answer-now examples; unknown ids leave the order unchanged; an id whose record is removed reappears at its own position.
   - Property test `queue.property.test.ts`: **P1**.
   - Existing tests: none change.
   - _Requirements: 2.3, 2.4, 2.9, 7.4, 16.1_
 
-- [ ] 5. Derived haunt view (`logic/haunt-view.ts`)
+- [x] 5. Derived haunt view (`logic/haunt-view.ts`)
   - Create `haunt-view.ts` with `HauntView` and `deriveHaunt` as in design "Derived view". It is the only caller of `classifySubscriptions` in the view; it builds `risen` in Rising order, `ended` (Ended with no Current record), `queue`, `answeredCount`, `names` (Graveyard records, then Risen subscriptions), `tombstones`, `kept`, and `savings`, `stillDraining` and `fogCleared` from the settled Graveyard; `counterFallbackCurrency` is `statement.currencies[0]` for `results` and `no-subscriptions`, otherwise `null`.
   - `PageModel` gains its new fields only in task 6. So that this task does not need task 6, type the parameter as a local `HauntInput` interface (the view, `graveyard`, the Queue order and the burying id), each field named as in design "Page state". Task 6 checks that `PageModel` is assignable to `HauntInput`.
   - Unit tests `haunt-view.test.ts`: for `us-signed.csv` with an empty Graveyard, `risen` has four items, `answeredCount` 0, Still draining `135564`, fallback `"USD"`; with Netflix mid-burial, `savings` is empty and Still draining stays `135564`; after the burial settles, `savings` is USD `21588` and Netflix's `labels` contain `"zombie"`; an Earlier record shows under `tombstones` but not in `currentIds`, and its saving counts in `savings` (Req 6.5); a Tombstone whose subscription is now Ended stays under `tombstones`, still counts, and has no `zombie` label (Req 9.6); `idle` gives `statement: null` and fallback `null`.
@@ -70,23 +70,23 @@ Every source file in this batch is pure and tested in the `node` environment. Ge
 
 The reducer stays pure and lives in `src/slice/page-state.ts`. The vertical-slice transitions keep their behaviour; every new action follows the transition table in design "Page and burial state machine", and every `id`-guarded action whose guard fails returns the same model object.
 
-- [ ] 6. Page model and the Rising actions (`page-state.ts`, `graveyard/test-fixtures.ts`)
+- [x] 6. Page model and the Rising actions (`page-state.ts`, `graveyard/test-fixtures.ts`)
   - Add `BurialPhase`, `RisingStage`, `RisingModel`, `Screen`, `HauntEvent`, `FocusTarget`, `FocusRequest` and the new `PageModel` fields (`graveyard`, `screen`, `event`, `focus`) as in design "Page state"; the `results` view gains `rising`. Update `INITIAL_PAGE_MODEL`.
   - Implement `finish` (results: `refreshGraveyard`, `risingOrder`, stage `ask`, event and focus per the table, including `all-answered` and `state-heading`), the focus and screen effects of `finish` other kinds, `fail`, `reject`, `start` and `reset`, and the actions `keep`, `bury`, `burial-step` and `burial-finish`. Every focus request gets a `seq` one higher than the last.
   - Add a type-level check (in `page-state.test.ts`) that `PageModel` is assignable to task 5's `HauntInput`; if a field name differs, rename it in `haunt-view.ts` rather than in the model.
   - Create `graveyard/test-fixtures.ts` with the hand-built `ClassifiedSubscription`s of design "New and changed files" (trial trap, possessed + trial trap, guessed Amazon Prime, two Apple subscriptions); only tests import it.
   - Unit tests in `page-state.test.ts`: each row of the table for these actions, with each guard's "unchanged" case; `reset` and a second `finish` keep the Graveyard; `finish` refreshes it; `burial-step` with the wrong phase or id is ignored; `burial-finish` after `buried` is ignored; `bury` with `reducedMotion: true` starts at `sinking`; `finish` after all 4 US subscriptions are answered gives event `all-answered` and focus `all-answered`, never `card(undefined)`.
-  - Existing tests: `page-state.test.ts` and `page-state.property.test.ts` model literals gain the new fields; existing assertions on `runId` and `view` stay. `slice-page.tsx` only needs to keep compiling; no component test changes.
+  - Existing tests: `page-state.test.ts` and `page-state.property.test.ts` model literals gain the new fields; existing assertions on `runId` and `view` stay exact (`toBe` and `toEqual`, never a partial match on the whole model), and the new fields are asserted separately. `logic/announce.test.ts`: only the `results()` helper gains `rising: { order: [], stage: { kind: "ask" } }`, no assertion changes, because the `results` view now requires `rising` and the helper would not typecheck without it. `slice-page.tsx` only needs to keep compiling; no component test changes.
   - _Requirements: 2.1, 2.8, 4.1, 4.2, 5.1, 5.2, 5.3, 9.5, 9.7, 13.2, 14.2_
 
-- [ ] 7. Screens, skip, next and the Graveyard actions (`page-state.ts`, `page-state.property.test.ts`)
+- [x] 7. Screens, skip, next and the Graveyard actions (`page-state.ts`, `page-state.property.test.ts`)
   - Implement `skip`, `next`, `open-graveyard`, `back-to-rising`, `back-to-start`, `answer-now`, `unbury` and `bury-after-all` with the guards of the transition table. `open-graveyard` during a burial sets stage `ask` and keeps the record (Req 5.4). `screen` is never written to the URL.
   - Unit tests in `page-state.test.ts`: every row for these actions with its "unchanged" case; `open-graveyard` mid-burial keeps the record and sets stage `ask`; `back-to-rising` with no Risen focuses `state-heading`; `back-to-start` focuses `drop-zone` in `idle` and `state-heading` in `error`; `skip` on the last Queue member is ignored; `unbury` then `bury-after-all` gives a Graveyard deeply equal to before.
   - Property test: rename the vertical-slice P15 property in `page-state.property.test.ts` to **P7** and extend it as in design "Correctness properties" (new actions mixed in; Graveyard unchanged by the seven non-answer actions; `rising` present exactly in `results`; failed guards return the same object).
   - Existing tests: `page-state.property.test.ts` (P15 becomes P7).
   - _Requirements: 2.4, 2.5, 2.7, 2.8, 5.4, 7.2, 7.4, 7.6, 7.9, 8.1, 8.3, 8.5, 9.7, 1.9, 16.1_
 
-- [ ] 8. Focus requests (`graveyard/use-focus-request.ts`, `slice-page.tsx`, `drop-zone.tsx`)
+- [x] 8. Focus requests (`graveyard/use-focus-request.ts`, `slice-page.tsx`, `drop-zone.tsx`)
   - Create `FocusRequestContext` and `useFocusRequest(key)` as in design "Page shell": a ref callback that sets `data-focus={key}`, focuses on mount when the request names `key` and `claim(seq)` succeeds, and never steals focus again for a handled `seq`.
   - In `slice-page.tsx`, provide the context (with `handledSeq` in a ref) and add the effect keyed on `model.focus?.seq` that finds an already-mounted `[data-focus]` element by comparing `el.dataset.focus` (no selector built from the id, no `CSS.escape`).
   - Move the drop area to `data-focus="drop-zone"` in place of `focusDropZoneRef`; move the `error-view.tsx` and `no-subscriptions-view.tsx` headings to `useFocusRequest("state-heading")` (Req 14.2). Until task 18 deletes `results-view.tsx`, keep the slice's way of focusing the results heading for that view only.
@@ -94,7 +94,7 @@ The reducer stays pure and lives in `src/slice/page-state.ts`. The vertical-slic
   - Existing tests: none change; the `slice-page.test.tsx` focus assertions ("Start again", error cases, "No subscriptions", "Results from a Sample") must pass as they are.
   - _Requirements: 14.2_
 
-- [ ] 9. Live region (`logic/announce.ts`, `slice-page.tsx`)
+- [x] 9. Live region (`logic/announce.ts`, `slice-page.tsx`)
   - Replace `announcement(view, locale?)` with `announcement(model, locale?)` built on `deriveHaunt`, as in design "Live region": the slice sentences unchanged; the results sentence with the Still-draining sentence (one per currency with a figure) and the first card; the card, keep, bury (Req 14.3 example), guessed bury, unbury and all-answered sentences; Netflix's card sentence ends with the price-rise sentence.
   - In `slice-page.tsx`, pass the model to `announcement`.
   - Unit tests: rewrite `logic/announce.test.ts` for `announcement(model)`: the slice cases now build a `PageModel`; the results case expects "Found 4 recurring charges. Still draining $1,355.64 a year. Adobe Creative Cloud. Monthly, $54.99. $659.88 a year. Still using this?"; the event sentences above; two currencies give two Still-draining sentences.
