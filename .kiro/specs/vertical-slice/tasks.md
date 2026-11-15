@@ -140,7 +140,7 @@ Every source file in this batch is pure and tested in the `node` environment. Fi
   - Unit tests `page-state.test.ts`: every row of the transition table, including `start` and `reject` ignored while `working`, a stale `finish` and `fail` ignored, and `reset` from `idle` and `working` unchanged.
   - Property test `page-state.property.test.ts`: **P15**.
   - Unit tests `frame.test.ts`: `nextFrame` resolves only after the stubbed `requestAnimationFrame` callback runs, and `nextTask` only after fake timers advance.
-  - _Requirements: 2.7 (state), 3.8 (helpers), 4.1, 4.10 (state), 7.5 (state)_
+  - _Requirements: 2.7 (state), 3.8 (helpers), 4.1, 4.10 (state), 7.5 (state), 10.2 (the unit and property files of tasks 5–14)_
 
 > **Batch 3 done:** every logic module and the reducer tested on its own; P1–P15 pass; suite green.
 
@@ -187,7 +187,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 
 ## Batch 5: routing and the spike link
 
-- [ ] 20. Hash route and spike view (`src/routing/use-hash-route.ts`, `src/routing/spike-view.tsx`, `src/App.tsx`)
+- [x] 20. Hash route and spike view (`src/routing/use-hash-route.ts`, `src/routing/spike-view.tsx`, `src/App.tsx`)
   - Write `Route`, `routeFromHash` (exact `"#spike"` → `"spike"`, anything else → `"page"`) and `useHashRoute` (reads `location.hash` on mount and on `hashchange`; removes the listener on unmount), as in design "Routing".
   - Write `SpikeView`: `<a href="#">Back to Zombills</a>` and `BurialSpike` from `src/spike`, unchanged.
   - `App` renders `SpikeView` for `"spike"` and `SlicePage` otherwise. `main.tsx` keeps rendering `App`.
@@ -201,7 +201,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 
 ## Batch 6: static build for Netlify
 
-- [ ] 21. CSP plugin, build settings, Netlify config and favicon (`csp-plugin.ts`, `vite.config.ts`, `netlify.toml`, `index.html`)
+- [x] 21. CSP plugin, build settings, Netlify config and favicon (`csp-plugin.ts`, `vite.config.ts`, `netlify.toml`, `index.html`)
   - Write `csp-plugin.ts` as in design "Build pieces": `CSP_POLICY` with the exact Req 7.6 text; `injectCsp(html)` that inserts `<meta http-equiv="Content-Security-Policy" content="…">` straight after `<meta charset>` and throws when there is none; `cspPlugin()` with `name: "zombills-csp"`, `apply: "build"` and `transformIndexHtml: { order: "post", handler: injectCsp }`.
   - In `vite.config.ts`, add `cspPlugin()` to `plugins` and `build: { assetsInlineLimit: 0, modulePreload: { polyfill: false } }`; keep the `test` block from task 4.
   - Create the root `netlify.toml` with `[build]` `command = "npm run build"`, `publish = "apps/web/dist"` and `[build.environment]` `NODE_VERSION = "24"`, and nothing else.
@@ -217,7 +217,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 
 ## Batch 7: lint rules
 
-- [ ] 22. Web privacy, money and purity lint blocks (`eslint.config.js`)
+- [x] 22. Web privacy, money and purity lint blocks (`eslint.config.js`)
   - In the root `eslint.config.js`, after the `packages/core` block, add the three blocks of design "Lint block": privacy, money and import rules for `apps/web/src/**/*.{ts,tsx}` (test files ignored), with `WEB_NETWORK_GLOBALS`, `WEB_NETWORK_PROPERTIES`, `no-console`, the `**/packages/core/**` import ban, and the `toFixed` and `/ 100` selectors; the purity block for `apps/web/src/slice/logic/**/*.ts`, which repeats `WEB_NETWORK_PROPERTIES` because flat config replaces rule options; and the `money.ts` exception. Add `MONEY_MESSAGE` and `PURITY_MESSAGE` with the design's texts. Change nothing in the existing core blocks.
   - The web `lint` script stays `eslint src`.
   - Check by hand, then revert: a `fetch("x")` in a component, `window.fetch`, `navigator.sendBeacon`, `console.log`, `amount / 100` and `x.toFixed(2)` outside `money.ts`, `Date.now()` in `logic/`, and an import from `../../../packages/core/src` each make `npm run lint` fail. Leave no such line behind.
@@ -230,7 +230,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 
 ## Batch 8: browser smoke test
 
-- [ ] 23. The Playwright demo-path test (`playwright.config.ts`, `tsconfig.e2e.json`, `e2e/demo-path.spec.ts`)
+- [x] 23. The Playwright demo-path test (`playwright.config.ts`, `tsconfig.e2e.json`, `e2e/demo-path.spec.ts`)
   - Write `playwright.config.ts` as in design "E2E test": `testDir: "e2e"`, one `chromium` project, `baseURL` `http://localhost:4173`, `locale: "en-US"`, `timezoneId: "UTC"`, and `webServer` running `npx vite preview --port 4173 --strictPort` with `reuseExistingServer: false`.
   - Write `tsconfig.e2e.json` covering `e2e/**` and `playwright.config.ts` with `types: ["node"]`.
   - Web scripts: add `test:e2e` (`npm run build --workspace @zombills/core && npm run build && playwright test`) and change `typecheck` to check both `tsconfig.json` and `tsconfig.e2e.json`. The root `npm test` must not run Playwright.
@@ -243,7 +243,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 
 ---
 
-- [ ] 24. Checkpoint: run everything and check traceability
+- [x] 24. Checkpoint: run everything and check traceability
   - On a clean core build (delete only `packages/core/dist`, which the build recreates), run from the repo root `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. All must pass with no skipped or `.only` tests. This proves the root `pretest` and `pretypecheck` scripts (Req 9.2a). Then run `npm run test:e2e --workspace @zombills/web`.
   - Check that the root `npm test` runs the core and web Vitest suites and not Playwright (Req 10.6), and that the core suites are unchanged except the four places listed in task 1.
   - Check that every property P1–P15 has a passing test whose name starts with its ID.
@@ -334,7 +334,7 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 | 6.2 | Web lint block (`toFixed`, `/ 100`); checkpoint search | 22, 24 |
 | 6.3 | `money.test.ts`; P10 | 6 |
 | 6.4 | `money.test.ts`; P10 | 6 |
-| 6.5 | `contrast.test.ts` (`.money` rule); SP: Results from a Sample (`money` class) | 5, 18 |
+| 6.5 | `src/contrast.test.ts` (`.money` rule); SP: Results from a Sample (`money` class) | 5, 18 |
 | 6.6 | P9 | 6 |
 | 6.7 | `money.test.ts` (six examples) | 6 |
 | 7.1 | E2E step 7 | 23 |
@@ -344,11 +344,11 @@ Components are written first and tested through `SlicePage` in tasks 18 and 19, 
 | 7.5 | `page-state.test.ts`; P15; SP: Start again | 14, 18 |
 | 7.6 | `csp-plugin.test.ts`; E2E step 3 | 21, 23 |
 | 7.7 | `vite-config.test.ts` | 21 |
-| 8.1 | `contrast.test.ts` (focus rule); SP: Keyboard | 5, 18 |
+| 8.1 | `src/contrast.test.ts` (focus rule); SP: Keyboard | 5, 18 |
 | 8.2 | SP: Idle (accessible names) | 18 |
 | 8.3 | `announce.test.ts`; SP: Results from a Sample (live region) | 13, 18 |
 | 8.4 | SP: Results from a Sample; SP error cases (focus on heading) | 18, 19 |
-| 8.5 | `contrast.test.ts`; checkpoint search for hex colours | 5, 24 |
+| 8.5 | `src/contrast.test.ts`; checkpoint search for hex colours | 5, 24 |
 | 8.6 | SP: Drag-over text; SP: Ended; SP: Guessed-only group | 18, 19 |
 | 8.7 | `fade-in.test.tsx` | 16 |
 | 8.8 | SP: Idle (`h1` `font-display`, `max-w-[640px]`) | 18 |

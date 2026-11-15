@@ -1,6 +1,8 @@
+import { SpikeView } from "./routing/spike-view";
+import { useHashRoute } from "./routing/use-hash-route";
 import { SlicePage } from "./slice/slice-page";
 
-// Temporary: task 20 adds routing and the spike view.
 export function App() {
-  return <SlicePage />;
+  const route = useHashRoute();
+  return route === "spike" ? <SpikeView /> : <SlicePage />;
 }

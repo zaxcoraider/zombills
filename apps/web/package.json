@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "pretest": "npm run build --workspace @zombills/core",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
+    "test:e2e": "npm run build --workspace @zombills/core && npm run build && playwright test",
     "lint": "eslint src"
   },
   "devDependencies": {

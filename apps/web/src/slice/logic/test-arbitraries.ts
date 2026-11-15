@@ -249,7 +249,10 @@ const recurringCsvArb: fc.Arbitrary<{ header: string[]; rows: string[][] }> = fc
     ),
   })
   .map(({ merchant, months, day, cents, others }) => {
-    const money = (c: number): string => `-${Math.floor(c / 100)}.${pad2(c % 100)}`;
+    const money = (c: number): string => {
+      const digits = String(c).padStart(3, "0");
+      return `-${digits.slice(0, -2)}.${digits.slice(-2)}`;
+    };
     const rows = Array.from({ length: months }, (_, i) => [
       `2025-${pad2(i + 1)}-${pad2(day)}`,
       merchant,

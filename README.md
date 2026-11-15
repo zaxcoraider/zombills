@@ -41,6 +41,8 @@ Vite, React 18, TypeScript, Tailwind CSS, Framer Motion and Papa Parse. Tests us
 
 Coming soon.
 
+Run `npx playwright install chromium` once per machine before `npm run test:e2e --workspace @zombills/web`.
+
 ## License
 
 [MIT](LICENSE)

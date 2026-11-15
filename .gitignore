@@ -22,3 +22,7 @@ coverage/
 
 # IMPORTANT: never add .kiro/ or anything under it to this file.
 # The hackathon rules require /.kiro at the repo root; ignoring it can disqualify the submission.
+
+# Playwright output
+/apps/web/test-results/
+/apps/web/playwright-report/

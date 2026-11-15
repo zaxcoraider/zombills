@@ -639,7 +639,7 @@ export default defineConfig({
 
 ### Lint block (`eslint.config.js`)
 
-Three blocks after the `packages/core` block: privacy and money rules for all of `apps/web/src`, purity rules for `src/slice/logic`, and the `money.ts` exception:
+Four blocks after the `packages/core` block: privacy and money rules for all of `apps/web/src`, purity rules for `src/slice/logic`, the `money.ts` exception, and the `src/spike/**` money exemption (the spike is throwaway art code kept unchanged per Req 1.5, so only the `toFixed` and `/ 100` bans are off there; network, console and core-import bans still apply):
 
 ```js
 const WEB_NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"].map(
@@ -691,6 +691,11 @@ const WEB_NETWORK_PROPERTIES = ["navigator", "window", "globalThis", "self"].fla
 {
   // The one place that converts minor units for display (Req 6.2).
   files: ["apps/web/src/slice/logic/money.ts"],
+  rules: { "no-restricted-syntax": "off" },
+},
+{
+  // Throwaway art spike, kept unchanged (Req 1.5). Only the money selectors are exempt.
+  files: ["apps/web/src/spike/**/*.{ts,tsx}"],
   rules: { "no-restricted-syntax": "off" },
 },
 ```

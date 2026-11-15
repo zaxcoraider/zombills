@@ -2,9 +2,17 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "lib": ["ES2022", "ES2023.Intl", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "csp-plugin.ts",
+    "csp-plugin.test.ts",
+    "vite-config.test.ts",
+    "netlify-config.test.ts"
+  ]
 }
