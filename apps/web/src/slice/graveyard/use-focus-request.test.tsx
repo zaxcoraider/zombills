@@ -2,9 +2,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FocusRequest } from "../page-state";
-import { FocusRequestContext, useFocusRequest } from "./use-focus-request";
+import { FocusRequestContext, focusAndReveal, useFocusRequest } from "./use-focus-request";
 
 function Target({ focusKey, label }: { focusKey: string; label: string }) {
   const ref = useFocusRequest(focusKey);
@@ -130,5 +130,57 @@ describe("useFocusRequest", () => {
     const heading = screen.getByRole("heading", { name: "Stone" });
     expect(heading.dataset.focus).toBe(`tombstone:${id}`);
     expect(document.activeElement).toBe(heading);
+  });
+});
+
+describe("focusAndReveal", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function mount() {
+    const stage = document.createElement("div");
+    stage.setAttribute("data-burial-stage", "");
+    const heading = document.createElement("h3");
+    heading.tabIndex = -1;
+    stage.append(heading);
+    document.body.append(stage);
+    const stageScroll = vi.fn();
+    const headingScroll = vi.fn();
+    stage.scrollIntoView = stageScroll;
+    heading.scrollIntoView = headingScroll;
+    const focus = vi.spyOn(heading, "focus");
+    return { stage, heading, stageScroll, headingScroll, focus };
+  }
+
+  it("focuses without the browser scroll and scrolls the whole stage to its top", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    const { heading, stageScroll, headingScroll, focus } = mount();
+    focusAndReveal(heading);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(headingScroll).not.toHaveBeenCalled();
+    expect(stageScroll).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+      inline: "nearest",
+    });
+  });
+
+  it("does not scroll smoothly under reduced motion", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    const { heading, stageScroll } = mount();
+    focusAndReveal(heading);
+    expect(stageScroll).toHaveBeenCalledWith(expect.objectContaining({ behavior: "auto" }));
+  });
+
+  it("scrolls an element outside a stage into view only as far as needed", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    const heading = document.createElement("h2");
+    heading.tabIndex = -1;
+    document.body.append(heading);
+    const scroll = vi.fn();
+    heading.scrollIntoView = scroll;
+    focusAndReveal(heading);
+    expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ block: "nearest" }));
   });
 });

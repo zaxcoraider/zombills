@@ -19,6 +19,27 @@ export function focusKey(request: FocusRequest): string {
 }
 
 /**
+ * Focus `element` without the browser's own scroll, then scroll so what the user must read is
+ * on screen: the whole burial stage when the element is inside one (its top edge at the top of
+ * the viewport, so the whole card shows), otherwise the element itself. Smooth scrolling is
+ * skipped under reduced motion.
+ */
+export function focusAndReveal(element: HTMLElement): void {
+  element.focus({ preventScroll: true });
+  const stage = element.closest<HTMLElement>("[data-burial-stage]");
+  const target = stage ?? element;
+  if (typeof target.scrollIntoView !== "function") return;
+  const reduced =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({
+    behavior: reduced ? "auto" : "smooth",
+    block: stage === null ? "nearest" : "start",
+    inline: "nearest",
+  });
+}
+
+/**
  * A ref callback for a focus target. It sets `data-focus={key}` and focuses the element when
  * it mounts (or when a new request arrives) while the request names `key` and its `seq` has
  * not been handled yet.
@@ -30,7 +51,7 @@ export function useFocusRequest(key: string): (element: HTMLElement | null) => v
       if (element === null) return;
       element.dataset.focus = key;
       if (focus !== null && focusKey(focus) === key && claim(focus.seq)) {
-        element.focus({ preventScroll: false });
+        focusAndReveal(element);
       }
     },
     [key, focus, claim],

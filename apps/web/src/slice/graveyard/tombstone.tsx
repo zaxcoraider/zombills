@@ -190,7 +190,7 @@ export function Tombstone({
         tabIndex={-1}
         aria-labelledby={titleId}
         className={`relative aspect-[3/4] ${
-          stage ? "w-[min(18.75rem,calc(100vw-3rem))]" : "w-[min(12rem,40vw)]"
+          stage ? "w-[min(18.75rem,calc(100vw-3rem))]" : "w-[min(16rem,calc(100vw-4rem))]"
         }`}
         {...motionProps}
       >
@@ -198,51 +198,67 @@ export function Tombstone({
         <div className="absolute inset-0 -rotate-[1.2deg]">
           <StoneArt />
           <div
-            className={`engraved absolute inset-x-[15%] top-[12%] flex flex-col items-center text-center ${
-              stage ? "" : "text-[0.75rem]"
+            className={`engraved absolute inset-x-[15%] flex flex-col items-center text-center ${
+              stage ? "top-[12%]" : "top-[10%]"
             }`}
           >
             <Flourish className={stage ? "w-20" : "w-12"} />
-            <p className="mt-2 font-display text-xl italic leading-none text-bone/90">
+            <p
+              className={`mt-2 font-display italic leading-none text-bone/90 ${
+                stage ? "text-xl" : "text-base"
+              }`}
+            >
               <span id={titleId}>
                 Here lies{" "}
                 <span
                   className={`mt-2 block break-words not-italic text-bone ${
-                    stage ? "text-[2.75rem]" : "text-2xl"
+                    stage ? "text-[2.75rem]" : "text-xl leading-tight"
                   }`}
                 >
                   {displayName}.
                 </span>
               </span>
             </p>
-            <p className="mt-3 font-display text-[1.0625rem] italic leading-snug text-balance text-bone/90">
+            <p
+              className={`font-display italic leading-snug text-balance text-bone/90 ${
+                stage ? "mt-3 text-[1.0625rem]" : "mt-2 text-sm"
+              }`}
+            >
               Fed on you every {PERIOD_WORD[record.cadence]}.
             </p>
-            <Flourish className={`mt-3 ${stage ? "w-16" : "w-10"}`} />
+            <Flourish className={`${stage ? "mt-3 w-16" : "mt-2 w-10"}`} />
             {record.yearlySavingCents === null ? (
-              <p className="mt-3 text-sm leading-snug text-bone/90">
+              <p className={`leading-snug text-bone/90 ${stage ? "mt-3 text-sm" : "mt-2 text-xs"}`}>
                 Saving unknown: guessed from one charge
               </p>
             ) : (
-              <p className="mt-3 leading-none">
+              <p className={`leading-none ${stage ? "mt-3" : "mt-2"}`}>
                 <span className="block text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-bone/90">
                   Saves
                 </span>
-                <span className="mt-2 block">
-                  <span className="text-[1.75rem] font-semibold text-moss">
+                <span className={`block ${stage ? "mt-2" : "mt-1"}`}>
+                  <span
+                    className={`font-semibold text-moss ${stage ? "text-[1.75rem]" : "text-xl"}`}
+                  >
                     <Money cents={record.yearlySavingCents} currency={record.currency} />
                   </span>
-                  <span className="text-base text-bone/90">/year.</span>
+                  <span className={`text-bone/90 ${stage ? "text-base" : "text-sm"}`}>/year.</span>
                 </span>
               </p>
             )}
-            <p className="mt-3 text-xs leading-snug text-bone/90">
+            <p
+              className={`leading-snug text-bone/90 ${
+                stage ? "mt-3 text-xs" : "mt-2 text-[0.6875rem]"
+              }`}
+            >
               Cancel it with the provider to stop the charges.
             </p>
           </div>
         </div>
       </motion.section>
-      {!stage && action !== undefined && action !== null ? action : null}
+      {!stage && action !== undefined && action !== null ? (
+        <div className="mt-4">{action}</div>
+      ) : null}
     </div>
   );
 }

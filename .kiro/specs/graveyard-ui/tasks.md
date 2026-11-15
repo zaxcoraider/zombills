@@ -241,6 +241,14 @@ Tasks 14–17 build components that `SlicePage` does not render yet, tested on t
   - Report any gap as a finding instead of fixing it here, unless the fix is a one-line test or text change.
   - _Requirements: all_
 
+- [x] 26. Visual fixes from browser review
+  - Bug 1, card clipped by the burial stage: at 1000x900 the card's top row (label chip and cadence) is hidden and the merchant heading touches the top edge; at 390x844 "Adobe Creative Cloud" is cut in half; the stage has about 200 px of empty earth below the ground line. Make the stage tall enough above the ground line for the tallest card (measure it; a possessed and trial-trap card with both label lines is the tallest) and shrink the earth below the ground to what the burial-sink animation needs. The card is never clipped.
+  - Bug 2, scroll: when a card rises, and after Next, Skip and Answer now, the page scrolls so the card's top is above the viewport (scrollY about 658 at 1000x900). Focus with `preventScroll: true` and scroll the burial stage into view so the whole card is visible (`block` "center" or "start", whichever keeps the whole card visible at 390x844 and 1000x900). With reduced motion, no smooth scroll.
+  - Bug 3, small tombstones in the Graveyard view: "$215.88/year." runs wider than the stone and "Cancel it with the provider to stop the charges." overlaps the "Unbury" button. Scale the small tombstone's text to fit (smaller sizes and wrapping inside the stone) and put "Unbury" below the stone with its own spacing.
+  - Tests: Playwright, in `e2e/layout.spec.ts`, at 390x844 and 1000x900. After a card rises, its bounding box is inside the stage's box and inside the viewport. The Netflix card shows its "Price went up" line fully visible. In the Graveyard view each tombstone's text boxes are inside the stone's box and do not overlap the "Unbury" button.
+  - Check: root `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` and `npm run test:e2e --workspace @zombills/web` all pass. Do not commit.
+  - _Requirements: 2.8, 3.10, 7.10, 14.2_
+
 ### Traceability
 
 "GF" is `graveyard-flow.test.tsx`; "SP" is `slice-page.test.tsx`.

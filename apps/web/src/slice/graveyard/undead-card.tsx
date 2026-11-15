@@ -154,7 +154,7 @@ export function UndeadCard(props: UndeadCardProps) {
       >
         <section
           aria-labelledby={titleId}
-          className="relative w-[min(22.5rem,calc(100vw-2rem))] rounded-2xl border border-bone/10 bg-fog px-6 pb-8 pt-6"
+          className="relative w-[min(22.5rem,calc(100vw-3.5rem))] rounded-2xl border border-bone/10 bg-fog px-6 pb-8 pt-6"
           style={{
             boxShadow: [
               "inset 0 1px 0 color-mix(in oklab, var(--bone) 8%, transparent)",

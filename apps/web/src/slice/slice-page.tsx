@@ -10,7 +10,7 @@ import { NightScene } from "./graveyard/night-scene";
 import { RisingView } from "./graveyard/rising-view";
 import { SavingsCounter } from "./graveyard/savings-counter";
 import { useBurialFallback } from "./graveyard/use-burial-fallback";
-import { FocusRequestContext, focusKey } from "./graveyard/use-focus-request";
+import { FocusRequestContext, focusAndReveal, focusKey } from "./graveyard/use-focus-request";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { announcement } from "./logic/announce";
 import { decodeStatementBytes } from "./logic/decode-bytes";
@@ -135,7 +135,7 @@ export function SlicePage() {
     const key = focusKey(request);
     for (const el of mainRef.current.querySelectorAll<HTMLElement>("[data-focus]")) {
       if (el.dataset.focus === key) {
-        if (claim(request.seq)) el.focus({ preventScroll: false });
+        if (claim(request.seq)) focusAndReveal(el);
         return;
       }
     }

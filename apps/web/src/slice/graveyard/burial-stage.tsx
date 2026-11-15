@@ -24,11 +24,19 @@ export interface BurialStageProps {
   dispatch: Dispatch<PageAction>;
 }
 
-// The stage's own earth band: whatever is below the ground line is underground.
+// The stage's own earth band: whatever is below the ground line is underground. It holds only
+// what the burial needs there: the mound reaches 22 px below the ground line, and the card
+// sinks out of sight at the line.
 const STAGE_STYLE = {
-  "--ground-h": "clamp(7rem, 24svh, 15rem)",
-  height: "clamp(30rem, 70svh, 40rem)",
+  "--ground-h": "4.5rem",
+  paddingBottom: "var(--ground-h)",
 } as CSSProperties;
+
+// Room above the ground line. The card sits in the flow, so the stage is never shorter than the
+// card. This floor is the tallest card measured (Netflix: possessed, with price history, 603 px
+// at 1000 px wide and 641 px at 390 px wide, less the 12 px that sink under the line), so the
+// stage keeps one height from card to card.
+const SKY_MIN_HEIGHT = "39.5rem";
 
 function cardPhaseFor(stage: RisingStage): CardPhase | null {
   switch (stage.kind) {
@@ -68,16 +76,18 @@ export function BurialStage({
       ref={stageRef}
       tabIndex={-1}
       role="group"
+      data-burial-stage=""
+      className="scroll-mt-4"
       {...(burying ? { "aria-label": `Burying ${displayName}` } : {})}
     >
       <div className="relative isolate overflow-clip rounded-2xl" style={STAGE_STYLE}>
         {/* Clipped at the ground line, so whatever is below it is underground. */}
         <div
-          className="absolute inset-x-0 top-0 overflow-clip"
-          style={{ bottom: "var(--ground-h)" }}
+          className="relative flex items-end justify-center overflow-clip px-3"
+          style={{ minHeight: SKY_MIN_HEIGHT }}
         >
           {cardPhase !== null && (
-            <div className="absolute inset-x-0 -bottom-3 flex justify-center">
+            <div className="-mb-3 flex justify-center">
               <UndeadCard
                 subscription={subscription}
                 displayName={displayName}
@@ -93,7 +103,7 @@ export function BurialStage({
             </div>
           )}
           {buried && record !== null && (
-            <div className="absolute inset-x-0 -bottom-7 flex justify-center">
+            <div className="-mb-7 flex justify-center">
               <Tombstone
                 record={record}
                 displayName={displayName}
