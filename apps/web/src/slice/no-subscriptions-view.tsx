@@ -21,7 +21,7 @@ export function NoSubscriptionsView({ outcome, onStartAgain }: NoSubscriptionsVi
   return (
     <div className="flex flex-col gap-4">
       <h2 ref={headingRef} tabIndex={-1} className="text-xl font-bold">
-        No recurring charges found
+        No undead here.
       </h2>
       <p>
         No recurring charges were found in the {outcome.transactionCount} transactions read

@@ -516,7 +516,7 @@ Layout inside `<NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMot
 1. `header` on a `bg-fog/95 rounded-2xl` panel: `h1` "Zombills" (`font-display`), `p` "Your bank statement is haunted.", and on the right `SavingsCounter` (Req 1.1, 6.2, 14.6).
 2. `main` (`max-w-[640px] mx-auto px-4 flex flex-col gap-6`), with a `--fog` surface panel (`bg-fog/95 rounded-2xl p-6`) for every text block that sits over the scene (Req 1.4, 14.6). `main` always renders the same three children in the same JSX order: the state content (`order-1`), the Gate block (`order-2`, key `gate`, `DropZone` + `SampleButtons` + "Open the graveyard" when shown) and the controls row (`order-3`). The Gate never moves in the tree, so it never remounts:
    - `idle`: state content is the slice sentence; the Gate block adds "Open the graveyard" when the Graveyard is not empty.
-   - `working`: state content is `Reading <name>…`; the Gate is disabled.
+   - `working`: state content is `Reading <name>…`; the Gate is disabled with `aria-disabled="true"` and handlers that do nothing, never the HTML `disabled` attribute, so the clicked Sample button keeps focus.
    - `error`, `no-subscriptions`: state content is the slice view (with "No undead here." as the no-subscriptions heading); the Gate block adds "Open the graveyard" when the Graveyard is not empty.
    - `results` on `main`: state content is `RisingView`; the Gate block has the `h2` "Read another statement"; the controls row has "Start again".
    - any view on `graveyard`: state content is `GraveyardView`; the Gate block has "Read another statement"; the controls row has "Start again" when the view is `results`, `no-subscriptions` or `error`.

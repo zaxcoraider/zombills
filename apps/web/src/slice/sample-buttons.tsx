@@ -15,9 +15,11 @@ export function SampleButtons({ disabled, onChoose }: SampleButtonsProps) {
           <li key={sample.fileName}>
             <button
               type="button"
-              disabled={disabled}
-              onClick={() => onChoose(sample)}
-              className="rounded border border-bone bg-fog px-4 py-2 text-bone disabled:opacity-60"
+              aria-disabled={disabled ? true : undefined}
+              onClick={() => {
+                if (!disabled) onChoose(sample);
+              }}
+              className="rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:opacity-60"
             >
               {sample.label}
             </button>

@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 describe("SlicePage: Idle", () => {
-  it("shows the heading, privacy sentence, inputs, samples and the spike link", () => {
+  it("shows the heading, tagline, privacy sentence, inputs and samples", () => {
     const { container } = render(<App />);
 
     const h1 = screen.getByRole("heading", { level: 1, name: "Zombills" });
@@ -64,8 +64,8 @@ describe("SlicePage: Idle", () => {
       expect(screen.getByRole("button", { name: sample.label })).toBeTruthy();
     }
     expect(SAMPLES).toHaveLength(4);
-    const link = screen.getByRole("link", { name: "See the burial art spike" });
-    expect(link.getAttribute("href")).toBe("#spike");
+    expect(screen.getByText("Your bank statement is haunted.")).toBeTruthy();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(liveRegion().textContent).toBe("");
   });
 });
@@ -87,14 +87,26 @@ describe("SlicePage: Working", () => {
     await waitFor(() => expect(frames).toHaveLength(1));
     expect(screen.getAllByText(`Reading ${US_LABEL}…`).length).toBeGreaterThan(0);
     expect(liveRegion().textContent).toBe(`Reading ${US_LABEL}…`);
-    expect(
-      (screen.getByRole("button", { name: "Choose a file" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    // aria-disabled, not the disabled attribute, so the clicked Sample button keeps focus.
+    const fileButton = screen.getByRole("button", { name: "Choose a file" });
+    expect(fileButton.getAttribute("aria-disabled")).toBe("true");
+    expect(fileButton.hasAttribute("disabled")).toBe(false);
     for (const sample of SAMPLES) {
-      expect(
-        (screen.getByRole("button", { name: sample.label }) as HTMLButtonElement).disabled,
-      ).toBe(true);
+      const button = screen.getByRole("button", { name: sample.label });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      expect(button.hasAttribute("disabled")).toBe(false);
     }
+
+    // Clicking a Sample button or the file button while working starts nothing.
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    const pickerClick = vi.spyOn(input as HTMLInputElement, "click");
+    fireEvent.click(screen.getByRole("button", { name: UK_LABEL }));
+    fireEvent.click(fileButton);
+    await act(async () => {});
+    expect(pickerClick).not.toHaveBeenCalled();
+    expect(frames).toHaveLength(1);
+    expect(screen.queryByText(`Reading ${UK_LABEL}…`)).toBeNull();
+    expect(liveRegion().textContent).toBe(`Reading ${US_LABEL}…`);
     expect(dropAreaElement().getAttribute("aria-disabled")).toBe("true");
 
     // A second drop while working is ignored.
@@ -114,42 +126,48 @@ describe("SlicePage: Working", () => {
 });
 
 describe("SlicePage: Results from a Sample", () => {
-  it("lists the subscriptions in order with money, price history, total and focus", async () => {
+  it("shows the summary, the Rising order, the cards, the total and the first card's focus", async () => {
     render(<App />);
     await chooseSample(US_LABEL);
 
-    const heading = screen.getByRole("heading", { level: 2, name: "Recurring charges found" });
-    expect(document.activeElement).toBe(heading);
+    const adobeHeading = screen.getByRole("heading", { level: 3, name: "Adobe Creative Cloud" });
+    await waitFor(() => expect(document.activeElement).toBe(adobeHeading));
 
     const summary = screen.getByText(/2 Jan 2026 to 25 Mar 2026/);
     expect(summary.textContent).toContain(US_LABEL);
     expect(summary.textContent).toMatch(/\d+ transactions read/);
 
-    const section = screen.getByRole("heading", { level: 3, name: "USD" }).closest("section");
-    expect(section).not.toBeNull();
-    const list = within(section as HTMLElement).getAllByRole("list")[0] as HTMLElement;
-    const items = Array.from(list.children).filter((child) => child.tagName === "LI");
-    const names = items.map((item) => item.querySelector("strong")?.textContent);
-    expect(names).toEqual([
+    // The Rising order, seen through "Skip for now": the card after each skip.
+    const seen: string[] = [];
+    for (let step = 0; step < 4; step += 1) {
+      const heading = document.querySelector("section[aria-labelledby] h3");
+      seen.push(heading?.textContent ?? "");
+      if (step < 3) fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+    }
+    expect(seen).toEqual([
       "Adobe Creative Cloud",
       "Riverside Gym Membership",
       "Netflix",
       "Spotify",
     ]);
 
-    const spotify = items[3] as HTMLElement;
+    // Spotify is the card now, and it is the last one.
+    const spotify = screen.getByRole("region", { name: "Spotify" });
     expect(spotify.textContent).toContain("Monthly");
-    expect(spotify.textContent).toContain(`${formatMoney(1099, "USD")}`);
-    expect(spotify.textContent).toContain(`${formatMoney(13188, "USD")} a year`);
+    expect(spotify.textContent).toContain(formatMoney(1099, "USD"));
+    expect(spotify.textContent).toContain(formatMoney(13188, "USD"));
+    expect(spotify.textContent).toContain("a year");
+    expect(spotify.textContent).not.toContain("Price went up");
 
-    const netflix = items[2] as HTMLElement;
+    fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Answer now Netflix" }));
+    const netflix = screen.getByRole("region", { name: "Netflix" });
     const history = within(netflix).getByRole("list", { name: "Price history" });
     const entries = Array.from(history.children).map((child) => child.textContent);
     expect(entries).toEqual([
       `2 Jan 2026: ${formatMoney(1549, "USD")}`,
       `2 Mar 2026: ${formatMoney(1799, "USD")}`,
     ]);
-
     const outcome = analyzeStatement(SAMPLES[0]?.text ?? "");
     if (outcome.kind !== "results") throw new Error("expected results for the US Sample");
     const netflixRise = outcome.subscriptions.find(
@@ -157,9 +175,6 @@ describe("SlicePage: Results from a Sample", () => {
     )?.priceRise;
     if (netflixRise === null || netflixRise === undefined) throw new Error("expected a price rise");
     expect(netflix.textContent).toContain(partsToText(priceRiseParts(netflixRise, "USD")));
-    items.forEach((item, index) => {
-      if (index !== 2) expect(item.textContent).not.toContain("Price went up");
-    });
 
     const moneySpans = Array.from(document.querySelectorAll("main span")).filter(
       (span) => span.children.length === 0 && /\$\d/.test(span.textContent ?? ""),
@@ -167,17 +182,20 @@ describe("SlicePage: Results from a Sample", () => {
     expect(moneySpans.length).toBeGreaterThan(0);
     for (const span of moneySpans) expect(span.classList.contains("money")).toBe(true);
 
-    expect(screen.getByText(/Yearly total \(USD\):/).textContent).toContain(
-      formatMoney(135564, "USD"),
-    );
+    expect(screen.getByText(/Still draining/).textContent).toContain(formatMoney(135564, "USD"));
+    expect(
+      screen.getByText("No currency was found in the statement, so amounts are shown in USD."),
+    ).toBeTruthy();
+  });
+
+  it("announces the first card in the live region", async () => {
+    render(<App />);
+    await chooseSample(US_LABEL);
     expect(liveRegion().textContent).toBe(
       `Found 4 recurring charges. Still draining ${formatMoney(135564, "USD")} a year. ` +
         `Adobe Creative Cloud. Monthly, ${formatMoney(5499, "USD")}. ` +
         `${formatMoney(65988, "USD")} a year. Still using this?`,
     );
-    expect(
-      screen.getByText("No currency was found in the statement, so amounts are shown in USD."),
-    ).toBeTruthy();
   });
 });
 
@@ -190,10 +208,7 @@ describe("SlicePage: No subscriptions", () => {
       ),
     ]);
 
-    const heading = await screen.findByRole("heading", {
-      level: 2,
-      name: "No recurring charges found",
-    });
+    const heading = await screen.findByRole("heading", { level: 2, name: "No undead here." });
     expect(document.activeElement).toBe(heading);
     expect(
       screen.getByText(
@@ -235,22 +250,19 @@ describe("SlicePage: Replace result", () => {
       expect(screen.getByText(/transactions read/).textContent).toContain(UK_LABEL),
     );
     expect(screen.queryByText(new RegExp(`${US_LABEL}.*transactions read`))).toBeNull();
-    expect(screen.getByRole("heading", { level: 3, name: "GBP" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 3, name: "USD" })).toBeNull();
+    // The first card is a GBP one; no USD figure is on the page.
+    const card = document.querySelector("section[aria-labelledby]") as HTMLElement;
+    expect(card.textContent).toContain("£");
+    expect(document.body.textContent).not.toContain("$");
   });
 });
 
 describe("SlicePage: Keyboard", () => {
-  it("tabs through drop area, Choose a file, the four samples and the spike link", async () => {
+  it("tabs through drop area, Choose a file and the four samples", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const expected = [
-      DROP_AREA_NAME,
-      "Choose a file",
-      ...SAMPLES.map((sample) => sample.label),
-      "See the burial art spike",
-    ];
+    const expected = [DROP_AREA_NAME, "Choose a file", ...SAMPLES.map((sample) => sample.label)];
     for (const name of expected) {
       await user.tab();
       const active = document.activeElement as HTMLElement;
@@ -479,11 +491,14 @@ describe("SlicePage: Windows-1252 file", () => {
     }
 
     function snapshot() {
-      const section = screen.getByRole("heading", { level: 3, name: "GBP" }).closest("section");
       const summary = screen.getByText(/transactions read/).textContent ?? "";
+      const main = document.querySelector("main") as HTMLElement;
+      const risingSummary = within(main).getByText(/Still draining/).textContent;
+      const card = document.querySelector("section[aria-labelledby]") as HTMLElement;
       return {
         summary: summary.replace(/^[^·]*(?= ·)/, ""),
-        list: (section as HTMLElement).textContent,
+        risingSummary,
+        card: card.textContent,
       };
     }
 
@@ -498,7 +513,7 @@ describe("SlicePage: Windows-1252 file", () => {
     const fromFile = snapshot();
 
     expect(fromFile).toEqual(fromSample);
-    expect(fromFile.list).toContain("£");
+    expect(fromFile.card).toContain("£");
   });
 });
 
@@ -518,15 +533,16 @@ describe("SlicePage: Guessed-only group", () => {
     ]);
 
     await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
-    const eur = screen.getByRole("heading", { level: 3, name: "EUR" }).closest("section");
-    expect(eur).not.toBeNull();
-    const group = within(eur as HTMLElement);
-    expect(group.getByText("Guessed from a single charge")).toBeTruthy();
+    const main = within(document.querySelector("main") as HTMLElement);
+    // Only USD has a Currency total; the EUR group shows its note alone.
+    expect(main.getByText(/Still draining/).textContent).toContain(formatMoney(36000, "USD"));
+    expect(main.getAllByText(/Still draining/)).toHaveLength(1);
     expect(
-      group.getByText("Ended subscriptions and guessed ones are not included in the total."),
+      main.getByText("EUR: Ended subscriptions and guessed ones are not included in the total."),
     ).toBeTruthy();
-    expect(screen.queryByText(/Yearly total \(EUR\)/)).toBeNull();
-    expect(screen.getByText(/Yearly total \(USD\)/)).toBeTruthy();
+    // EUR comes before USD in the statement's currencies, so the guessed Netflix rises first.
+    const card = main.getByRole("region", { name: "Netflix" });
+    expect(within(card).getByText("Guessed from a single charge")).toBeTruthy();
   });
 });
 
@@ -556,9 +572,45 @@ describe("SlicePage: Ended", () => {
     ]);
 
     await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
-    expect(screen.getByText(/Ended · last charged 5 Mar 2026/)).toBeTruthy();
+    const main = within(document.querySelector("main") as HTMLElement);
+    expect(main.getByRole("heading", { level: 3, name: "No undead here." })).toBeTruthy();
+    expect(main.getByText("Every recurring charge found has already stopped.")).toBeTruthy();
+    expect(main.getByText(/Riverside Gym · last charged 5 Mar 2026/)).toBeTruthy();
+    // The currency has no Currency total, so its note shows alone.
+    expect(main.queryByText(/Still draining/)).toBeNull();
     expect(
-      screen.getByText("Ended subscriptions and guessed ones are not included in the total."),
+      main.getByText("USD: Ended subscriptions and guessed ones are not included in the total."),
     ).toBeTruthy();
+  });
+});
+
+const FOG_PANEL = '[class~="bg-fog/95"]';
+
+describe("SlicePage: fog panels", () => {
+  it("puts the Reading line and the error heading on a fog panel", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        frames.push(callback);
+        return frames.length;
+      }),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: US_LABEL }));
+    await waitFor(() => expect(frames).toHaveLength(1));
+    const reading = screen.getAllByText(`Reading ${US_LABEL}…`)[0] as HTMLElement;
+    expect(reading.closest(FOG_PANEL)).not.toBeNull();
+    await act(async () => {
+      frames[0]?.(0);
+    });
+    await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+    cleanup();
+    vi.unstubAllGlobals();
+
+    render(<App />);
+    dropFiles([csvFile("", "empty.csv")]);
+    const heading = await screen.findByRole("heading", { level: 2, name: "The file is empty." });
+    expect(heading.closest(FOG_PANEL)).not.toBeNull();
   });
 });

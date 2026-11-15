@@ -1,16 +1,25 @@
+import { useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import type { Dispatch } from "react";
 import { DropZone } from "./drop-zone";
 import { ErrorView } from "./error-view";
 import { FadeIn } from "./fade-in";
 import { nextFrame, nextTask } from "./frame";
+import { GraveyardView } from "./graveyard/graveyard-view";
+import { NightScene } from "./graveyard/night-scene";
+import { RisingView } from "./graveyard/rising-view";
+import { SavingsCounter } from "./graveyard/savings-counter";
+import { useBurialFallback } from "./graveyard/use-burial-fallback";
 import { FocusRequestContext, focusKey } from "./graveyard/use-focus-request";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { announcement } from "./logic/announce";
 import { decodeStatementBytes } from "./logic/decode-bytes";
 import { checkFiles, containsNul } from "./logic/file-checks";
+import { deriveHaunt } from "./logic/haunt-view";
+import type { HauntView } from "./logic/haunt-view";
 import { NoSubscriptionsView } from "./no-subscriptions-view";
 import { INITIAL_PAGE_MODEL, pageReducer } from "./page-state";
-import { ResultsView } from "./results-view";
+import type { PageAction, PageModel } from "./page-state";
 import { SampleButtons } from "./sample-buttons";
 import type { Sample } from "./samples";
 
@@ -20,11 +29,84 @@ function preventDefault(event: Event) {
   event.preventDefault();
 }
 
+const PANEL_CLASS = "rounded-2xl bg-fog/95 p-6";
+
+interface MainStateProps {
+  model: PageModel;
+  haunt: HauntView;
+  reduceMotion: boolean;
+  dispatch: Dispatch<PageAction>;
+  onStartAgain: () => void;
+}
+
+/** The state content of `main` on the main screen: one view at a time. */
+function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainStateProps) {
+  const { view } = model;
+  switch (view.kind) {
+    case "idle":
+      return (
+        <div className={PANEL_CLASS}>
+          <p>
+            Your statement stays on this device. A statement covering 2 to 3 months gives the best
+            results.
+          </p>
+        </div>
+      );
+    case "working":
+      return (
+        <FadeIn key="working">
+          <div className={PANEL_CLASS}>
+            <p>Reading {view.sourceName}…</p>
+          </div>
+        </FadeIn>
+      );
+    case "results":
+      return (
+        <FadeIn key="results">
+          <RisingView
+            sourceName={view.sourceName}
+            outcome={view.outcome}
+            rising={view.rising}
+            haunt={haunt}
+            reduceMotion={reduceMotion}
+            dispatch={dispatch}
+          />
+        </FadeIn>
+      );
+    case "no-subscriptions":
+      return (
+        <FadeIn key="no-subscriptions">
+          <div className={PANEL_CLASS}>
+            <NoSubscriptionsView
+              sourceName={view.sourceName}
+              outcome={view.outcome}
+              onStartAgain={onStartAgain}
+            />
+          </div>
+        </FadeIn>
+      );
+    case "error":
+      return (
+        <FadeIn key="error">
+          <div className={PANEL_CLASS}>
+            <ErrorView
+              sourceName={view.sourceName}
+              error={view.error}
+              onStartAgain={onStartAgain}
+            />
+          </div>
+        </FadeIn>
+      );
+  }
+}
+
 export function SlicePage() {
   const [model, dispatch] = useReducer(pageReducer, INITIAL_PAGE_MODEL);
   const { view } = model;
+  const reduceMotion = useReducedMotion() ?? false;
+  const haunt = useMemo(() => deriveHaunt(model), [model.view, model.graveyard]);
+  useBurialFallback(view.kind === "results" ? view.rising.stage : null, dispatch);
   const nextRunId = useRef(0);
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const handledSeq = useRef(0);
   const claim = useCallback((seq: number) => {
@@ -58,11 +140,6 @@ export function SlicePage() {
       }
     }
   }, [focusSeq]);
-
-  // Until the results view is rebuilt, its heading is focused the slice's way (Req 8.4).
-  useEffect(() => {
-    if (view.kind === "results") headingRef.current?.focus();
-  }, [view.kind]);
 
   async function runAnalysis(source: StatementSource): Promise<void> {
     nextRunId.current += 1;
@@ -111,59 +188,84 @@ export function SlicePage() {
   }
 
   const working = view.kind === "working";
+  const onGraveyard = model.screen === "graveyard";
+  const hasStatement = view.kind === "results";
+  const enteringId = model.event?.kind === "buried" && onGraveyard ? model.event.id : null;
+  const showOpenGraveyard =
+    !onGraveyard &&
+    model.graveyard.length > 0 &&
+    (view.kind === "idle" || view.kind === "error" || view.kind === "no-subscriptions");
+  const gateHeading = onGraveyard || hasStatement;
+  const showStartAgain = hasStatement || (onGraveyard && view.kind !== "idle" && !working);
 
   return (
     <FocusRequestContext.Provider value={focusValue}>
-      <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-8">
-        <h1 className="font-display text-4xl">Zombills</h1>
-        <p>
-          Your statement stays on this device. A statement covering 2 to 3 months gives the best
-          results.
-        </p>
-        <DropZone disabled={working} onFiles={onFiles} />
-        <SampleButtons disabled={working} onChoose={onChooseSample} />
-        {view.kind === "working" ? (
-          <FadeIn key="working">
-            <p>Reading {view.sourceName}…</p>
-          </FadeIn>
-        ) : null}
-        {view.kind === "results" ? (
-          <FadeIn key="results">
-            <ResultsView
-              sourceName={view.sourceName}
-              outcome={view.outcome}
-              headingRef={headingRef}
-              onStartAgain={onStartAgain}
+      <NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMotion}>
+        <div className="mx-auto max-w-[640px] px-4 pt-8">
+          <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-fog/95 p-6">
+            <div className="flex flex-col gap-2">
+              <h1 className="font-display text-4xl">Zombills</h1>
+              <p>Your bank statement is haunted.</p>
+            </div>
+            <SavingsCounter
+              totals={haunt.savings}
+              fallbackCurrency={haunt.counterFallbackCurrency}
+              reduceMotion={reduceMotion}
             />
-          </FadeIn>
-        ) : null}
-        {view.kind === "no-subscriptions" ? (
-          <FadeIn key="no-subscriptions">
-            <NoSubscriptionsView
-              sourceName={view.sourceName}
-              outcome={view.outcome}
-              onStartAgain={onStartAgain}
-            />
-          </FadeIn>
-        ) : null}
-        {view.kind === "error" ? (
-          <FadeIn key="error">
-            <ErrorView
-              sourceName={view.sourceName}
-              error={view.error}
-              onStartAgain={onStartAgain}
-            />
-          </FadeIn>
-        ) : null}
+          </header>
+        </div>
+        <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
+          <div className="order-1">
+            {onGraveyard ? (
+              <GraveyardView
+                haunt={haunt}
+                hasStatement={hasStatement}
+                enteringId={enteringId}
+                reduceMotion={reduceMotion}
+                dispatch={dispatch}
+              />
+            ) : (
+              <MainState
+                model={model}
+                haunt={haunt}
+                reduceMotion={reduceMotion}
+                dispatch={dispatch}
+                onStartAgain={onStartAgain}
+              />
+            )}
+          </div>
+          <div key="gate" className="order-2 flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+            {gateHeading ? <h2 className="text-xl font-bold">Read another statement</h2> : null}
+            <DropZone disabled={working} onFiles={onFiles} />
+            <SampleButtons disabled={working} onChoose={onChooseSample} />
+            {showOpenGraveyard ? (
+              <div>
+                <button
+                  type="button"
+                  className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+                  onClick={() => dispatch({ type: "open-graveyard" })}
+                >
+                  Open the graveyard
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div className="order-3">
+            {showStartAgain ? (
+              <button
+                type="button"
+                className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+                onClick={onStartAgain}
+              >
+                Start again
+              </button>
+            ) : null}
+          </div>
+        </main>
         <p role="status" className="sr-only">
           {announcement(model)}
         </p>
-        <footer>
-          <a href="#spike" className="underline">
-            See the burial art spike
-          </a>
-        </footer>
-      </main>
+      </NightScene>
     </FocusRequestContext.Provider>
   );
 }

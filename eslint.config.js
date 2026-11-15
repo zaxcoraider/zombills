@@ -110,11 +110,5 @@ export default tseslint.config(
     files: ["apps/web/src/slice/logic/money.ts"],
     rules: { "no-restricted-syntax": "off" },
   },
-  {
-    // Throwaway art spike, kept unchanged (Req 1.5). Only the money selectors are exempt;
-    // the network, console and core-import bans still apply.
-    files: ["apps/web/src/spike/**/*.{ts,tsx}"],
-    rules: { "no-restricted-syntax": "off" },
-  },
   eslintConfigPrettier,
 );

@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 const ALLOWED_EXTENSIONS = new Set(["html", "js", "css", "woff", "woff2", "svg", "png"]);
 const CSP_TAG =
-  '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'self\'; ' +
+  "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'self'; " +
   "style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'none'; " +
   "base-uri 'none'; form-action 'none'\"";
 
@@ -17,7 +17,7 @@ function listFiles(dir: string): string[] {
   });
 }
 
-test("demo path: sample statement to results and back, with no stray requests", async ({
+test("demo path: sample statement to burial, graveyard and back, with no stray requests", async ({
   page,
   context,
 }) => {
@@ -44,27 +44,49 @@ test("demo path: sample statement to results and back, with no stray requests", 
   expect(scriptIndex).toBeGreaterThanOrEqual(0);
   expect(cspIndex).toBeLessThan(scriptIndex);
 
-  // Step 4: choose a sample.
-  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
-  await expect(page.getByRole("heading", { name: "Recurring charges found" })).toBeVisible();
-
-  // Step 5: USD list items in order, and the total.
-  const usdSection = page.locator("section", {
-    has: page.getByRole("heading", { name: "USD", exact: true }),
+  const stillDraining = (amount: string) =>
+    page.locator("main p", { hasText: new RegExp(`^Still draining \\${amount} a year$`) });
+  const dropArea = page.getByRole("button", {
+    name: "Drop area: choose or drop a CSV statement",
   });
-  const names = await usdSection.locator("> ul > li > strong").allTextContents();
-  expect(names).toEqual(["Adobe Creative Cloud", "Riverside Gym Membership", "Netflix", "Spotify"]);
-  await expect(usdSection.getByText("Yearly total (USD): $1,355.64")).toBeVisible();
-  await expect(
-    page.getByText("Price went up from $15.49 (2 Jan 2026) to $17.99 (+$30.00 a year)"),
-  ).toBeVisible();
 
-  // Step 6: Start again, focus, and nothing stored.
-  await page.getByRole("button", { name: "Start again" }).click();
-  await expect(page.getByRole("heading", { name: "Recurring charges found" })).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "Drop area: choose or drop a CSV statement" }),
-  ).toBeFocused();
+  // An undead card sways for ever (design "Undead card"), so Playwright's "stable" check never
+  // passes on its buttons and a forced click can land while the card is still rising. Answer
+  // buttons are focused and pressed with Enter instead, which is how a keyboard user answers.
+  const answer = async (name: string) => {
+    const button = page.getByRole("button", { name });
+    await button.focus();
+    await expect(button).toBeFocused();
+    await page.keyboard.press("Enter");
+  };
+
+  // Step 4: choose a sample; the Rising summary shows the whole yearly cost.
+  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  await expect(stillDraining("$1,355.64")).toBeVisible();
+
+  // Step 5: keep Adobe Creative Cloud and Riverside Gym Membership.
+  for (const name of ["Adobe Creative Cloud", "Riverside Gym Membership"]) {
+    await expect(page.getByRole("region", { name })).toBeVisible();
+    await answer("Yes, let it rest");
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+
+  // Step 6: bury Netflix.
+  const netflix = page.getByRole("region", { name: "Netflix" });
+  await expect(netflix).toContainText(
+    "Price went up from $15.49 (2 Jan 2026) to $17.99 (+$30.00 a year)",
+  );
+  await answer("No, bury it");
+  const tombstone = page.getByRole("region", { name: "Here lies Netflix." });
+  // "Saves" and the amount are separate blocks, so the DOM text has no space between them.
+  await expect(tombstone).toContainText(/Saves\s*\$215\.88\/year\./);
+  await expect(page.getByRole("group", { name: "Saved per year" })).toContainText("$215.88");
+  await expect(stillDraining("$1,139.76")).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Netflix is buried. Saves $215.88 a year.");
+
+  // Step 7: the graveyard, then nothing stored and the URL unchanged.
+  await page.getByRole("button", { name: "Open the graveyard" }).click();
+  await expect(page.locator("main p", { hasText: "You buried $215.88 a year." })).toBeVisible();
   const storage = await page.evaluate(() => ({
     local: localStorage.length,
     session: sessionStorage.length,
@@ -74,7 +96,21 @@ test("demo path: sample statement to results and back, with no stray requests", 
   expect(storage).toEqual({ local: 0, session: 0, cookie: "", href: urlAfterLoad });
   expect(await context.cookies()).toEqual([]);
 
-  // Step 7: every request is a same-origin GET for a file in dist; the console is empty.
+  // Step 8: Start again returns focus to the drop area.
+  await page.getByRole("button", { name: "Start again" }).click();
+  await expect(dropArea).toBeFocused();
+
+  // Step 9: at 320 px wide nothing scrolls sideways on the Rising or the Graveyard view.
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  // The Graveyard keeps Netflix's tombstone, so the same Sample now has less left to drain.
+  await expect(stillDraining("$1,139.76")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  await page.getByRole("button", { name: "Open the graveyard" }).click();
+  await expect(page.getByRole("heading", { name: "Your graveyard" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+
+  // Step 10: every request is a same-origin GET for a file in dist; the console is empty.
   const origin = new URL(urlAfterLoad).origin;
   for (const request of requests) {
     const url = new URL(request.url);
@@ -88,7 +124,7 @@ test("demo path: sample statement to results and back, with no stray requests", 
   }
   expect(problems).toEqual([]);
 
-  // Step 8: dist holds only html, js, css, font and image files.
+  // Step 11: dist holds only html, js, css, font and image files.
   const extensions = listFiles(DIST).map((file) => path.extname(file).slice(1).toLowerCase());
   expect(extensions.length).toBeGreaterThan(0);
   for (const extension of extensions) {

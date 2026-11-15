@@ -13,6 +13,7 @@ Out of scope for this spec:
 - The column-mapping screen. WHEN the parser returns `status: "mapping-required"`, the page shows an error state saying which required column it could not find (Requirement 4.6). A later spec adds the mapping fallback that `product.md` requires. To make this dead end rarer, Requirement 11 amends statement-parser with more header names used by common UK and US banks.
 - The classifier labels (`zombie`, `possessed`, `trial-trap`), the "Still using this?" question, Keep / Bury, tombstones, the graveyard view, the cancel helper and the shareable image.
   (Changed by subscription-classifier: that spec moved `possessed` and `trial-trap` in scope, shown as plain text lines on the slice page. The `zombie` label and the "Still using this?" question stay out of scope.)
+  (Changed by graveyard-ui: the `zombie` label, the "Still using this?" question, Keep / Bury, tombstones and the graveyard are now in scope; see graveyard-ui Requirements 2 to 9. The cancel helper and the shareable image stay out of scope.)
 - Any haunted art, animation or sound on the slice page.
 - Currency override and sign-convention override controls. The page uses the parser's defaults and detection.
 - Multiple statements at once, and merging statements.
@@ -55,6 +56,8 @@ Out of scope for this spec:
 4. THE Page SHALL contain a visible link to `#spike`, and the Spike view SHALL contain a visible link back to the Page.
 5. THE `apps/web/src/spike` files SHALL be kept. The switch SHALL use the URL hash only, so the static host needs no rewrite rule.
 
+(Changed by graveyard-ui: `#spike` and the hash switch are retired. The site shows the Page for every URL hash, the Page has no link to `#spike`, and `use-hash-route.ts` is removed. This replaces Criteria 1 to 5; see graveyard-ui Requirement 1.8.)
+
 ### Requirement 2: Choosing a statement
 
 **User Story:** As a user, I want to drop my statement, pick it from my files or try a sample, so that I can see results without hunting for the right control.
@@ -67,7 +70,7 @@ Out of scope for this spec:
 4. WHEN the user drops a file on the drop area, picks a file, or chooses a Sample, THE Page SHALL start the analysis of that Statement source (Requirement 3) and enter the `working` state (Requirement 4).
 5. WHEN a file is dragged over the drop area, THE Page SHALL show that the drop area will accept it, with a text change as well as a colour change.
 6. WHEN a file is dropped anywhere on the Page outside the drop area, THE browser SHALL NOT open or download the file, and THE Page SHALL ignore the drop.
-7. WHILE the Page is in the `working` state, THE Page SHALL ignore new drops and disable the file button and the Sample buttons.
+7. WHILE the Page is in the `working` state, THE Page SHALL ignore new drops and disable the file button and the Sample buttons. (changed by graveyard-ui: "disable" means `aria-disabled="true"` with handlers that do nothing, not the HTML `disabled` attribute, so focus is kept; see graveyard-ui Requirement 14.2.)
 8. THE drop area SHALL be operable from the keyboard: it SHALL be reachable with Tab, and Enter or Space on it SHALL open the file picker.
 
 ### Requirement 3: Analysing the statement in the browser
@@ -145,6 +148,8 @@ Out of scope for this spec:
 11a. IF a Currency total would not be a safe integer, THEN THE totals function SHALL throw a `RangeError`. The Pipeline's bounds (subscription-detector Requirement 6.5) keep real totals far below this, so it never reaches the user; a unit test SHALL cover it with two Counted subscriptions of `Number.MAX_SAFE_INTEGER`.
 12. *(PBT: grouping is complete)* FOR ALL arrays of `Subscription` values, the grouped and ordered display list SHALL contain every input subscription exactly once, in the group of its own currency.
 
+(Changed by graveyard-ui: the plain list is replaced by the Rising and the Graveyard view, so Criteria 3 to 6, 9 and 10 no longer describe what the Page shows. The ordering and grouping logic (Criterion 2) and the totals logic (Criteria 7, 11 and 11a) are kept. The Currency totals are shown as "Still draining <amount> a year", after subtracting the Counted savings of subscriptions answered "not using"; see graveyard-ui Requirement 1.6a.)
+
 ### Requirement 6: Money display
 
 **User Story:** As a user, I want amounts shown in my statement's currency in the usual format, so that I can read them at a glance and trust them.
@@ -179,7 +184,7 @@ Out of scope for this spec:
 
 #### Acceptance Criteria
 
-1. Every control (drop area, file button, Sample buttons, "Start again", the spike link) SHALL be reachable and operable with the keyboard alone, in a logical Tab order, and SHALL show a visible `--moss` focus ring with a 2px offset when focused.
+1. Every control (drop area, file button, Sample buttons, "Start again", the spike link) SHALL be reachable and operable with the keyboard alone, in a logical Tab order, and SHALL show a visible `--moss` focus ring with a 2px offset when focused. (Changed by graveyard-ui: the spike link is gone, because `#spike` is retired.)
 2. Every control SHALL have an accessible name. The hidden file input SHALL be labelled, and the drop area SHALL have a name that says it accepts a CSV statement.
 3. THE Page SHALL have a live region (`role="status"` or `aria-live="polite"`) that announces entering `working`, `results` (with the number of subscriptions found and each Currency total), `no-subscriptions` and `error` (with the error message). Error messages MAY use `role="alert"` instead.
 4. WHEN the Page enters `results`, `no-subscriptions` or `error`, THE Page SHALL move focus to the heading of that state's content.
@@ -199,7 +204,7 @@ Out of scope for this spec:
 2a. THE root `package.json` SHALL have `pretest` and `pretypecheck` scripts that run `npm run build --workspace @zombills/core`, so the root `npm test` and `npm run typecheck` work on a clean checkout, where `packages/core/dist` does not exist yet.
 3. THE repository SHALL contain a `netlify.toml` at the root with build command `npm run build` and publish directory `apps/web/dist`, and no redirects, functions or edge functions.
 4. THE built `apps/web/dist` SHALL contain only static files (HTML, JS, CSS, fonts, images), with the font files and the Sample text inside it.
-5. WHEN `apps/web/dist` is served by any static file server, THE Page SHALL work as described in this spec, including `#spike`.
+5. WHEN `apps/web/dist` is served by any static file server, THE Page SHALL work as described in this spec, including `#spike`. (Changed by graveyard-ui: "including `#spike`" no longer applies, because `#spike` is retired.)
 
 ### Requirement 10: Tests
 
@@ -210,8 +215,8 @@ Out of scope for this spec:
 1. `@zombills/web` SHALL have a `test` script that runs Vitest (with fast-check for the property tests and a DOM environment for component tests) and excludes `apps/web/e2e/`, so the root `npm test` runs it.
 2. Unit tests SHALL cover the Analyzer (Requirement 3, including each outcome kind, the missing-column check of Criterion 9 and each Sample), the byte decoding (Requirement 3.10), the Currency totals and display ordering (Requirement 5.2, 5.7, 5.11a), the date display (Requirement 5.8) and the Money formatter (Requirement 6). Property tests SHALL be in `.property.test.ts` files next to their source.
 3. Component tests SHALL render the Page and cover each Page state: `idle`; `working`, asserting that the `Reading <name>…` text appears before the outcome is shown (Requirement 3.8, 4.2); `results` from a Sample; `no-subscriptions`; and `error` for more than one file, a file over the Size limit, a non-CSV file, an empty file, a `"columns-unreadable"` outcome that names a missing column, and a headerless file such as `01/02/2026,NETFLIX.COM,-15.49` whose message says no header row was found and shows none of its cells. They SHALL also cover the `uk-debit-credit.csv` Sample re-encoded as Windows-1252 (so each `£` is the byte `0xA3`) and given as a file, which SHALL show the same transaction count, skipped-row count, subscriptions and GBP total as the Sample (Requirement 3.10); a currency group whose only subscription is guessed, showing the not-included note and no total line (Requirement 5.7); an Assumed value shown as text (Requirement 5.1a); "Start again" returning to `idle` with focus on the drop area; and the live-region announcement for `results`.
-4. Component tests SHALL check that the `#spike` hash shows the Spike and that removing the hash shows the Page.
-5. THE repository SHALL have one Playwright test in `apps/web/e2e/` (`.spec.ts`) that serves the built site and chooses the `us-signed.csv` Sample. It SHALL check that the USD list shows, in this order, Adobe Creative Cloud, Riverside Gym Membership, Netflix and Spotify (the subscriptions `packages/core/src/detect/samples.test.ts` expects for that Sample), and that the USD Currency total is `135564` minor units, shown as "$1,355.64". It SHALL fail if any request after the page has loaded breaks Requirement 7.1 (another origin, a method other than `GET`, a query string, a request body, or a path that is not a file in `dist`), or if anything is written to the browser console. The Playwright config SHALL set `locale: "en-US"` and `timezoneId: "UTC"`.
+4. Component tests SHALL check that the `#spike` hash shows the Spike and that removing the hash shows the Page. (Changed by graveyard-ui: these tests are removed and replaced by one test that `#spike` shows the Page; see graveyard-ui Requirement 16.3.)
+5. THE repository SHALL have one Playwright test in `apps/web/e2e/` (`.spec.ts`) that serves the built site and chooses the `us-signed.csv` Sample. It SHALL check that the USD list shows, in this order, Adobe Creative Cloud, Riverside Gym Membership, Netflix and Spotify (the subscriptions `packages/core/src/detect/samples.test.ts` expects for that Sample), and that the USD Currency total is `135564` minor units, shown as "$1,355.64". It SHALL fail if any request after the page has loaded breaks Requirement 7.1 (another origin, a method other than `GET`, a query string, a request body, or a path that is not a file in `dist`), or if anything is written to the browser console. The Playwright config SHALL set `locale: "en-US"` and `timezoneId: "UTC"`. (Changed by graveyard-ui: the list and Currency total checks are replaced by the haunted demo path, which keeps the console, request and CSP checks; see graveyard-ui Requirement 16.4.)
 6. The Playwright test SHALL run with its own script (`npm run test:e2e --workspace @zombills/web`), not as part of the root `npm test`.
 
 ### Requirement 11: Amendment to statement-parser

@@ -175,7 +175,7 @@ Tasks 14–17 build components that `SlicePage` does not render yet, tested on t
   - Existing tests: none change.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.8, 7.9, 8.1, 14.1_
 
-- [ ] 18. Page shell (`slice-page.tsx`, deletes `results-view.tsx` and `subscription-item.tsx`)
+- [x] 18. Page shell (`slice-page.tsx`, deletes `results-view.tsx` and `subscription-item.tsx`)
   - Wire `SlicePage` as in design "Page shell": `useReducedMotion`, `deriveHaunt` in `useMemo`, `useBurialFallback`, `NightScene`, the header panel (`h1` "Zombills", "Your bank statement is haunted.", `SavingsCounter`), and `main` with the state content (`order-1`), the Gate block (`order-2`, key `gate`, never remounted) and the controls row (`order-3`) for every view and screen; `RisingView` in `results` on `main`, `GraveyardView` on the `graveyard` screen; "Open the graveyard" in the Gate block when the Graveyard is not empty; `bg-fog/95` panels for text over the scene. Remove the slice's results-heading focus, the spike footer link and the `no-subscriptions-view.tsx` heading text ("No undead here.").
   - Delete `results-view.tsx`, `subscription-item.tsx` and `subscription-item.test.tsx`; nothing may import them.
   - New `graveyard-flow.test.tsx` (jsdom, rendering `<App />`) with the design cases "first card", "keep", "Netflix card", "bury", "burial fallback" (stubbed `BurialMound`, fake timers) and "Gate keeps focus".
@@ -188,26 +188,26 @@ Tasks 14–17 build components that `SlicePage` does not render yet, tested on t
 
 ## Batch 5: retire the Spike, finish the flow tests, update the vertical-slice spec, E2E
 
-- [ ] 19. Delete the Spike and the hash route (`App.tsx`, `src/spike/`, `src/routing/`, `src/static-checks.test.ts`)
+- [x] 19. Delete the Spike and the hash route (`App.tsx`, `src/spike/`, `src/routing/`, `src/static-checks.test.ts`)
   - `App.tsx` renders `<SlicePage />` only. Delete `src/spike/` (whole folder), `src/routing/use-hash-route.ts`, `src/routing/use-hash-route.test.ts` and `src/routing/spike-view.tsx`. Before deleting, check with a search that nothing outside those folders imports them.
   - Rewrite `app.test.tsx` as the one test of design "Component tests": `location.hash = "#spike"` before render → the `h1` "Zombills" and the drop area; no link to `#spike` anywhere.
   - New node test `src/static-checks.test.ts`: `index.css` has no `@keyframes`; no file under `src/**/*.{ts,tsx}` has an import specifier matching `/spike|routing/`.
   - Existing tests: `app.test.tsx` (both cases replaced by the one above); `routing/use-hash-route.test.ts` (deleted).
   - _Requirements: 1.7, 1.8, 1.9, 13.1, 16.3_
 
-- [ ] 20. Remove the Spike lint exemption (`eslint.config.js`)
+- [x] 20. Remove the Spike lint exemption (`eslint.config.js`)
   - Delete the `apps/web/src/spike/**` exemption block. Confirm the purity block names `logic/graveyard.ts`, `logic/queue.ts` and `logic/haunt-view.ts` (add them by path if it does not cover them).
   - Run `npm run lint` at the root and fix every finding in the moved files under `src/slice/graveyard/` without disabling a rule; in particular nothing divides by 100 and nothing calls `toFixed`.
   - Existing tests: none change.
   - _Requirements: 1.7, 15.1, 15.4_
 
-- [ ] 21. Flow tests: skip, guessed, Graveyard view and changed answers (`graveyard-flow.test.tsx`)
+- [x] 21. Flow tests: skip, guessed, Graveyard view and changed answers (`graveyard-flow.test.tsx`)
   - Tests only; fix any source bug they find in the file that owns it and name it in the task notes.
   - Add the design cases "skip and next", "guessed" (the CSV of the slice's "Guessed-only group" test, kept in one run and buried in a second), "Graveyard view" (including "Answer now" returning to the gym card with focus on its heading, "Nothing buried yet.", and "Back to the start" from `idle` returning focus to the drop area), "Already stopped" (the slice's "Ended" CSV) and "change answers" (Unbury Netflix → `formatMoney(13188)`, focus on the Resting item, live region; "Bury after all Netflix" → `34776`, focus on its tombstone).
   - Existing tests: none change.
   - _Requirements: 2.2, 2.4, 2.5, 2.7, 4.3, 5.6, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.9, 8.1, 8.3, 8.4, 8.5, 8.6, 14.2, 14.3, 16.2_
 
-- [ ] 22. Flow tests: privacy, names, decoration and motion (`graveyard-flow.test.tsx`, `graveyard-flow.reduced.test.tsx`, `graveyard-flow.motion.test.tsx`)
+- [x] 22. Flow tests: privacy, names, decoration and motion (`graveyard-flow.test.tsx`, `graveyard-flow.reduced.test.tsx`, `graveyard-flow.motion.test.tsx`)
   - Tests only, as in task 21.
   - In `graveyard-flow.test.tsx`: "no storage" (spies on `Storage.prototype` `getItem`, `setItem`, `removeItem`, `clear` never called; `document.cookie === ""`; `location.hash` unchanged; choosing the US Sample again after burying Netflix keeps its tombstone and Netflix never becomes the card); "unique names and Tab order" (`expectUniqueButtonNames` after every step of the keep, bury, skip, Graveyard-view and change-answer cases, and the Tab order from the top on the first card); "scene is decorative" (every `svg` and backdrop layer `aria-hidden`, no `img`).
   - `graveyard-flow.reduced.test.tsx`: `vi.mock("framer-motion", …)` with `useReducedMotion` returning `true` via `vi.importActual`; the burial skips "condemned", reaches the tombstone text and announcement, and focus lands on the tombstone.
@@ -215,13 +215,13 @@ Tasks 14–17 build components that `SlicePage` does not render yet, tested on t
   - Existing tests: none change.
   - _Requirements: 1.9, 2.8, 4.3, 9.7, 13.2, 13.3, 14.1, 14.2, 14.4, 15.2, 16.2_
 
-- [ ] 23. Notes in the vertical-slice requirements (`.kiro/specs/vertical-slice/requirements.md`)
+- [x] 23. Notes in the vertical-slice requirements (`.kiro/specs/vertical-slice/requirements.md`)
   - Documentation only; no code and no test.
-  - Add a note "(changed by graveyard-ui)" at each place Req 15.3 lists: Requirement 1 (`#spike` and the hash switch retired); Requirement 5 (the plain list replaced by the Rising and the Graveyard view, ordering, grouping and totals logic kept, Currency totals shown as "Still draining <amount> a year" after subtracting Counted savings); Requirement 8.1 (the spike link is gone); Requirement 9.5 ("including `#spike`" no longer applies); Requirements 10.4 and 10.5 (the changed tests, pointing at graveyard-ui Requirement 16); the Introduction's out-of-scope list (`zombie`, "Still using this?", Keep / Bury, tombstones and the graveyard now in scope).
+  - Add a note "(changed by graveyard-ui)" at each place Req 15.3 lists: Requirement 1 (`#spike` and the hash switch retired); Requirement 5 (the plain list replaced by the Rising and the Graveyard view, ordering, grouping and totals logic kept, Currency totals shown as "Still draining <amount> a year" after subtracting Counted savings); Requirement 8.1 (the spike link is gone); Requirement 9.5 ("including `#spike`" no longer applies); Requirements 10.4 and 10.5 (the changed tests, pointing at graveyard-ui Requirement 16); the Introduction's out-of-scope list (`zombie`, "Still using this?", Keep / Bury, tombstones and the graveyard now in scope)); Requirement 4.7 (disabled-while-working now means `aria-disabled="true"`, so focus is kept; already added with task 22).
   - Change nothing else in that file.
   - _Requirements: 15.3_
 
-- [ ] 24. E2E demo path (`e2e/demo-path.spec.ts`)
+- [x] 24. E2E demo path (`e2e/demo-path.spec.ts`)
   - Keep steps 1–3 (console and error collection, load, CSP tag) and 7–8 (request and `dist` checks) and the `locale: "en-US"`, `timezoneId: "UTC"` settings. Replace steps 4–6 with the eight steps of design "E2E test": the Rising summary `$1,355.64` scoped to `main p`; keep Adobe Creative Cloud and Riverside Gym Membership with "Next" between; the Netflix price-rise text; "No, bury it"; "Here lies Netflix." with "Saves $215.88/year.", the counter `$215.88`, "Still draining $1,139.76 a year" and the live-region text; "Open the graveyard" → "You buried $215.88 a year."; empty storage, cookies and unchanged URL; "Start again" focuses the drop area; at 320 × 640 no horizontal overflow on the Rising and the Graveyard view.
   - Check: `npm run test:e2e --workspace @zombills/web` passes; the root `npm test` runs no Playwright file.
   - Existing tests: `e2e/demo-path.spec.ts` steps 4–6 only.
@@ -233,7 +233,7 @@ Tasks 14–17 build components that `SlicePage` does not render yet, tested on t
 
 ## Batch 6: checkpoint
 
-- [ ] 25. Checkpoint: full verification and traceability review
+- [x] 25. Checkpoint: full verification and traceability review
   - Run from the repo root, on a clean core build: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`; then `npm run test:e2e --workspace @zombills/web` (Req 16.5). All must pass.
   - Searches over `apps/web/src` (non-test files) that must find nothing: `fetch(`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `EventSource`, `console.`, `localStorage`, `sessionStorage`, `indexedDB`, `caches`, `document.cookie`, `/ 100`, `toFixed`, `formatCents`, `@keyframes`, hex colours in `.tsx` files, and imports of `spike`, `routing` or `packages/core/src`. Search `dist` for any host other than the page's own (Req 15.1).
   - Check that the `privacy-guard` hook passes with no new exception (Req 15.4), that `src/spike/` and `src/routing/` no longer exist, and that `results-view.tsx` and `subscription-item.tsx` are gone.

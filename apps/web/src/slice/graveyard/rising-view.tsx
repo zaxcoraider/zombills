@@ -142,38 +142,40 @@ export function RisingView({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold">Recurring charges found</h2>
-      <StatementSummary sourceName={sourceName} outcome={outcome} />
-      {haunt.stillDraining.map((entry) => (
-        <div key={entry.currency} className="flex flex-col gap-2">
-          {entry.remainingCents !== null ? (
-            <p>
-              Still draining{" "}
-              <span className="text-blood text-2xl font-semibold">
-                <Money cents={entry.remainingCents} currency={entry.currency} />
-              </span>{" "}
-              a year
-            </p>
-          ) : null}
-          {entry.hasExcluded ? (
-            <p>
-              {entry.remainingCents === null ? `${entry.currency}: ` : ""}
-              {NOT_INCLUDED_NOTE}
-            </p>
-          ) : null}
+      <div className="flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+        <h2 className="text-xl font-bold">Recurring charges found</h2>
+        <StatementSummary sourceName={sourceName} outcome={outcome} />
+        {haunt.stillDraining.map((entry) => (
+          <div key={entry.currency} className="flex flex-col gap-2">
+            {entry.remainingCents !== null ? (
+              <p>
+                Still draining{" "}
+                <span className="text-blood text-2xl font-semibold">
+                  <Money cents={entry.remainingCents} currency={entry.currency} />
+                </span>{" "}
+                a year
+              </p>
+            ) : null}
+            {entry.hasExcluded ? (
+              <p>
+                {entry.remainingCents === null ? `${entry.currency}: ` : ""}
+                {NOT_INCLUDED_NOTE}
+              </p>
+            ) : null}
+          </div>
+        ))}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p>
+            {haunt.answeredCount} of {haunt.risen.length} answered
+          </p>
+          <button
+            type="button"
+            className={BUTTON_CLASS}
+            onClick={() => dispatch({ type: "open-graveyard" })}
+          >
+            Open the graveyard
+          </button>
         </div>
-      ))}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <p>
-          {haunt.answeredCount} of {haunt.risen.length} answered
-        </p>
-        <button
-          type="button"
-          className={BUTTON_CLASS}
-          onClick={() => dispatch({ type: "open-graveyard" })}
-        >
-          Open the graveyard
-        </button>
       </div>
       {noRisen ? (
         <NoRisen haunt={haunt} />

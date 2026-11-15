@@ -61,7 +61,7 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
     const input = event.currentTarget;
     const files = Array.from(input.files ?? []);
     input.value = "";
-    onFiles(files);
+    if (!disabled) onFiles(files);
   };
 
   const text = disabled
@@ -93,9 +93,9 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
       </div>
       <button
         type="button"
-        disabled={disabled}
+        aria-disabled={disabled ? true : undefined}
         onClick={openPicker}
-        className="rounded border border-bone bg-fog px-4 py-2 text-bone disabled:opacity-60"
+        className="rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:opacity-60"
       >
         Choose a file
       </button>
