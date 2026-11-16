@@ -120,21 +120,21 @@ Rules for every data task (tasks 6, 9, 10, 11 and 13), from design "Data file la
 
 Each data task follows "Rules for every data task" in Batch 2 and changes only `cancel-data.ts` and the `WRITTEN_THROUGH` line of `cancel-data.test.ts`. The data test, P6, P7 and P8 run on the data written so far after every task.
 
-- [ ] 9. Data batch 2 (`cancel/cancel-data.ts`)
+- [x] 9. Data batch 2 (`cancel/cancel-data.ts`)
   - Write `dazn`, `deezer`, `deliveroo-plus`, `discovery-plus`, `disney-plus`, `doordash-dashpass`, `dropbox`, `duolingo`, `ea-play`, `espn-plus`, `expressvpn`, `google-one`, all `lastChecked: null`.
   - Set `WRITTEN_THROUGH = "google-one"`.
   - Run `cancel-data.test.ts`, `lookup.property.test.ts`, `validate.property.test.ts` and `no-network.test.ts`.
   - Existing tests: `cancel-data.test.ts` (`WRITTEN_THROUGH` only).
   - _Requirements: 1.3, 1.4, 1.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.12_
 
-- [ ] 10. Data batch 3 (`cancel/cancel-data.ts`)
+- [x] 10. Data batch 3 (`cancel/cancel-data.ts`)
   - Write `grammarly`, `grubhub-plus`, `headspace`, `hellofresh`, `hulu`, `icloud`, `instacart-plus`, `kindle-unlimited`, `linkedin-premium`, `max`, `medium`, `microsoft-365`, all `lastChecked: null`.
   - Set `WRITTEN_THROUGH = "microsoft-365"`.
   - Run `cancel-data.test.ts`, `lookup.property.test.ts`, `validate.property.test.ts` and `no-network.test.ts`.
   - Existing tests: `cancel-data.test.ts` (`WRITTEN_THROUGH` only).
   - _Requirements: 1.3, 1.4, 1.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.12_
 
-- [ ] 11. Data batch 4, with `netflix` (`cancel/cancel-data.ts`)
+- [x] 11. Data batch 4, with `netflix` (`cancel/cancel-data.ts`)
   - Write `netflix`, `new-york-times`, `nintendo-switch-online`, `nordvpn`, `pandora`, `paramount-plus`, `peacock`, `peloton`, `planet-fitness`, `playstation-plus`, `siriusxm`, `sling-tv`, all `lastChecked: null`. Decide for `planet-fitness` between a Cancel entry and an Email-only id by Req 1.4 and record the reason if it is email-only.
   - The `netflix` entry has `netflix.com` in `providerDomains` and the steps of Req 1.5 unless the provider's labels differ; later tasks read it.
   - Set `WRITTEN_THROUGH = "sling-tv"`.
@@ -142,14 +142,14 @@ Each data task follows "Rules for every data task" in Batch 2 and changes only `
   - Existing tests: `cancel-data.test.ts` (`WRITTEN_THROUGH` only).
   - _Requirements: 1.3, 1.4, 1.5, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.12_
 
-- [ ] 12. Node environment and build checks (`cancel/node-env.test.ts`, `src/build.test.ts`)
+- [x] 12. Node environment and build checks (`cancel/node-env.test.ts`, `src/build.test.ts`)
   - Tests only; needs the `netflix` entry of task 11.
   - New `node-env.test.ts`, like `classify/node-env.test.ts`: imports every exported function from `../index.js` under Vitest's Node environment, asserts the same absent browser globals (Node's built-in `navigator` allowed), and calls each once: `getCancelHelp("netflix", "USD")` gives `kind: "link"`, `cancellationEmail` of the Req 3.10 Netflix row, `mailtoHref` of the result, `statementRegion("GBP")`, and `validateCancelDatabase` on the real data (proving the platform `URL` works without a polyfill).
   - In `build.test.ts`, add one case that imports the built `dist/index.js` in a fresh Node process and prints `getCancelHelp("netflix", "USD").kind`, expecting `link`, so a missing `.js` extension or barrel line fails.
   - Existing tests: `packages/core/src/build.test.ts` (one new case; existing cases unchanged).
   - _Requirements: 1.1, 4.4, 4.5_
 
-- [ ] 13. Data batch 5 and the final data test (`cancel/cancel-data.ts`)
+- [x] 13. Data batch 5 and the final data test (`cancel/cancel-data.ts`)
   - Write `spotify`, `strava`, `the-economist`, `the-guardian`, `tidal`, `uber-one`, `wall-street-journal`, `washington-post`, `xbox-game-pass`, `youtube-music`, `youtube-premium`, all `lastChecked: null`.
   - In `cancel-data.test.ts`, delete `WRITTEN_THROUGH`, `pending` and the filter, so the data test is the Req 5.5 test as written: the result must be `[]`, and the failure prints every issue's `message`. Check that the 59 Known ids now each appear exactly once across the two lists.
   - Run `cancel-data.test.ts`, `lookup.property.test.ts`, `validate.property.test.ts`, `node-env.test.ts` and `no-network.test.ts`.

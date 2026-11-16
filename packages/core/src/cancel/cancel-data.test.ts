@@ -3,10 +3,6 @@ import { KNOWN_SERVICES } from "../normalize/known-services.js";
 import { APP_STORE_LINKS, CANCEL_ENTRIES, EMAIL_ONLY_SERVICE_IDS } from "./cancel-data.js";
 import { validateCancelDatabase } from "./validate.js";
 
-/** Last Known id written so far. Batch 5 deletes this constant and the filter below. */
-const WRITTEN_THROUGH = "crunchyroll";
-const pending = (id: string) => id > WRITTEN_THROUGH;
-
 const KNOWN_IDS = KNOWN_SERVICES.map((s) => s.serviceId);
 
 function isDeepFrozen(value: unknown): boolean {
@@ -16,19 +12,21 @@ function isDeepFrozen(value: unknown): boolean {
 }
 
 describe("cancel data", () => {
-  it("breaks no rule except the ids of batches not yet written", () => {
+  it("breaks no rule in the real data", () => {
     const issues = validateCancelDatabase(
       CANCEL_ENTRIES,
       EMAIL_ONLY_SERVICE_IDS,
       KNOWN_IDS,
       APP_STORE_LINKS,
     );
-    const expected = KNOWN_IDS.filter(pending).map((id) => ({
-      serviceId: id,
-      rule: "missing-service",
-    }));
-    const actual = issues.map((i) => ({ serviceId: i.serviceId, rule: i.rule }));
-    expect(actual, issues.map((i) => i.message).join("\n")).toEqual(expected);
+    expect(issues, issues.map((i) => i.message).join("\n")).toEqual([]);
+  });
+
+  it("lists each of the 59 Known ids exactly once across the two lists", () => {
+    expect(KNOWN_IDS).toHaveLength(59);
+    const listed = [...CANCEL_ENTRIES, ...EMAIL_ONLY_SERVICE_IDS].map((r) => r.serviceId);
+    expect([...listed].sort()).toEqual([...KNOWN_IDS].sort());
+    expect(new Set(listed).size).toBe(listed.length);
   });
 
   it("holds a date no later than tomorrow (UTC) in every non-null lastChecked", () => {

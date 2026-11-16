@@ -176,6 +176,22 @@ describe("the built package in plain Node (Req 12.3)", () => {
   );
 
   it(
+    "calls getCancelHelp from dist/index.js: Netflix gives a link",
+    () => {
+      const run = runModule(
+        `
+        const api = await import(${JSON.stringify(pathToFileURL(join(distRoot, "index.js")).href)});
+        console.log(api.getCancelHelp("netflix", "USD").kind);
+      `,
+        repoRoot,
+      );
+      expect(run.status, run.stderr).toBe(0);
+      expect(run.stdout.trim()).toBe("link");
+    },
+    TIMEOUT,
+  );
+
+  it(
     "exports the public functions and nothing that needs a browser",
     () => {
       const run = runModule(
