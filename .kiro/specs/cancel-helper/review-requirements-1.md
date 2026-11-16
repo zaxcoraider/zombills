@@ -147,3 +147,4 @@ All 24 findings were accepted. "R" numbers refer to `requirements.md`.
 | 22 | The lookup must use a `Map`. Added `"constructor"` and `"__proto__"` example rows and unit cases. | R2.4, R2.7, R10.1 |
 | 23 | An `"EU"` URL is set only when the page is shared EU-wide; otherwise the default URL is used. | Glossary "Region", R2.2, R6.6 |
 | 24 | The hand-built `AnswerRecord` literals are listed. `test-fixtures.ts` builds none today, so the list names the files that do: `tombstone.test.tsx`, `logic/graveyard.test.ts` and `logic/test-arbitraries.ts`, plus any other file a search finds. | R9.4, R10.3 |
+| Design review 1 #11 | Req 5.4 now names a module-scoped `declare const URL` in the one file that calls it (for example `url-parts.ts`) instead of a `url-global.d.ts` file. Req 7.4 now gives the heading a visually hidden `: <Display name>`, so the region name is `Seal the grave: <Display name>`. Amended by design review 1 #11. | R5.4, R7.4 |
