@@ -100,3 +100,8 @@ All 18 findings accepted. Requirement numbers stay stable: Requirement 8 is kept
 | 16 | Moot. `moreNames` was removed with the names option. | R1.1 |
 | 17 | Accepted. Covered by finding 1: the panel compares content by deep equality, and Unbury and `Bury after all` are given only as examples. | R4.6; R9.3 |
 | 18 | Kept. `zombills.netlify.app` is the live Netlify site the team owns, deployed 2026-11-15 (`memory.md`). The Introduction now says so. | Introduction |
+| Design review 1, note 1 | Amended by design review 1. A throwing `downloadFile` now shows and announces `Could not save the image in this browser.`, and the message is added to the Live region and shown-failure lists and to the share-and-save tests. | R5.6; R7.5; R9.4 |
+| Design review 1, note 2 | Amended by design review 1. R7.1 gains one exception: if the main button has focus when R4.7 removes it, focus moves to the R4.4 button. | R7.1 |
+| Design review 1, note 3 | Amended by design review 1. R9.4 now lets tests pass the fake `downloadFile` as a prop or by mocking `download-file.ts`. | R9.4 |
+| Design review 1, finding 4 | Amended by design review 1. A run started by the R4.4 button that is redone for newer content still announces `Image ready. <alt text>`; R9.3's stale-first-render case expects that announcement. | R4.6; R9.3 |
+| Design review 1, finding 8 | Amended by design review 1. R10.1 allows setting `answer` with `.map`, with `cadenceAssumed` set to `true` exactly when `yearlySavingCents` is `null`. | R10.1 |
