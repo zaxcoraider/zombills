@@ -1,4 +1,4 @@
-// Cancel database. Data only: never built from or fetched from any external source (Req 1.8).
+// Cancel database. Data only: never built from or loaded from any external source (Req 1.8).
 // Every lastChecked stays null until the human step of tasks.md opens the URLs (Req 6.12).
 import type { AppStoreLink, AppStoreLinks, CancelEntry, EmailOnlyService } from "./types.js";
 

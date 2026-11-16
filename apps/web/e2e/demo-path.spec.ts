@@ -2,6 +2,7 @@ import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+import { CANCEL_ENTRIES } from "@zombills/core";
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 const ALLOWED_EXTENSIONS = new Set(["html", "js", "css", "woff", "woff2", "svg", "png"]);
@@ -83,6 +84,33 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
   await expect(page.getByRole("group", { name: "Saved per year" })).toContainText("$215.88");
   await expect(stillDraining("$1,139.76")).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Netflix is buried. Saves $215.88 a year.");
+
+  // Step 6b: the Helper panel under the tombstone. Nothing here is clicked: the cancel link, the
+  // App-store links and the mailto link are only read (cancel-helper Req 4.6).
+  const netflixEntry = CANCEL_ENTRIES.find((entry) => entry.serviceId === "netflix");
+  if (netflixEntry === undefined) throw new Error("no Netflix entry in CANCEL_ENTRIES");
+  const panel = page.getByRole("region", { name: "Seal the grave: Netflix" });
+  await expect(panel).toBeVisible();
+  const cancelLink = panel.getByRole("link", { name: /^Open the Netflix /, exact: false });
+  await expect(cancelLink).toHaveAttribute("target", "_blank");
+  await expect(cancelLink).toHaveAttribute("rel", "noopener noreferrer");
+  const cancelHref = await cancelLink.getAttribute("href");
+  if (cancelHref === null) throw new Error("the cancel link has no href");
+  const cancelUrl = new URL(cancelHref);
+  expect(cancelUrl.protocol).toBe("https:");
+  expect(
+    netflixEntry.providerDomains.some(
+      (domain) => cancelUrl.hostname === domain || cancelUrl.hostname.endsWith(`.${domain}`),
+    ),
+  ).toBe(true);
+  await expect(panel.getByRole("link", { name: /^Open in my email app/ })).toHaveAttribute(
+    "href",
+    /^mailto:\?subject=Please%20cancel%20my%20Netflix%20subscription/,
+  );
+  await expect(panel.locator("[data-email-text]")).toContainText(
+    "I am currently charged $17.99 (USD) every month.",
+  );
+  await expect(panel.getByText("Opens your email app with this text filled in.")).toBeVisible();
 
   // Step 7: the graveyard, then nothing stored and the URL unchanged.
   await page.getByRole("button", { name: "Open the graveyard" }).click();

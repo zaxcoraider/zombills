@@ -218,14 +218,14 @@ Tasks 14–17 and 19 test their components with fixtures or with `vi.mock("@zomb
 
 Tasks 20 and 21 read the real Netflix entry in a real browser. Neither clicks a cancel link, an App-store link or the `mailto:` link.
 
-- [ ] 20. E2E demo path (`e2e/demo-path.spec.ts`)
+- [x] 20. E2E demo path (`e2e/demo-path.spec.ts`)
   - Keep every graveyard-ui Req 16.4 step and check, the `locale: "en-US"` and `timezoneId: "UTC"` settings, and the request check that fails on any request to a host other than the Page's origin.
   - After the Netflix tombstone appears, add: the Helper panel `Seal the grave: Netflix` is visible; its cancel link has an `https` `href` whose host is on the Netflix entry's `providerDomains` (read from `CANCEL_ENTRIES` imported from `@zombills/core` in the test) and `rel="noopener noreferrer"` and `target="_blank"`; `Open in my email app` has an `href` starting `mailto:?subject=Please%20cancel%20my%20Netflix%20subscription`; the email text has `I am currently charged $17.99 (USD) every month.`; the hint `Opens your email app with this text filled in.` is shown. The existing storage, cookie and URL checks run after the panel is shown, so they also cover the email text.
   - Check: `npm run test:e2e --workspace @zombills/web` passes; the root `npm test` runs no Playwright file.
   - Existing tests: `e2e/demo-path.spec.ts` (new checks after the Netflix tombstone; existing steps unchanged).
   - _Requirements: 4.6, 4.7, 7.10, 10.4_
 
-- [ ] 21. E2E layout of the panel (`e2e/layout.spec.ts`)
+- [x] 21. E2E layout of the panel (`e2e/layout.spec.ts`)
   - Add a test at 320 × 568 and 390 × 844, and at 390 × 844 with `document.documentElement.style.fontSize = "200%"`: choose the US Sample, bury Netflix, wait for the Helper panel, then assert `document.documentElement.scrollWidth <= innerWidth`, that every link and button in the panel has a bounding box of at least 44 × 44 CSS px, and that the panel's box does not overlap the stage tombstone's stone box or the Burial mound.
   - Add a test at 1000 × 900: with the Netflix `How to cancel` panel expanded in the Graveyard view, assert the panel's bounding box is at least 480 px wide and lies fully inside the viewport horizontally (`x >= 0` and `x + width <= innerWidth`).
   - Check: `npm run test:e2e --workspace @zombills/web` passes.
@@ -234,7 +234,7 @@ Tasks 20 and 21 read the real Netflix entry in a real browser. Neither clicks a 
 
 > **Batch 5 (tasks 20–21) done:** reviewer runs root `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` and `npm run test:e2e --workspace @zombills/web`, all green.
 
-- [ ] 22. Checkpoint: full verification and traceability review
+- [x] 22. Checkpoint: full verification and traceability review
   - Run from the repo root, on a clean core build: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`; then `npm run test:e2e --workspace @zombills/web`. All must pass.
   - Searches that must find nothing: in non-test files of `packages/core/src/cancel`, `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `localStorage`, `sessionStorage`, `indexedDB`, `document.cookie`, `console.`, `Date.now`, `new Date()`, `performance.now`, `Math.random`, `randomUUID`, `toWellFormed(`, an import other than `../detect/types.js` and sibling files, a `.d.ts` file, and a `lastChecked` with a date; in non-test files of `apps/web/src`, `rel="prefetch"`, `preconnect`, `dns-prefetch`, `<iframe`, `<img`, `favicon`, a `target="_blank"` link without `rel="noopener noreferrer"`, `validateCancelDatabase`, an import from `packages/core/src`, `/ 100` and `toFixed`. `"DOM"` is in no core `lib`. Search `dist` for any host other than the page's own, apart from the cancel and App-store URLs as plain `href` text (Req 4.6).
   - Check that the `privacy-guard` hook, the `no-network` scans and the CSP of `csp-plugin.ts` pass with no new exception (Req 10.6); that no test, script or CI file requests a cancel URL (Req 4.5); and that every `lastChecked` in `cancel-data.ts` is still `null`.

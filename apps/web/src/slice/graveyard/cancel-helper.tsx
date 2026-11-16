@@ -129,9 +129,12 @@ export function CancelHelper({ record, displayName, reduceMotion }: CancelHelper
       aria-labelledby={headingId}
       className="flex w-full max-w-[34rem] flex-col items-start gap-3 rounded-2xl bg-fog p-4 text-left text-bone [overflow-wrap:anywhere]"
     >
-      <h3 id={headingId} className="font-display text-xl">
+      <h3
+        id={headingId}
+        aria-label={`${PANEL_HEADING}: ${displayName}`}
+        className="font-display text-xl"
+      >
         {PANEL_HEADING}
-        <span className="sr-only">: {displayName}</span>
       </h3>
       <p>{panelLine(displayName)}</p>
       <span id={newTabId} className="sr-only">
