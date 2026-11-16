@@ -260,7 +260,7 @@ export function Tombstone({
         </div>
       </motion.section>
       {!stage && action !== undefined && action !== null ? (
-        <div className="mt-4">{action}</div>
+        <div className="mt-4 w-full">{action}</div>
       ) : null}
     </div>
   );

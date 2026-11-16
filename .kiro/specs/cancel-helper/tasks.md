@@ -227,6 +227,7 @@ Tasks 20 and 21 read the real Netflix entry in a real browser. Neither clicks a 
 
 - [ ] 21. E2E layout of the panel (`e2e/layout.spec.ts`)
   - Add a test at 320 × 568 and 390 × 844, and at 390 × 844 with `document.documentElement.style.fontSize = "200%"`: choose the US Sample, bury Netflix, wait for the Helper panel, then assert `document.documentElement.scrollWidth <= innerWidth`, that every link and button in the panel has a bounding box of at least 44 × 44 CSS px, and that the panel's box does not overlap the stage tombstone's stone box or the Burial mound.
+  - Add a test at 1000 × 900: with the Netflix `How to cancel` panel expanded in the Graveyard view, assert the panel's bounding box is at least 480 px wide and lies fully inside the viewport horizontally (`x >= 0` and `x + width <= innerWidth`).
   - Check: `npm run test:e2e --workspace @zombills/web` passes.
   - Existing tests: `e2e/layout.spec.ts` (new test only; the graveyard-ui layout cases unchanged).
   - _Requirements: 7.2, 8.6, 10.5_

@@ -305,6 +305,25 @@ describe("GraveyardView: How to cancel", () => {
     expect(document.activeElement).toBe(button);
   });
 
+  it("spans the full row only while its panel is expanded", async () => {
+    const user = userEvent.setup();
+    renderView(usGraveyardModel());
+    const netflix = screen.getByRole("button", { name: "How to cancel Netflix" });
+    const spotify = screen.getByRole("button", { name: "How to cancel Spotify" });
+    const netflixItem = netflix.closest("li");
+    const spotifyItem = spotify.closest("li");
+    expect(netflixItem?.className).not.toContain("col-span-2");
+    expect(spotifyItem?.className).not.toContain("col-span-2");
+
+    await user.click(netflix);
+    expect(netflixItem?.className).toContain("min-[641px]:col-span-2");
+    expect(spotifyItem?.className).not.toContain("col-span-2");
+    expect(document.activeElement).toBe(netflix);
+
+    await user.click(netflix);
+    expect(netflixItem?.className).not.toContain("col-span-2");
+  });
+
   it("puts the disclosure next to Unbury and keeps the Unbury dispatch", () => {
     const { dispatch } = renderView(usGraveyardModel());
     const unbury = screen.getByRole("button", { name: "Unbury Netflix" });

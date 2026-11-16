@@ -39,12 +39,15 @@ function HelperDisclosure({
   record,
   name,
   reduceMotion,
+  open,
+  onToggle,
 }: {
   record: AnswerRecord;
   name: string;
   reduceMotion: boolean;
+  open: boolean;
+  onToggle: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const panelId = useId();
   return (
     <>
@@ -54,14 +57,14 @@ function HelperDisclosure({
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`How to cancel ${name}`}
-        onClick={() => setOpen(!open)}
+        onClick={onToggle}
       >
         How to cancel
       </button>
       <motion.div
         id={panelId}
         hidden={!open}
-        className="mt-4 w-full"
+        className="mx-auto mt-4 w-full max-w-xl"
         initial={false}
         animate={open ? "shown" : "collapsed"}
         variants={helperPanelVariants(reduceMotion)}
@@ -78,6 +81,8 @@ function TombstoneActions({
   isCurrent,
   ended,
   reduceMotion,
+  open,
+  onToggle,
   dispatch,
 }: {
   record: AnswerRecord;
@@ -85,6 +90,8 @@ function TombstoneActions({
   isCurrent: boolean;
   ended: boolean;
   reduceMotion: boolean;
+  open: boolean;
+  onToggle: () => void;
   dispatch: Dispatch<PageAction>;
 }) {
   return (
@@ -99,8 +106,63 @@ function TombstoneActions({
           Unbury
         </button>
       ) : null}
-      {ended ? null : <HelperDisclosure record={record} name={name} reduceMotion={reduceMotion} />}
+      {ended ? null : (
+        <HelperDisclosure
+          record={record}
+          name={name}
+          reduceMotion={reduceMotion}
+          open={open}
+          onToggle={onToggle}
+        />
+      )}
     </div>
+  );
+}
+
+/** One tombstone cell. While its Helper panel is open it spans the full row, so the panel has room. */
+function TombstoneItem({
+  record,
+  name,
+  ended,
+  isCurrent,
+  entering,
+  reduceMotion,
+  dispatch,
+}: {
+  record: AnswerRecord;
+  name: string;
+  ended: boolean;
+  isCurrent: boolean;
+  entering: boolean;
+  reduceMotion: boolean;
+  dispatch: Dispatch<PageAction>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className={open ? "w-full min-[641px]:col-span-2" : undefined}>
+      <Tombstone
+        record={record}
+        displayName={name}
+        size="list"
+        entering={entering}
+        reduceMotion={reduceMotion}
+        ended={ended}
+        action={
+          isCurrent || !ended ? (
+            <TombstoneActions
+              record={record}
+              name={name}
+              isCurrent={isCurrent}
+              ended={ended}
+              reduceMotion={reduceMotion}
+              open={open}
+              onToggle={() => setOpen(!open)}
+              dispatch={dispatch}
+            />
+          ) : null
+        }
+      />
+    </li>
   );
 }
 
@@ -175,34 +237,18 @@ export function GraveyardView({
             </p>
           ))}
           <ul className="grid grid-cols-1 justify-items-center gap-6 min-[641px]:grid-cols-2">
-            {tombstones.map((record) => {
-              const name = nameOf(record.id, record.merchant);
-              const ended = haunt.byId.get(record.id)?.status === "ended";
-              return (
-                <li key={record.id}>
-                  <Tombstone
-                    record={record}
-                    displayName={name}
-                    size="list"
-                    entering={record.id === enteringId}
-                    reduceMotion={reduceMotion}
-                    ended={ended}
-                    action={
-                      currentIds.has(record.id) || !ended ? (
-                        <TombstoneActions
-                          record={record}
-                          name={name}
-                          isCurrent={currentIds.has(record.id)}
-                          ended={ended}
-                          reduceMotion={reduceMotion}
-                          dispatch={dispatch}
-                        />
-                      ) : null
-                    }
-                  />
-                </li>
-              );
-            })}
+            {tombstones.map((record) => (
+              <TombstoneItem
+                key={record.id}
+                record={record}
+                name={nameOf(record.id, record.merchant)}
+                ended={haunt.byId.get(record.id)?.status === "ended"}
+                isCurrent={currentIds.has(record.id)}
+                entering={record.id === enteringId}
+                reduceMotion={reduceMotion}
+                dispatch={dispatch}
+              />
+            ))}
           </ul>
         </>
       )}
