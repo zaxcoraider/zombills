@@ -1,4 +1,4 @@
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
@@ -26,6 +26,12 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
   const problems: string[] = [];
   page.on("console", (message) => problems.push(`console ${message.type()}: ${message.text()}`));
   page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
+  // Remove Web Share so the Save path is taken on every platform. The cast is needed because,
+  // under `strict`, `delete` needs an optional operand (TS2790).
+  await page.addInitScript(() => {
+    delete (Navigator.prototype as Partial<Navigator>).share;
+    delete (Navigator.prototype as Partial<Navigator>).canShare;
+  });
 
   // Step 2: load the page, then record requests.
   const response = await page.goto("/");
@@ -115,6 +121,26 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
   // Step 7: the graveyard, then nothing stored and the URL unchanged.
   await page.getByRole("button", { name: "Open the graveyard" }).click();
   await expect(page.locator("main p", { hasText: "You buried $215.88 a year." })).toBeVisible();
+
+  // Step 7b: make the Share image, check it and save it. The file is a 1080 x 1080 PNG.
+  const sharePanel = page.getByRole("region", { name: "Share your graveyard" });
+  await expect(sharePanel).toBeVisible();
+  await sharePanel.getByRole("button", { name: "Make an image" }).click();
+  await expect(sharePanel.getByRole("img")).toHaveAttribute(
+    "alt",
+    "Image of your Zombills graveyard. I buried $215.88 a year. 1 subscription buried. zombills.netlify.app.",
+  );
+  const save = sharePanel.getByRole("button", { name: "Save image" });
+  await expect(save).toBeVisible();
+  const [download] = await Promise.all([page.waitForEvent("download"), save.click()]);
+  expect(download.suggestedFilename()).toBe("zombills-graveyard.png");
+  const downloadPath = await download.path();
+  const png = readFileSync(downloadPath);
+  expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  expect(png.subarray(12, 16).toString("latin1")).toBe("IHDR");
+  expect(png.readUInt32BE(16)).toBe(1080);
+  expect(png.readUInt32BE(20)).toBe(1080);
+
   const storage = await page.evaluate(() => ({
     local: localStorage.length,
     session: sessionStorage.length,
@@ -135,7 +161,7 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
   await expect(stillDraining("$1,139.76")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   await page.getByRole("button", { name: "Open the graveyard" }).click();
-  await expect(page.getByRole("heading", { name: "Your graveyard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your graveyard", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
   // Step 10: every request is a same-origin GET for a file in dist; the console is empty.

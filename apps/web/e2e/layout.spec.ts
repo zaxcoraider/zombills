@@ -125,7 +125,9 @@ for (const viewport of VIEWPORTS) {
         await next.click();
       }
 
-      await expect(page.getByRole("heading", { name: "Your graveyard" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Your graveyard", exact: true }),
+      ).toBeVisible();
       const stones = page
         .locator("main ul > li")
         .filter({ has: page.getByRole("button", { name: /^Unbury / }) });
@@ -244,7 +246,7 @@ test("the Graveyard view's open Helper panel is wide and inside the viewport at 
   await buryNetflix(page);
   await expect(page.getByRole("region", { name: PANEL_NAME })).toBeVisible();
   await page.getByRole("button", { name: "Open the graveyard" }).click();
-  await expect(page.getByRole("heading", { name: "Your graveyard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your graveyard", exact: true })).toBeVisible();
 
   const toggle = page.getByRole("button", { name: "How to cancel Netflix" });
   await toggle.click();
@@ -259,3 +261,67 @@ test("the Graveyard view's open Helper panel is wide and inside the viewport at 
   const innerWidth = await page.evaluate(() => window.innerWidth);
   expect(box.x + box.width).toBeLessThanOrEqual(innerWidth);
 });
+
+// The Share panel (share-card Req 4.5, 7.6, 9.7). Web Share is removed so the Save path is taken
+// on every platform. The cast is needed because, under `strict`, `delete` needs an optional
+// operand (TS2790).
+const SHARE_CASES = [
+  { label: "320x568", width: 320, height: 568, fontSize: null },
+  { label: "390x844", width: 390, height: 844, fontSize: null },
+  { label: "1000x900", width: 1000, height: 900, fontSize: null },
+  { label: "390x844 with 200% text", width: 390, height: 844, fontSize: "200%" },
+] as const;
+
+for (const shareCase of SHARE_CASES) {
+  test(`Share panel fits the viewport and has 44 px targets at ${shareCase.label}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      delete (Navigator.prototype as Partial<Navigator>).share;
+      delete (Navigator.prototype as Partial<Navigator>).canShare;
+    });
+    await page.setViewportSize({ width: shareCase.width, height: shareCase.height });
+    await buryNetflix(page, shareCase.fontSize);
+    await page.getByRole("button", { name: "Open the graveyard" }).click();
+    await expect(page.getByRole("heading", { name: "Your graveyard", exact: true })).toBeVisible();
+
+    const panel = page.getByRole("region", { name: "Share your graveyard" });
+    await panel.getByRole("button", { name: "Make an image" }).click();
+    const preview = panel.getByRole("img");
+    await expect(preview).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Save image" })).toBeVisible();
+    await preview.scrollIntoViewIfNeeded();
+    // Let the Preview finish its entrance before measuring.
+    await page.waitForTimeout(1000);
+
+    const overflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+    }));
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth);
+
+    const previewBox = await boxOf(preview);
+    const viewport = await viewportBox(page);
+    expect(previewBox.x, "Preview starts inside the viewport").toBeGreaterThanOrEqual(0);
+    expect(previewBox.x + previewBox.width, "Preview ends inside the viewport").toBeLessThanOrEqual(
+      viewport.width,
+    );
+    const panelBox = await boxOf(panel);
+    expect(inside(previewBox, panelBox), "Preview inside the panel").toBe(true);
+
+    const buttons = panel.getByRole("button");
+    const count = await buttons.count();
+    expect(count).toBeGreaterThan(0);
+    for (let index = 0; index < count; index += 1) {
+      const button = buttons.nth(index);
+      const label = (await button.innerText()).trim().replace(/\s+/g, " ");
+      const box = await boxOf(button);
+      expect(box.width, `"${label}" is at least ${MIN_TARGET} px wide`).toBeGreaterThanOrEqual(
+        MIN_TARGET,
+      );
+      expect(box.height, `"${label}" is at least ${MIN_TARGET} px high`).toBeGreaterThanOrEqual(
+        MIN_TARGET,
+      );
+    }
+  });
+}
