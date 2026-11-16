@@ -12,6 +12,7 @@ import { CancelHelper } from "./cancel-helper";
 import { helperPanelVariants } from "./motion";
 import { Money } from "./money-text";
 import { EndedList } from "./rising-view";
+import { SharePanel } from "./share-panel";
 import { Tombstone } from "./tombstone";
 import { useFocusRequest } from "./use-focus-request";
 
@@ -250,6 +251,7 @@ export function GraveyardView({
               />
             ))}
           </ul>
+          <SharePanel tombstones={tombstones} savings={savings} reduceMotion={reduceMotion} />
         </>
       )}
       {kept.length > 0 ? (
