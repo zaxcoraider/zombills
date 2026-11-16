@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MotionGlobalConfig } from "framer-motion";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
+import { COPY_LABEL_FADE, helperPanelMotion, helperPanelVariants } from "./graveyard/motion";
 import { formatMoney } from "./logic/money";
 
 vi.mock("framer-motion", async () => {
@@ -47,5 +48,24 @@ describe("graveyard flow: reduced motion", () => {
         `Saved per year: ${formatMoney(21588, "USD")}. ` +
         `Still draining ${formatMoney(113976, "USD")} a year.`,
     );
+  });
+
+  it("uses only a short opacity fade for the Helper panel and the disclosure", () => {
+    const entrance = helperPanelMotion(true);
+    expect(entrance.initial).toEqual({ opacity: 0 });
+    expect(entrance.animate).toEqual({ opacity: 1 });
+    expect(entrance.transition?.duration).toBeLessThanOrEqual(0.15);
+
+    const variants = helperPanelVariants(true);
+    for (const key of ["collapsed", "shown"]) {
+      const variant = variants[key];
+      if (variant === undefined || typeof variant === "function") throw new Error(key);
+      const { transition, ...values } = variant;
+      expect(Object.keys(values)).toEqual(["opacity"]);
+      if (transition !== undefined) {
+        expect((transition as { duration: number }).duration).toBeLessThanOrEqual(0.15);
+      }
+    }
+    expect(COPY_LABEL_FADE.duration).toBeLessThanOrEqual(0.15);
   });
 });

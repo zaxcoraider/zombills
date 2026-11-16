@@ -42,6 +42,7 @@ export const subscriptionArb: fc.Arbitrary<Subscription> = fc
     cadenceAssumed: fc.boolean(),
     yearlyCostCents: yearlyCostArb,
     source: fc.constantFrom("known", "generic", "unidentified"),
+    serviceId: fc.option(fc.constantFrom("netflix", "spotify", "amazon-prime"), { nil: null }),
     confidence: fc.constantFrom("high", "medium", "low"),
   })
   .map((v): Subscription => {
@@ -50,7 +51,7 @@ export const subscriptionArb: fc.Arbitrary<Subscription> = fc
       id: v.id,
       merchant: v.merchant,
       merchantKey: v.merchant.toLowerCase(),
-      serviceId: null,
+      serviceId: v.source === "known" ? v.serviceId : null,
       source: v.source,
       currency: v.currency,
       cadence: v.cadence,
@@ -337,6 +338,10 @@ export const answerRecordArb: fc.Arbitrary<AnswerRecord> = fc
   .record({
     id: fc.string({ minLength: 1, maxLength: 6 }),
     merchant: answerableMerchantArb,
+    serviceId: fc.option(
+      fc.constantFrom("netflix", "spotify", "amazon-prime", "constructor", "merchant:x"),
+      { nil: null },
+    ),
     currency: fc.constantFrom(...SAVING_CURRENCIES),
     cadence: fc.constantFrom("weekly", "monthly", "yearly"),
     currentAmountCents: fc.integer({ min: 0, max: MAX_AMOUNT_CENTS }),

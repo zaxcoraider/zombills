@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MotionGlobalConfig } from "framer-motion";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import usSigned from "../../../../../samples/us-signed.csv?raw";
 import { analyzeStatement } from "../logic/analyze-statement";
 import type { AnalysisOutcome, ResultsOutcome } from "../logic/analyze-statement";
@@ -69,7 +70,7 @@ function usGraveyardModel(): PageModel {
 
 function renderView(
   model: PageModel,
-  options: { hasStatement?: boolean; enteringId?: string | null } = {},
+  options: { hasStatement?: boolean; enteringId?: string | null; reduceMotion?: boolean } = {},
 ) {
   const dispatch = vi.fn<(action: PageAction) => void>();
   const haunt = deriveHaunt(model);
@@ -78,7 +79,7 @@ function renderView(
       haunt={haunt}
       hasStatement={options.hasStatement ?? model.view.kind === "results"}
       enteringId={options.enteringId ?? null}
-      reduceMotion={false}
+      reduceMotion={options.reduceMotion ?? false}
       dispatch={dispatch}
     />,
   );
@@ -238,6 +239,135 @@ describe("GraveyardView", () => {
 
   it("has unique button names in the full US view", () => {
     const { container } = renderView(usGraveyardModel());
+    expectUniqueButtonNames(container);
+  });
+});
+
+/** The US Graveyard model with the buried Netflix marked Ended in the current statement. */
+function endedNetflixModel(): PageModel {
+  const model = usGraveyardModel();
+  if (model.view.kind !== "results") throw new Error("expected the results view");
+  const { outcome } = model.view;
+  const subscriptions = outcome.subscriptions.map((s) =>
+    s.serviceId === "netflix" ? { ...s, status: "ended" as const } : s,
+  );
+  return { ...model, view: { ...model.view, outcome: { ...outcome, subscriptions } } };
+}
+
+describe("GraveyardView: How to cancel", () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it("starts collapsed, with a hidden panel that aria-controls names", () => {
+    renderView(usGraveyardModel());
+    const button = screen.getByRole("button", { name: "How to cancel Netflix" });
+    expect(button.textContent).toBe("How to cancel");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    const panel = document.getElementById(button.getAttribute("aria-controls") ?? "");
+    expect(panel).not.toBeNull();
+    expect(panel?.hidden).toBe(true);
+    expect(panel?.querySelector("section")?.getAttribute("aria-labelledby")).not.toBeNull();
+    expect(screen.queryByRole("region", { name: "Seal the grave: Netflix" })).toBeNull();
+  });
+
+  it("toggles with click, Enter and Space and keeps focus", async () => {
+    const user = userEvent.setup();
+    renderView(usGraveyardModel());
+    const button = screen.getByRole("button", { name: "How to cancel Netflix" });
+    const panel = document.getElementById(button.getAttribute("aria-controls") ?? "");
+
+    await user.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(panel?.hidden).toBe(false);
+    expect(document.activeElement).toBe(button);
+    expect(screen.getByRole("region", { name: "Seal the grave: Netflix" })).toBeTruthy();
+
+    await user.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(panel?.hidden).toBe(true);
+
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(button);
+    await user.keyboard(" ");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("puts the disclosure next to Unbury and keeps the Unbury dispatch", () => {
+    const { dispatch } = renderView(usGraveyardModel());
+    const unbury = screen.getByRole("button", { name: "Unbury Netflix" });
+    const how = screen.getByRole("button", { name: "How to cancel Netflix" });
+    expect(unbury.parentElement).toBe(how.parentElement);
+    fireEvent.click(unbury);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an Earlier record's disclosure without Unbury", () => {
+    const first = usGraveyardModel();
+    const other = [
+      "Date,Description,Amount",
+      "2026-01-03,RIVERSIDE GYM,-30.00",
+      "2026-02-03,RIVERSIDE GYM,-30.00",
+      "2026-03-03,RIVERSIDE GYM,-30.00",
+    ].join("\n");
+    const back = pageReducer(pageReducer(first, { type: "back-to-rising" }), { type: "reset" });
+    const second = pageReducer(load(back, resultsOf(other), 2), { type: "open-graveyard" });
+    renderView(second);
+    expect(screen.queryByRole("button", { name: /^Unbury/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "How to cancel Netflix" })).toBeTruthy();
+  });
+
+  it("gives an Ended tombstone the stopped line and no disclosure", () => {
+    renderView(endedNetflixModel());
+    const netflix = screen.getByRole("region", { name: "Here lies Netflix." });
+    expect(netflix.textContent).toContain("It has stopped charging.");
+    expect(netflix.textContent).not.toContain("Still feeding until you cancel.");
+    expect(screen.queryByRole("button", { name: "How to cancel Netflix" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Seal the grave: Netflix" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Unbury Netflix" })).toBeTruthy();
+    const spotify = screen.getByRole("region", { name: "Here lies Spotify." });
+    expect(spotify.textContent).toContain("Still feeding until you cancel.");
+    expect(screen.getByRole("button", { name: "How to cancel Spotify" })).toBeTruthy();
+  });
+
+  it("keeps two mounted panels apart by name", () => {
+    const { container } = renderView(usGraveyardModel());
+    expectUniqueButtonNames(container);
+    for (const name of ["Netflix", "Spotify"]) {
+      const button = screen.getByRole("button", { name: `How to cancel ${name}` });
+      const panel = document.getElementById(button.getAttribute("aria-controls") ?? "");
+      expect(panel).not.toBeNull();
+      if (panel === null) continue;
+      const controls = [...panel.querySelectorAll("button, a[href]")];
+      expect(controls.length).toBeGreaterThan(0);
+      for (const control of controls) {
+        const label = control.getAttribute("aria-label") ?? "";
+        const visible = (control.textContent ?? "").replace(/\s+/g, " ").trim();
+        expect(label.startsWith(visible)).toBe(true);
+        expect(label.endsWith(` for ${name}`)).toBe(true);
+      }
+    }
+  });
+
+  it("names every panel control once with both panels open", async () => {
+    const user = userEvent.setup();
+    const { container } = renderView(usGraveyardModel());
+    await user.click(screen.getByRole("button", { name: "How to cancel Netflix" }));
+    await user.click(screen.getByRole("button", { name: "How to cancel Spotify" }));
+    const netflix = screen.getByRole("region", { name: "Seal the grave: Netflix" });
+    expect(within(netflix).getByRole("button", { name: "Copy email for Netflix" })).toBeTruthy();
     expectUniqueButtonNames(container);
   });
 });

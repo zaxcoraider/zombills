@@ -57,6 +57,7 @@ describe("Answer records (Req 5.8 table)", () => {
     expect(first).toEqual([
       expect.objectContaining({
         id: "sub:USD:monthly:*:netflix",
+        serviceId: "netflix",
         answer: "not-using",
         cadenceAssumed: false,
         yearlySavingCents: 21_588,
@@ -66,6 +67,7 @@ describe("Answer records (Req 5.8 table)", () => {
     const second = recordAnswer(first, spotify, "not-using");
     expect(second[1]).toMatchObject({
       id: "sub:USD:monthly:*:spotify",
+      serviceId: "spotify",
       yearlySavingCents: 13_188,
     });
 
@@ -74,7 +76,7 @@ describe("Answer records (Req 5.8 table)", () => {
     expect(third[2]).toMatchObject({ cadenceAssumed: true, yearlySavingCents: null });
   });
 
-  it("builds a record with exactly the eight AnswerRecord keys", () => {
+  it("builds a record with exactly the nine AnswerRecord keys", () => {
     const record = answerRecordFor(byMerchant(usSubscriptions(), "Netflix"), "not-using");
     expect(Object.keys(record).sort()).toEqual(
       [
@@ -85,9 +87,21 @@ describe("Answer records (Req 5.8 table)", () => {
         "currentAmountCents",
         "id",
         "merchant",
+        "serviceId",
         "yearlySavingCents",
       ].sort(),
     );
+  });
+});
+
+describe("serviceId on the Answer record (cancel-helper Req 9)", () => {
+  it("copies serviceId and refreshes it, including to null", () => {
+    const netflix = byMerchant(usSubscriptions(), "Netflix");
+    const known: Subscription = { ...netflix, serviceId: "netflix" };
+    const graveyard = recordAnswer(EMPTY_GRAVEYARD, known, "not-using");
+    expect(graveyard[0]?.serviceId).toBe("netflix");
+    const [refreshed] = refreshGraveyard(graveyard, [{ ...known, serviceId: null }]);
+    expect(refreshed?.serviceId).toBeNull();
   });
 });
 
@@ -196,6 +210,7 @@ function record(
   return {
     id: `${currency}-${String(yearlySavingCents)}-${answer}`,
     merchant: "M",
+    serviceId: null,
     currency,
     cadence: "monthly",
     currentAmountCents: 1,

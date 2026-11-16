@@ -1,11 +1,15 @@
 // The Graveyard view: tombstones, what is resting, what is waiting and what has stopped.
 
 import type { Cadence } from "@zombills/core";
+import { motion } from "framer-motion";
+import { useId, useState } from "react";
 import type { Dispatch } from "react";
 import { CADENCE_LABELS } from "../logic/display-date";
 import type { AnswerRecord } from "../logic/graveyard";
 import type { HauntView } from "../logic/haunt-view";
 import type { PageAction } from "../page-state";
+import { CancelHelper } from "./cancel-helper";
+import { helperPanelVariants } from "./motion";
 import { Money } from "./money-text";
 import { EndedList } from "./rising-view";
 import { Tombstone } from "./tombstone";
@@ -29,6 +33,76 @@ const PERIODS_PER_YEAR: Readonly<Record<Cadence, number>> = {
   monthly: 12,
   yearly: 1,
 };
+
+/** `How to cancel` and the Helper panel it opens; the panel stays mounted while hidden. */
+function HelperDisclosure({
+  record,
+  name,
+  reduceMotion,
+}: {
+  record: AnswerRecord;
+  name: string;
+  reduceMotion: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  return (
+    <>
+      <button
+        type="button"
+        className={BUTTON_CLASS}
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={`How to cancel ${name}`}
+        onClick={() => setOpen(!open)}
+      >
+        How to cancel
+      </button>
+      <motion.div
+        id={panelId}
+        hidden={!open}
+        className="mt-4 w-full"
+        initial={false}
+        animate={open ? "shown" : "collapsed"}
+        variants={helperPanelVariants(reduceMotion)}
+      >
+        <CancelHelper record={record} displayName={name} reduceMotion={reduceMotion} />
+      </motion.div>
+    </>
+  );
+}
+
+function TombstoneActions({
+  record,
+  name,
+  isCurrent,
+  ended,
+  reduceMotion,
+  dispatch,
+}: {
+  record: AnswerRecord;
+  name: string;
+  isCurrent: boolean;
+  ended: boolean;
+  reduceMotion: boolean;
+  dispatch: Dispatch<PageAction>;
+}) {
+  return (
+    <div className="flex flex-wrap justify-center gap-3">
+      {isCurrent ? (
+        <button
+          type="button"
+          className={BUTTON_CLASS}
+          aria-label={`Unbury ${name}`}
+          onClick={() => dispatch({ type: "unbury", id: record.id })}
+        >
+          Unbury
+        </button>
+      ) : null}
+      {ended ? null : <HelperDisclosure record={record} name={name} reduceMotion={reduceMotion} />}
+    </div>
+  );
+}
 
 function RestingItem({
   record,
@@ -103,6 +177,7 @@ export function GraveyardView({
           <ul className="grid grid-cols-1 justify-items-center gap-6 min-[641px]:grid-cols-2">
             {tombstones.map((record) => {
               const name = nameOf(record.id, record.merchant);
+              const ended = haunt.byId.get(record.id)?.status === "ended";
               return (
                 <li key={record.id}>
                   <Tombstone
@@ -111,16 +186,17 @@ export function GraveyardView({
                     size="list"
                     entering={record.id === enteringId}
                     reduceMotion={reduceMotion}
+                    ended={ended}
                     action={
-                      currentIds.has(record.id) ? (
-                        <button
-                          type="button"
-                          className={BUTTON_CLASS}
-                          aria-label={`Unbury ${name}`}
-                          onClick={() => dispatch({ type: "unbury", id: record.id })}
-                        >
-                          Unbury
-                        </button>
+                      currentIds.has(record.id) || !ended ? (
+                        <TombstoneActions
+                          record={record}
+                          name={name}
+                          isCurrent={currentIds.has(record.id)}
+                          ended={ended}
+                          reduceMotion={reduceMotion}
+                          dispatch={dispatch}
+                        />
                       ) : null
                     }
                   />

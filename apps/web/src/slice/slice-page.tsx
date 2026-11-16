@@ -1,5 +1,5 @@
 import { useReducedMotion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Dispatch } from "react";
 import { DropZone } from "./drop-zone";
 import { ErrorView } from "./error-view";
@@ -10,6 +10,7 @@ import { NightScene } from "./graveyard/night-scene";
 import { RisingView } from "./graveyard/rising-view";
 import { SavingsCounter } from "./graveyard/savings-counter";
 import { useBurialFallback } from "./graveyard/use-burial-fallback";
+import { AnnounceContext } from "./graveyard/use-announce";
 import { FocusRequestContext, focusAndReveal, focusKey } from "./graveyard/use-focus-request";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { announcement } from "./logic/announce";
@@ -116,6 +117,27 @@ export function SlicePage() {
   }, []);
   const focusValue = useMemo(() => ({ focus: model.focus, claim }), [model.focus, claim]);
 
+  // The live region shows a Copy notice until the haunt sentence changes (Req 8.3, 8.4).
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeSeq = useRef(0);
+  const sentence = announcement(model);
+  const lastSentence = useRef(sentence);
+  const announce = useCallback((text: string) => {
+    noticeSeq.current += 1;
+    const mine = noticeSeq.current;
+    setNotice("");
+    void nextFrame().then(() => {
+      if (noticeSeq.current === mine) setNotice(text);
+    });
+  }, []);
+  const announceValue = useMemo(() => ({ announce }), [announce]);
+  useEffect(() => {
+    if (lastSentence.current === sentence) return;
+    lastSentence.current = sentence;
+    noticeSeq.current += 1;
+    setNotice(null);
+  }, [sentence]);
+
   // A file dropped outside the drop area is neither opened nor downloaded (Req 2.6).
   useEffect(() => {
     window.addEventListener("dragover", preventDefault);
@@ -200,72 +222,74 @@ export function SlicePage() {
 
   return (
     <FocusRequestContext.Provider value={focusValue}>
-      <NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMotion}>
-        <div className="mx-auto max-w-[640px] px-4 pt-8">
-          <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-fog/95 p-6">
-            <div className="flex flex-col gap-2">
-              <h1 className="font-display text-4xl">Zombills</h1>
-              <p>Your bank statement is haunted.</p>
-            </div>
-            <SavingsCounter
-              totals={haunt.savings}
-              fallbackCurrency={haunt.counterFallbackCurrency}
-              reduceMotion={reduceMotion}
-            />
-          </header>
-        </div>
-        <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
-          <div className="order-1">
-            {onGraveyard ? (
-              <GraveyardView
-                haunt={haunt}
-                hasStatement={hasStatement}
-                enteringId={enteringId}
+      <AnnounceContext.Provider value={announceValue}>
+        <NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMotion}>
+          <div className="mx-auto max-w-[640px] px-4 pt-8">
+            <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-fog/95 p-6">
+              <div className="flex flex-col gap-2">
+                <h1 className="font-display text-4xl">Zombills</h1>
+                <p>Your bank statement is haunted.</p>
+              </div>
+              <SavingsCounter
+                totals={haunt.savings}
+                fallbackCurrency={haunt.counterFallbackCurrency}
                 reduceMotion={reduceMotion}
-                dispatch={dispatch}
               />
-            ) : (
-              <MainState
-                model={model}
-                haunt={haunt}
-                reduceMotion={reduceMotion}
-                dispatch={dispatch}
-                onStartAgain={onStartAgain}
-              />
-            )}
+            </header>
           </div>
-          <div key="gate" className="order-2 flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
-            {gateHeading ? <h2 className="text-xl font-bold">Read another statement</h2> : null}
-            <DropZone disabled={working} onFiles={onFiles} />
-            <SampleButtons disabled={working} onChoose={onChooseSample} />
-            {showOpenGraveyard ? (
-              <div>
+          <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
+            <div className="order-1">
+              {onGraveyard ? (
+                <GraveyardView
+                  haunt={haunt}
+                  hasStatement={hasStatement}
+                  enteringId={enteringId}
+                  reduceMotion={reduceMotion}
+                  dispatch={dispatch}
+                />
+              ) : (
+                <MainState
+                  model={model}
+                  haunt={haunt}
+                  reduceMotion={reduceMotion}
+                  dispatch={dispatch}
+                  onStartAgain={onStartAgain}
+                />
+              )}
+            </div>
+            <div key="gate" className="order-2 flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+              {gateHeading ? <h2 className="text-xl font-bold">Read another statement</h2> : null}
+              <DropZone disabled={working} onFiles={onFiles} />
+              <SampleButtons disabled={working} onChoose={onChooseSample} />
+              {showOpenGraveyard ? (
+                <div>
+                  <button
+                    type="button"
+                    className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+                    onClick={() => dispatch({ type: "open-graveyard" })}
+                  >
+                    Open the graveyard
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="order-3">
+              {showStartAgain ? (
                 <button
                   type="button"
                   className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-                  onClick={() => dispatch({ type: "open-graveyard" })}
+                  onClick={onStartAgain}
                 >
-                  Open the graveyard
+                  Start again
                 </button>
-              </div>
-            ) : null}
-          </div>
-          <div className="order-3">
-            {showStartAgain ? (
-              <button
-                type="button"
-                className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-                onClick={onStartAgain}
-              >
-                Start again
-              </button>
-            ) : null}
-          </div>
-        </main>
-        <p role="status" className="sr-only">
-          {announcement(model)}
-        </p>
-      </NightScene>
+              ) : null}
+            </div>
+          </main>
+          <p role="status" className="sr-only">
+            {notice ?? sentence}
+          </p>
+        </NightScene>
+      </AnnounceContext.Provider>
     </FocusRequestContext.Provider>
   );
 }

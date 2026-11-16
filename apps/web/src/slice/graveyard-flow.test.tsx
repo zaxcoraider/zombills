@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { getCancelHelp } from "@zombills/core";
 import { MotionGlobalConfig } from "framer-motion";
 import type { ComponentProps } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,11 +8,23 @@ import userEvent from "@testing-library/user-event";
 import { App } from "../App";
 import { expectUniqueButtonNames } from "./graveyard/test-a11y";
 import { analyzeStatement } from "./logic/analyze-statement";
+import { COPY_FAILED_NOTICE, copiedNotice } from "./logic/cancel-text";
 import { partsToText, priceRiseParts } from "./logic/label-text";
 import { formatMoney } from "./logic/money";
 import { SAMPLES } from "./samples";
 
 const mound = vi.hoisted(() => ({ stalled: false }));
+// While set, the live-region sentence stays fixed whatever the model does.
+const sentenceLock = vi.hoisted(() => ({ text: null as string | null }));
+
+vi.mock("./logic/announce", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./logic/announce")>();
+  return {
+    ...actual,
+    announcement: (...args: Parameters<typeof actual.announcement>) =>
+      sentenceLock.text ?? actual.announcement(...args),
+  };
+});
 
 // A stalled mound never reports that it closed, so only the 2 s fallback can end the burial.
 vi.mock("./graveyard/burial-earth", async (importOriginal) => {
@@ -37,6 +50,7 @@ afterAll(() => {
 beforeEach(() => {
   window.location.hash = "";
   mound.stalled = false;
+  sentenceLock.text = null;
 });
 
 afterEach(() => {
@@ -554,5 +568,196 @@ describe("graveyard flow: scene is decorative", () => {
     for (const layer of layers) expect(layer.getAttribute("aria-hidden")).toBe("true");
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector('[role="img"]')).toBeNull();
+  });
+});
+
+const NETFLIX_HELP = getCancelHelp("netflix", "USD");
+
+/** Replaces `navigator.clipboard`; `undefined` removes it. Restored by `vi.unstubAllGlobals`. */
+function stubClipboard(writeText: ((text: string) => Promise<void>) | undefined) {
+  vi.stubGlobal("navigator", {
+    ...window.navigator,
+    clipboard: writeText === undefined ? undefined : { writeText },
+  });
+}
+
+function spyConsole() {
+  return [vi.spyOn(console, "error"), vi.spyOn(console, "warn")];
+}
+
+function expectNoConsole(spies: ReturnType<typeof spyConsole>) {
+  for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+}
+
+function panel(name: string): HTMLElement {
+  return screen.getByRole("region", { name: `Seal the grave: ${name}` });
+}
+
+async function buryNetflix() {
+  await chooseSample(US_LABEL);
+  reachNetflix();
+  await buryCurrent("Netflix");
+}
+
+describe("graveyard flow: Helper panel on the Burial stage", () => {
+  it("says the stone is still feeding, not the old cancel line", async () => {
+    render(<App />);
+    await buryNetflix();
+
+    const stone = screen.getByRole("region", { name: "Here lies Netflix." });
+    expect(within(stone).getByText("Still feeding until you cancel.")).toBeTruthy();
+    expect(screen.queryByText("Cancel it with the provider to stop the charges.")).toBeNull();
+  });
+
+  it("shows the Netflix panel below the tombstone and before Next, with focus on the tombstone", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await buryNetflix();
+    if (NETFLIX_HELP.kind !== "link") throw new Error("netflix has a cancel page");
+
+    const tombstone = screen.getByRole("region", { name: "Here lies Netflix." });
+    const netflix = panel("Netflix");
+    const next = screen.getByRole("button", { name: "Next" });
+    await waitFor(() => expect(document.activeElement).toBe(tombstone));
+    expect(
+      tombstone.compareDocumentPosition(netflix) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(netflix.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tombstone.contains(netflix)).toBe(false);
+
+    const link = within(netflix).getByRole("link", {
+      name: new RegExp(`^Open the Netflix (cancel|manage|help) page \\(${NETFLIX_HELP.host}\\)`),
+    });
+    const href = new URL(link.getAttribute("href") as string);
+    expect(href.protocol).toBe("https:");
+    expect(href.hostname === "netflix.com" || href.hostname.endsWith(".netflix.com")).toBe(true);
+    expect(href.toString()).toBe(new URL(NETFLIX_HELP.url).toString());
+    for (const step of NETFLIX_HELP.steps) expect(within(netflix).getByText(step)).toBeTruthy();
+    expect(netflix.querySelector("ol")?.querySelectorAll("li")).toHaveLength(
+      NETFLIX_HELP.steps.length,
+    );
+    const external = [...netflix.querySelectorAll<HTMLAnchorElement>('a[href^="https:"]')];
+    expect(external.length).toBeGreaterThanOrEqual(1);
+    for (const a of external) {
+      expect(a.getAttribute("target")).toBe("_blank");
+      expect(a.getAttribute("rel")).toBe("noopener noreferrer");
+    }
+
+    const email = netflix.querySelector("[data-email-text]") as HTMLElement;
+    expect(email.textContent).toContain("Please cancel my Netflix subscription");
+    expect(email.textContent).toContain(formatMoney(1799, "USD"));
+
+    const reached: HTMLElement[] = [];
+    for (let i = 0; i < 12; i += 1) {
+      await user.tab();
+      const active = document.activeElement as HTMLElement;
+      if (active === next) break;
+      reached.push(active);
+    }
+    expect(document.activeElement).toBe(next);
+    expect(reached.length).toBeGreaterThanOrEqual(3);
+    expect(reached[0]).toBe(link);
+    for (const el of reached) expect(netflix.contains(el)).toBe(true);
+    expectUnique();
+  });
+
+  it("shows the email-only panel for Riverside Gym Membership", async () => {
+    render(<App />);
+    await chooseSample(US_LABEL);
+    fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+    cardHeading("Riverside Gym Membership");
+    await buryCurrent("Riverside Gym Membership");
+
+    const gym = panel("Riverside Gym Membership");
+    expect(within(gym).getByText("No cancel page on file. Send them this instead:")).toBeTruthy();
+    expect(gym.querySelector("ol")).toBeNull();
+    const email = gym.querySelector("[data-email-text]") as HTMLElement;
+    expect(email.textContent).toContain("Riverside Gym Membership");
+    expect(email.textContent).toContain(formatMoney(2900, "USD"));
+    expectUnique();
+  });
+});
+
+describe("graveyard flow: Copy notice in the live region", () => {
+  it("announces the copy and rewrites it after the next frame on a second Copy", async () => {
+    const spies = spyConsole();
+    const writeText = vi.fn(() => Promise.resolve());
+    render(<App />);
+    await buryNetflix();
+    stubClipboard(writeText);
+
+    const copy = () =>
+      fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
+    copy();
+    await waitFor(() => expect(liveRegion().textContent).toBe(""));
+    await screen.findByText(copiedNotice("Netflix"), { selector: '[role="status"]' });
+    expect(writeText).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => expect(within(panel("Netflix")).queryByText("Copied")).toBeNull(), {
+      timeout: 3000,
+    });
+    copy();
+    await waitFor(() => expect(liveRegion().textContent).toBe(""));
+    await waitFor(() => expect(liveRegion().textContent).toBe(copiedNotice("Netflix")));
+    expect(writeText).toHaveBeenCalledTimes(2);
+    expectNoConsole(spies);
+  });
+
+  it("announces a failure for a rejecting writeText, with no console output", async () => {
+    const spies = spyConsole();
+    render(<App />);
+    await buryNetflix();
+    stubClipboard(() => Promise.reject(new Error("denied")));
+
+    fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
+
+    await waitFor(() => expect(liveRegion().textContent).toBe(COPY_FAILED_NOTICE));
+    expectNoConsole(spies);
+  });
+
+  it("announces a failure when navigator.clipboard is missing, with no console output", async () => {
+    const spies = spyConsole();
+    render(<App />);
+    await buryNetflix();
+    stubClipboard(undefined);
+
+    fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
+
+    await waitFor(() => expect(liveRegion().textContent).toBe(COPY_FAILED_NOTICE));
+    expectNoConsole(spies);
+  });
+
+  it("keeps the notice while the sentence is unchanged and replaces it with the next card's", async () => {
+    render(<App />);
+    await buryNetflix();
+    stubClipboard(() => Promise.resolve());
+    // Fix the sentence at the burial sentence, so the next model changes leave it unchanged.
+    sentenceLock.text = liveRegion().textContent;
+    fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
+    await waitFor(() => expect(liveRegion().textContent).toBe(copiedNotice("Netflix")));
+
+    // The model changes (the next card rises) but the sentence stays the same.
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    cardHeading("Spotify");
+    expect(liveRegion().textContent).toBe(copiedNotice("Netflix"));
+
+    // A model change with a new sentence hands the region back.
+    sentenceLock.text = null;
+    fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));
+    await waitFor(() => expect(liveRegion().textContent).toBe("Spotify rests. Kept."));
+  });
+
+  it("replaces the notice with the next card's sentence after Next", async () => {
+    render(<App />);
+    await buryNetflix();
+    stubClipboard(() => Promise.resolve());
+    fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
+    await waitFor(() => expect(liveRegion().textContent).toBe(copiedNotice("Netflix")));
+
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    cardHeading("Spotify");
+    await waitFor(() => expect(liveRegion().textContent).toContain("Spotify."));
+    expect(liveRegion().textContent).not.toContain("copied");
   });
 });

@@ -24,6 +24,9 @@ export const TOMBSTONE_RISE_SPRING = {
 } as const;
 export const COUNTER_TWEEN = { duration: 0.8, ease: [0.16, 1, 0.3, 1] } as const;
 export const REDUCED_FADE = { duration: 0.15 } as const;
+/** The Copy label swaps by fading, in both motion modes (cancel-helper Req 8.7). */
+export const COPY_LABEL_FADE = { duration: 0.15 } as const;
+const HELPER_PANEL_FADE = { duration: 0.2, ease: "easeOut" } as const;
 /** One budget for the whole burial sequence (Req 13.6). */
 export const BURIAL_FALLBACK_MS = 2000;
 
@@ -91,4 +94,28 @@ export function fogFade(
     animate: { opacity: fogCleared ? 0.45 : 1 },
     transition: reduced ? REDUCED_FADE : { duration: 2.4, ease: "easeOut" },
   };
+}
+
+/** The Helper panel fades in on mount, with a 6 px rise unless motion is reduced. */
+export function helperPanelMotion(reduced: boolean): EntranceMotion {
+  return reduced
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: REDUCED_FADE }
+    : {
+        initial: { opacity: 0, y: 6 },
+        animate: { opacity: 1, y: 0 },
+        transition: HELPER_PANEL_FADE,
+      };
+}
+
+/** The disclosure panel in the Graveyard view: `collapsed` and `shown`. */
+export function helperPanelVariants(reduced: boolean): Variants {
+  return reduced
+    ? {
+        collapsed: { opacity: 0 },
+        shown: { opacity: 1, transition: REDUCED_FADE },
+      }
+    : {
+        collapsed: { opacity: 0 },
+        shown: { opacity: 1, transition: HELPER_PANEL_FADE },
+      };
 }

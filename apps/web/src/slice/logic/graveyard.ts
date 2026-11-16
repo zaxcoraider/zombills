@@ -6,6 +6,8 @@ import { isCounted, type CurrencyTotal } from "./totals";
 export interface AnswerRecord {
   readonly id: string;
   readonly merchant: string;
+  /** Subscription.serviceId: a Known service id, or null for generic and unidentified merchants (cancel-helper Req 9) */
+  readonly serviceId: string | null;
   readonly currency: string;
   readonly cadence: Cadence;
   readonly currentAmountCents: number;
@@ -21,7 +23,7 @@ export type Graveyard = readonly AnswerRecord[];
 export const EMPTY_GRAVEYARD: Graveyard = [];
 
 /**
- * The record a subscription gets for an answer (Req 4.2, 5.2, 5.6). It reads only the eight fields
+ * The record a subscription gets for an answer (Req 4.2, 5.2, 5.6). It reads only the nine fields
  * it copies, so no charge, date or description reaches a record (Req 9.1).
  */
 export function answerRecordFor(subscription: Subscription, answer: UsageAnswer): AnswerRecord {
@@ -29,6 +31,7 @@ export function answerRecordFor(subscription: Subscription, answer: UsageAnswer)
   return {
     id: subscription.id,
     merchant: subscription.merchant,
+    serviceId: subscription.serviceId,
     currency: subscription.currency,
     cadence: subscription.cadence,
     currentAmountCents: subscription.currentAmountCents,

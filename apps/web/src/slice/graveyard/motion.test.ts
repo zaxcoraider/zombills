@@ -6,6 +6,7 @@ import {
   CARD_RISE_SPRING,
   CARD_SETTLE_SPRING,
   CARD_VARIANTS,
+  COPY_LABEL_FADE,
   COUNTER_TWEEN,
   REDUCED_FADE,
   SHUDDER,
@@ -15,6 +16,8 @@ import {
   cardVariants,
   counterFade,
   fogFade,
+  helperPanelMotion,
+  helperPanelVariants,
   moundMotion,
   tombstoneMotion,
 } from "./motion";
@@ -162,5 +165,48 @@ describe("nothing flashes", () => {
   it("no exported value repeats at all", () => {
     expect(JSON.stringify(CARD_VARIANTS)).not.toContain("repeat");
     expect(JSON.stringify(CARD_REDUCED_VARIANTS)).not.toContain("repeat");
+  });
+});
+
+describe("helper panel", () => {
+  /** Every key animated by a target and the longest duration among the transitions. */
+  const animatedKeys = (target: Dict) => Object.keys(target).filter((k) => k !== "transition");
+  const durationOf = (value: Dict) => (value.transition as { duration: number }).duration;
+
+  it("animates only opacity, within 0.15 s, when reduced", () => {
+    const entrance = helperPanelMotion(true);
+    expect(animatedKeys(entrance.initial as Dict)).toEqual(["opacity"]);
+    expect(animatedKeys(entrance.animate as Dict)).toEqual(["opacity"]);
+    expect(entrance.transition).toEqual(REDUCED_FADE);
+    expect(durationOf(entrance as Dict)).toBeLessThanOrEqual(0.15);
+
+    const variants = helperPanelVariants(true) as Record<string, Dict>;
+    expect(Object.keys(variants).sort()).toEqual(["collapsed", "shown"]);
+    expect(variants.collapsed).toEqual({ opacity: 0 });
+    expect(animatedKeys(variants.shown as Dict)).toEqual(["opacity"]);
+    expect(durationOf(variants.shown as Dict)).toBeLessThanOrEqual(0.15);
+
+    expect(Object.keys(COPY_LABEL_FADE)).toEqual(["duration"]);
+    expect(COPY_LABEL_FADE.duration).toBeLessThanOrEqual(0.15);
+  });
+
+  it("rises 6 px over 0.2 s when not reduced", () => {
+    const entrance = helperPanelMotion(false);
+    expect(entrance.initial).toEqual({ opacity: 0, y: 6 });
+    expect(entrance.animate).toEqual({ opacity: 1, y: 0 });
+    expect(durationOf(entrance as Dict)).toBe(0.2);
+
+    const variants = helperPanelVariants(false) as Record<string, Dict>;
+    expect(variants.collapsed).toEqual({ opacity: 0 });
+    expect(variants.shown?.opacity).toBe(1);
+    expect(durationOf(variants.shown as Dict)).toBe(0.2);
+  });
+
+  it("never repeats", () => {
+    for (const reduced of [true, false]) {
+      expect(JSON.stringify(helperPanelMotion(reduced))).not.toContain("repeat");
+      expect(JSON.stringify(helperPanelVariants(reduced))).not.toContain("repeat");
+    }
+    expect(JSON.stringify(COPY_LABEL_FADE)).not.toContain("repeat");
   });
 });

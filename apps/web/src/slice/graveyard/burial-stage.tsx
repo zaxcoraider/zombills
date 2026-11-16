@@ -2,11 +2,14 @@
 // and is keyed by subscription id, so the next card remounts it.
 
 import type { ClassifiedSubscription } from "@zombills/core";
+import { motion } from "framer-motion";
 import type { CSSProperties, Dispatch } from "react";
 import type { PageAction, RisingStage } from "../page-state";
 import type { AnswerRecord } from "../logic/graveyard";
 import { BurialMound, SinkCrumbs } from "./burial-earth";
+import { CancelHelper } from "./cancel-helper";
 import { Ground } from "./graveyard-backdrop";
+import { helperPanelMotion } from "./motion";
 import { Tombstone } from "./tombstone";
 import { UndeadCard, type CardPhase } from "./undead-card";
 import { useFocusRequest } from "./use-focus-request";
@@ -131,6 +134,12 @@ export function BurialStage({
           </div>
         )}
       </div>
+
+      {buried && record !== null && (
+        <motion.div className="mt-6 flex justify-center px-3" {...helperPanelMotion(reduceMotion)}>
+          <CancelHelper record={record} displayName={displayName} reduceMotion={reduceMotion} />
+        </motion.div>
+      )}
     </div>
   );
 }

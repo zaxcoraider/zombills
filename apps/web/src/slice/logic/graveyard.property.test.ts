@@ -98,8 +98,12 @@ describe("answers properties", () => {
               if (subscription === undefined) {
                 // Earlier records are the same objects as before
                 expect(before).toContain(record);
-              } else if (!record.cadenceAssumed) {
-                expect(subscription.evidence.cadenceAssumed).toBe(false);
+              } else {
+                // a refresh also copies serviceId (cancel-helper Req 9.2)
+                expect(record.serviceId).toBe(subscription.serviceId);
+                if (!record.cadenceAssumed) {
+                  expect(subscription.evidence.cadenceAssumed).toBe(false);
+                }
               }
             }
             // a removed record leaves its (guessed, Risen) subscription without a Current record
@@ -128,6 +132,10 @@ describe("answers properties", () => {
                 : "not-using";
           // the last answer given is the answer
           expect(graveyard.find((r) => r.id === action.id)?.answer).toBe(expected);
+          // the record carries its subscription's serviceId (cancel-helper Req 9)
+          expect(graveyard.find((r) => r.id === action.id)?.serviceId).toBe(
+            subscription.serviceId,
+          );
           // recording the same answer twice equals recording it once
           expect(recordAnswer(graveyard, subscription, expected)).toEqual(graveyard);
           // any action on one id leaves every other record deep-equal (Req 8.5)
@@ -284,6 +292,7 @@ describe("Savings totals properties", () => {
     const big = (id: string): ReturnType<typeof deepFreeze<Graveyard>>[number] => ({
       id,
       merchant: "M",
+      serviceId: null,
       currency: "USD",
       cadence: "yearly",
       currentAmountCents: 1,

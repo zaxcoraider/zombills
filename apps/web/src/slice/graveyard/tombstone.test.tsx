@@ -17,6 +17,7 @@ afterAll(() => {
 const NETFLIX: AnswerRecord = {
   id: "sub:USD:monthly:*:netflix",
   merchant: "Netflix",
+  serviceId: "netflix",
   currency: "USD",
   cadence: "monthly",
   currentAmountCents: 1799,
@@ -29,6 +30,7 @@ const GUESSED: AnswerRecord = {
   ...NETFLIX,
   id: "sub:USD:monthly:*:amazon-prime",
   merchant: "Amazon Prime",
+  serviceId: "amazon-prime",
   cadenceAssumed: true,
   yearlySavingCents: null,
 };
@@ -75,9 +77,26 @@ describe("Tombstone", () => {
   });
 
   it("shows the cancel line and never says 'cancelled'", () => {
+    const OLD_LINE = "Cancel it with the provider to stop the charges.";
     const { container } = renderStone(NETFLIX, "list");
-    expect(screen.getByText("Cancel it with the provider to stop the charges.")).toBeTruthy();
+    expect(screen.getByText("Still feeding until you cancel.")).toBeTruthy();
+    expect(screen.queryByText(OLD_LINE)).toBeNull();
     expect(/cancelled/i.test(container.textContent ?? "")).toBe(false);
+    cleanup();
+    const ended = render(
+      <Tombstone
+        record={NETFLIX}
+        displayName="Netflix"
+        size="list"
+        entering={false}
+        reduceMotion={false}
+        ended
+      />,
+    );
+    expect(screen.getByText("It has stopped charging.")).toBeTruthy();
+    expect(screen.queryByText("Still feeding until you cancel.")).toBeNull();
+    expect(screen.queryByText(OLD_LINE)).toBeNull();
+    expect(/cancelled/i.test(ended.container.textContent ?? "")).toBe(false);
   });
 
   it("renders the action slot only in the list size", () => {

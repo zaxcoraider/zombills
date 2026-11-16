@@ -166,6 +166,8 @@ export interface TombstoneProps {
   reduceMotion: boolean;
   /** Rendered under the stone in the list size: the "Unbury" button, or nothing */
   action?: ReactNode;
+  /** The charges have stopped: the subscription is gone from the current statement. */
+  ended?: boolean;
 }
 
 const IN_PLACE = { initial: false } as const;
@@ -177,6 +179,7 @@ export function Tombstone({
   entering,
   reduceMotion,
   action,
+  ended = false,
 }: TombstoneProps) {
   const titleId = useId();
   const focusRef = useFocusRequest(`tombstone:${record.id}`);
@@ -251,7 +254,7 @@ export function Tombstone({
                 stage ? "mt-3 text-xs" : "mt-2 text-[0.6875rem]"
               }`}
             >
-              Cancel it with the provider to stop the charges.
+              {ended ? "It has stopped charging." : "Still feeding until you cancel."}
             </p>
           </div>
         </div>

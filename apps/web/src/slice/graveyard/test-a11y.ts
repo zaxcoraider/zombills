@@ -7,9 +7,9 @@ function accessibleName(button: Element): string {
   return (button.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
-/** Every button under `container` has a name, and no two buttons share one (Req 14.1). */
+/** Every button and link under `container` has a name, and no two share one (Req 14.1, cancel-helper Req 8.5). */
 export function expectUniqueButtonNames(container: HTMLElement): void {
-  const names = [...container.querySelectorAll("button")].map(accessibleName);
+  const names = [...container.querySelectorAll("button, a[href]")].map(accessibleName);
   expect(names.every((name) => name !== "")).toBe(true);
   const duplicates = names.filter((name, i) => names.indexOf(name) !== i);
   expect(duplicates).toEqual([]);
