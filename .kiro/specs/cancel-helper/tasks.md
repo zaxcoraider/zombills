@@ -242,7 +242,7 @@ Tasks 20 and 21 read the real Netflix entry in a real browser. Neither clicks a 
   - Report any gap as a finding instead of fixing it here, unless the fix is a one-line test or text change.
   - _Requirements: all; in particular 4.1, 4.5, 4.6, 4.7, 6.11, 10.6_
 
-- [ ] 23. Verify every link by hand and record the dates (human step — Claude Code, not a Kiro task agent)
+- [x] 23. Verify every link by hand and record the dates (human step — Claude Code, not a Kiro task agent)
   - Done by a person, or by Claude Code driving a real browser. A Kiro task agent never runs this task and never writes a date (Req 1.4, 6.12).
   - Open every `url` and every `regionalUrls` value in `CANCEL_ENTRIES`, and both `APP_STORE_LINKS` URLs. For each, confirm that the page is the provider's own cancel, manage-subscription or help page on a domain the provider or its parent company owns, that `kind` says what the page is, that the steps match the page's current labels (Req 1.5), that `appStoreMayApply` is right, and that each `providerDomains` entry really belongs to the provider (Req 6.11). For each Email-only id, confirm that no official page lets a signed-in user cancel or manage the subscription, or move it to `CANCEL_ENTRIES` (Req 1.4).
   - Fix any entry that is wrong, keeping every rule of Req 6 (the data test of Req 5.5 must still return `[]`).

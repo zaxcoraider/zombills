@@ -22,6 +22,31 @@ describe("cancel data", () => {
     expect(issues, issues.map((i) => i.message).join("\n")).toEqual([]);
   });
 
+  // Req 5.6, 6.12. These nine ids could not be opened from the checker's network (US-only
+  // geo-block or bot wall), so they keep lastChecked null by the user's decision. The reason for
+  // each is in .kiro/specs/cancel-helper/link-verification-2026-11-16.md.
+  it("leaves only the nine named unverifiable ids unverified", () => {
+    const issues = validateCancelDatabase(
+      CANCEL_ENTRIES,
+      EMAIL_ONLY_SERVICE_IDS,
+      KNOWN_IDS,
+      APP_STORE_LINKS,
+      { requireVerified: true },
+    );
+    expect(issues.every((i) => i.rule === "unverified")).toBe(true);
+    expect(issues.map((i) => i.serviceId)).toEqual([
+      "audible",
+      "disney-plus",
+      "ea-play",
+      "hellofresh",
+      "hulu",
+      "max",
+      "peacock",
+      "peloton",
+      "wall-street-journal",
+    ]);
+  });
+
   it("lists each of the 59 Known ids exactly once across the two lists", () => {
     expect(KNOWN_IDS).toHaveLength(59);
     const listed = [...CANCEL_ENTRIES, ...EMAIL_ONLY_SERVICE_IDS].map((r) => r.serviceId);
