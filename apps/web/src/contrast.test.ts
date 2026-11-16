@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { GROUND_ALPHA, STONE_WASH_ALPHA } from "./slice/logic/share-card-art";
 
 const CSS = readFileSync(new URL("./index.css", import.meta.url), "utf8");
 
@@ -80,6 +81,18 @@ function mixOklab(a: string, b: string, t: number): string {
   ]);
 }
 
+/** `colour` laid over `background` at `alpha`, mixed per sRGB channel as canvas `globalAlpha` does. */
+function over(background: string, colour: string, alpha: number): string {
+  const channelAt = (hex: string, start: number): number => parseInt(hex.slice(start, start + 2), 16);
+  return `#${[1, 3, 5]
+    .map((start) =>
+      Math.round(channelAt(background, start) * (1 - alpha) + channelAt(colour, start) * alpha)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 /** Body of the first CSS rule whose selector is exactly `selector`. */
 function ruleBody(selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -140,6 +153,28 @@ describe("graveyard text and chip contrast", () => {
   it("mixOklab returns its endpoints at 0 and 1", () => {
     expect(mixOklab(tokenHex("fog"), tokenHex("bone"), 0)).toBe(tokenHex("fog").toLowerCase());
     expect(mixOklab(tokenHex("fog"), tokenHex("bone"), 1)).toBe(tokenHex("bone").toLowerCase());
+  });
+});
+
+describe("share card contrast (sRGB compositing, as the canvas does)", () => {
+  const stoneFace = () => over(tokenHex("fog"), tokenHex("bone"), STONE_WASH_ALPHA);
+  const ground = () => over(tokenHex("fog"), tokenHex("night"), GROUND_ALPHA);
+
+  it.each(["bone", "moss"])("%s on the stone face is at least 4.5:1", (name) => {
+    expect(contrast(tokenHex(name), stoneFace())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("bone on the ground is at least 4.5:1", () => {
+    expect(contrast(tokenHex("bone"), ground())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("bone on night is at least 4.5:1", () => {
+    expect(contrast(tokenHex("bone"), tokenHex("night"))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("over returns the background at alpha 0 and the colour at alpha 1", () => {
+    expect(over(tokenHex("fog"), tokenHex("bone"), 0)).toBe(tokenHex("fog").toLowerCase());
+    expect(over(tokenHex("fog"), tokenHex("bone"), 1)).toBe(tokenHex("bone").toLowerCase());
   });
 });
 

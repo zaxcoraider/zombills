@@ -105,3 +105,5 @@ All 18 findings accepted. Requirement numbers stay stable: Requirement 8 is kept
 | Design review 1, note 3 | Amended by design review 1. R9.4 now lets tests pass the fake `downloadFile` as a prop or by mocking `download-file.ts`. | R9.4 |
 | Design review 1, finding 4 | Amended by design review 1. A run started by the R4.4 button that is redone for newer content still announces `Image ready. <alt text>`; R9.3's stale-first-render case expects that announcement. | R4.6; R9.3 |
 | Design review 1, finding 8 | Amended by design review 1. R10.1 allows setting `answer` with `.map`, with `cadenceAssumed` set to `true` exactly when `yearlySavingCents` is `null`. | R10.1 |
+| Task 1 | Task 1: empty Graveyard excluded from the R9.1 exactly-when check (option A). R9.1 and task 1 in `tasks.md` now say the check covers non-empty Graveyards; the empty Graveyard keeps the R1.4 row `I buried 0 subscriptions. Saving unknown.` and is never rendered by the panel (R1.7). | R9.1 |
+| Task 3 | Task 3: Req 2.9 example corrected from 72 px to 53 px (arithmetic error; rule unchanged) | R2.9; task 3 in `tasks.md` |
