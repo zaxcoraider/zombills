@@ -160,3 +160,42 @@ export function findWordReferences(
   visit(sourceFile);
   return violations;
 }
+
+/**
+ * Identifiers, and `object.property` accesses, only: never string literals, templates, regular
+ * expressions or comments. Finds each of `words` as a whole identifier, and each `[object, property]`
+ * pair as a property access.
+ */
+export function findCodeReferences(
+  source: string,
+  file: string,
+  words: readonly string[],
+  accesses: readonly (readonly [string, string])[],
+): Violation[] {
+  const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const violations: Violation[] = [];
+
+  const report = (node: ts.Node, identifier: string): void => {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    violations.push({ file, line: line + 1, identifier });
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) && words.includes(node.text)) {
+      report(node, node.text);
+    }
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      ts.isIdentifier(node.name)
+    ) {
+      const object = node.expression.text;
+      const property = node.name.text;
+      if (accesses.some(([o, p]) => o === object && p === property)) {
+        report(node, `${object}.${property}`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return violations;
+}

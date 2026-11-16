@@ -1,5 +1,7 @@
 import fc from "fast-check";
 import type { Cadence } from "../detect/types.js";
+import { KNOWN_SERVICES } from "../normalize/known-services.js";
+import { CANCEL_ENTRIES } from "./cancel-data.js";
 import type { EmailInput } from "./types.js";
 
 /** Pieces that are hard for the cleaner, the template and the encoder. */
@@ -145,3 +147,30 @@ export function hostArb(domain: string): fc.Arbitrary<string> {
     domainArb,
   );
 }
+
+const KNOWN_IDS: readonly string[] = KNOWN_SERVICES.map((s) => s.serviceId);
+
+/** Case and space variants of a Known id. */
+const variantArb: fc.Arbitrary<string> = fc
+  .tuple(
+    fc.constantFrom(...KNOWN_IDS),
+    fc.constantFrom<(id: string) => string>(
+      (id) => id.toUpperCase(),
+      (id) => id.charAt(0).toUpperCase() + id.slice(1),
+      (id) => " " + id,
+      (id) => id + " ",
+      (id) => id + "\n",
+    ),
+  )
+  .map(([id, change]) => change(id));
+
+/** Service ids for the lookup: absent, real, Known, prototype keys, variants, merchant keys, noise. */
+export const serviceIdArb: fc.Arbitrary<string | null> = fc.oneof(
+  fc.constant(null),
+  fc.constantFrom(...CANCEL_ENTRIES.map((e) => e.serviceId)),
+  fc.constantFrom(...KNOWN_IDS),
+  fc.constantFrom("constructor", "__proto__", "toString", "hasOwnProperty", ""),
+  variantArb,
+  fc.stringMatching(/^[a-z0-9-]{1,20}$/).map((slug) => "merchant:" + slug),
+  fc.string(),
+);

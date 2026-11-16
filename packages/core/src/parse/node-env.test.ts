@@ -37,20 +37,28 @@ describe("the package entry in the Node test environment (Req 12.3)", () => {
     const entry = await import("../index.js");
     expect(Object.keys(entry).sort()).toEqual([
       "AMOUNT_HEADERS",
+      "APP_STORE_LINKS",
+      "CANCEL_ENTRIES",
       "CREDIT_HEADERS",
       "DATE_HEADERS",
       "DEBIT_HEADERS",
       "DESCRIPTION_HEADERS",
+      "EMAIL_ONLY_SERVICE_IDS",
       "EMPTY_CSV_REASON",
       "KNOWN_SERVICES",
       "NO_CONTENT_ROWS_REASON",
+      "cancellationEmail",
       "classifySubscriptions",
       "detectSubscriptions",
+      "getCancelHelp",
       "getKnownService",
+      "mailtoHref",
       "normalizeHeader",
       "normalizeMerchant",
       "normalizeTransactions",
       "parseStatement",
+      "statementRegion",
+      "validateCancelDatabase",
     ]);
   });
 
