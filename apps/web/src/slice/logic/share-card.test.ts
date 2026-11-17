@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AnswerRecord } from "./graveyard";
 import {
   MAX_TOTAL_LINES,
+  SHARE_EPITAPH,
   SHARE_FILE_NAME,
   SHARE_IMAGE_SIZE,
   SHARE_SITE_ADDRESS,
@@ -19,8 +20,10 @@ import {
   type TextOp,
 } from "./share-card";
 import { TOMBSTONE_BOX, shareCardArt } from "./share-card-art";
+import { fontFor } from "./share-card-fit";
 import { formatMoney } from "./money";
 import { deepFreeze } from "./test-arbitraries";
+import { BLOCK_SHAPES, textBoxes } from "./test-share-card-geometry";
 import type { CurrencyTotal } from "./totals";
 
 const LOCALE = "en-US";
@@ -323,12 +326,19 @@ const LARGEST: ShareCardContent = {
 describe("shareCardLayout: Req 2.9 examples", () => {
   it("first Req 1.8 row: brand, total at 53 px, count, address, no more-currencies", () => {
     const texts = textOps(shareCardLayout(ONE_TOTAL, fakeMeasure));
-    expect(texts.map((t) => t.role)).toEqual(["brand", "total", "count", "address"]);
+    expect(texts.map((t) => t.role)).toEqual([
+      "brand",
+      "epitaph",
+      "total",
+      "count",
+      "address",
+    ]);
     expect(texts[0]?.text).toBe("Zombills");
-    expect(texts[1]?.text).toBe("I buried $215.88 a year.");
-    expect(texts[1]?.sizePx).toBe(53);
-    expect(texts[2]?.text).toBe("1 subscription buried.");
-    expect(texts[3]?.text).toBe("zombills.netlify.app");
+    expect(texts[1]?.text).toBe("Rest in peace");
+    expect(texts[2]?.text).toBe("I buried $215.88 a year.");
+    expect(texts[2]?.sizePx).toBe(53);
+    expect(texts[3]?.text).toBe("1 subscription buried.");
+    expect(texts[4]?.text).toBe("zombills.netlify.app");
   });
 
   it("every text op is centred at x = 540", () => {
@@ -405,9 +415,10 @@ describe("shareCardLayout: structure", () => {
     expect(ops.slice(first).every((op) => op.kind === "text")).toBe(true);
   });
 
-  it("orders the text roles brand, totals, more-currencies, count, address", () => {
+  it("orders the text roles brand, epitaph, totals, more-currencies, count, address", () => {
     expect(textOps(ops).map((t) => t.role)).toEqual([
       "brand",
+      "epitaph",
       "total",
       "total",
       "total",
@@ -419,8 +430,16 @@ describe("shareCardLayout: structure", () => {
 
   it("uses only the shape kinds and path commands of Req 2.1", () => {
     for (const op of ops) {
-      expect(["text", "rect", "vertical-gradient", "circle", "path"]).toContain(op.kind);
-      if (op.kind === "path") {
+      expect([
+        "text",
+        "rect",
+        "vertical-gradient",
+        "circle",
+        "path",
+        "radial-gradient",
+        "stroke-path",
+      ]).toContain(op.kind);
+      if (op.kind === "path" || op.kind === "stroke-path") {
         for (const c of op.commands) expect(["move", "line", "close"]).toContain(c.op);
       }
     }
@@ -434,6 +453,10 @@ describe("shareCardLayout: structure", () => {
           expect(stop.paint.alpha).toBe(1);
           paints.push(stop.paint);
         }
+      } else if (op.kind === "radial-gradient") {
+        for (const stop of op.stops) paints.push(stop.paint);
+      } else if (op.kind === "stroke-path") {
+        paints.push(op.stroke);
       } else {
         paints.push(op.fill);
       }
@@ -536,6 +559,7 @@ describe("shareCardLayout: totality and purity", () => {
     const ops = shareCardLayout(longContent, measure);
     const sources = new Set<string>([
       SHARE_SITE_NAME,
+      SHARE_EPITAPH,
       SHARE_SITE_ADDRESS,
       moreCurrenciesLine(3),
       ...longContent.totalLines,
@@ -548,8 +572,16 @@ describe("shareCardLayout: totality and purity", () => {
         call.text.endsWith("…") && [...sources].some((s) => s.startsWith(call.text.slice(0, -1).trimEnd()));
       expect(isSource || isCandidate).toBe(true);
       expect(call.size).toBeGreaterThanOrEqual(1);
-      const role = Object.values(ROLE_STYLES).find((style) => call.font.startsWith(`${style.weight} `));
+      const role = Object.values(ROLE_STYLES).find(
+        (style) => call.font === fontFor(style, call.size),
+      );
       expect(role).toBeDefined();
+      const isEpitaphText =
+        call.text === SHARE_EPITAPH ||
+        (call.text.endsWith("…") &&
+          SHARE_EPITAPH.startsWith(call.text.slice(0, -1).trimEnd()));
+      if (call.font.startsWith("italic ")) expect(isEpitaphText).toBe(true);
+      if (call.text === SHARE_EPITAPH) expect(call.font.startsWith("italic ")).toBe(true);
       expect(call.size).toBeLessThanOrEqual(72);
     }
     expect(ops.length).toBeGreaterThan(0);
@@ -562,5 +594,111 @@ describe("shareCardLayout: totality and purity", () => {
     expect(content).toEqual(before);
     const second = shareCardLayout(structuredClone(LARGEST), fakeMeasure);
     expect(second).toEqual(first);
+  });
+});
+
+describe("shareCardLayout: epitaph (R11.6, R11.10)", () => {
+  const contents: readonly ShareCardContent[] = [
+    ...BLOCK_SHAPES,
+    ONE_TOTAL,
+    { totalLines: [], moreCurrencies: 0, countLine: "I buried 1 subscription." },
+  ];
+
+  it("SHARE_EPITAPH is Rest in peace", () => {
+    expect(SHARE_EPITAPH).toBe("Rest in peace");
+    expect(TEXT_LAYOUT.epitaphBaseline).toBe(384);
+  });
+
+  it.each(contents.map((content, i) => [i, content] as const))(
+    "content %i: the epitaph op, its line box and its place between brand and block",
+    (_i, content) => {
+      const ops = shareCardLayout(content, fakeMeasure);
+      const texts = textOps(ops);
+      const epitaph = texts[1];
+      expect(epitaph?.role).toBe("epitaph");
+      expect(epitaph?.text).toBe("Rest in peace");
+      expect(epitaph?.font).toBe('italic 400 40px "IM Fell English", Georgia, serif');
+      expect(epitaph?.sizePx).toBe(40);
+      expect(epitaph?.maxWidth).toBe(360);
+      expect(epitaph?.y).toBe(384);
+      expect(epitaph?.x).toBe(540);
+      expect(epitaph?.align).toBe("center");
+      expect(epitaph?.fill).toEqual({ token: "bone", alpha: 1 });
+
+      const boxes = textBoxes(ops);
+      const brand = boxes[0];
+      const box = boxes[1];
+      const first = boxes[2];
+      if (brand === undefined || box === undefined || first === undefined) {
+        throw new Error("missing box");
+      }
+      expect(box.y0).toBe(344);
+      expect(box.y1).toBeCloseTo(396, 9);
+      expect(brand.y1).toBeLessThan(box.y0);
+      expect(box.y1).toBeLessThan(first.y0);
+      expect(box.x0).toBeGreaterThanOrEqual(TOMBSTONE_BOX.x);
+      expect(box.x1).toBeLessThanOrEqual(TOMBSTONE_BOX.x + TOMBSTONE_BOX.w);
+      expect(box.y0).toBeGreaterThanOrEqual(TOMBSTONE_BOX.y);
+      expect(box.y1).toBeLessThanOrEqual(TOMBSTONE_BOX.y + TOMBSTONE_BOX.h);
+      expect(box.x0).toBeGreaterThanOrEqual(48);
+      expect(box.x1).toBeLessThanOrEqual(1032);
+      expect(box.y0).toBeGreaterThanOrEqual(48);
+      expect(box.y1).toBeLessThanOrEqual(1032);
+    },
+  );
+
+  it("shrinks to 28 px and shortens with an ellipsis when the measure makes it too wide", () => {
+    const wide: MeasureFn = (text, font) => fakeMeasure(text, font) * 4;
+    const epitaph = textOps(shareCardLayout(ONE_TOTAL, wide))[1];
+    expect(epitaph?.role).toBe("epitaph");
+    expect(epitaph?.sizePx).toBe(28);
+    expect(epitaph?.text.endsWith("…")).toBe(true);
+    expect(epitaph?.text).not.toBe(SHARE_EPITAPH);
+    expect(epitaph?.font).toBe('italic 400 28px "IM Fell English", Georgia, serif');
+  });
+
+  it("shareCardAlt is unchanged for the Req 2.9 literal and does not mention the epitaph", () => {
+    const alt = shareCardAlt(ONE_TOTAL);
+    expect(alt).toBe(
+      "Image of your Zombills graveyard. I buried $215.88 a year. 1 subscription buried. zombills.netlify.app.",
+    );
+    expect(alt).not.toContain("Rest in peace");
+    for (const content of BLOCK_SHAPES) expect(shareCardAlt(content)).not.toContain("Rest in peace");
+  });
+});
+
+describe("textBoxes and BLOCK_SHAPES (R11.13)", () => {
+  const fixed = (boxes: ReturnType<typeof textBoxes>) =>
+    [boxes[0], boxes[1], boxes[boxes.length - 1]].map((b) => [b?.x0, b?.y0, b?.x1, b?.y1]);
+
+  it.each([
+    [0, ["C 609–661"]],
+    [1, ["T 554–647.6", "C 664–716"]],
+    [2, ["T 499–592.6", "T 609–702.6", "C 719–771"]],
+    [3, ["T 444–537.6", "T 554–647.6", "T 664–757.6", "C 774–826"]],
+    [4, ["T 412–505.6", "T 522–615.6", "T 632–725.6", "M 742–788.8", "C 805–857"]],
+  ] as const)("shape %i gives the fixed boxes and the block boxes of the design", (i, block) => {
+    const content = BLOCK_SHAPES[i];
+    if (content === undefined) throw new Error("missing shape");
+    const ops = shareCardLayout(content, fakeMeasure);
+    const boxes = textBoxes(ops, true);
+    expect(boxes).toHaveLength(block.length + 3);
+    expect(fixed(boxes)).toEqual([
+      [96, 78, 984, 171.6],
+      [360, 344, 720, 396],
+      [96, 968, 984, 1014.8],
+    ]);
+    const roles = textOps(ops).slice(2, -1);
+    const got = boxes.slice(2, -1).map((b, k) => {
+      const letter = { total: "T", "more-currencies": "M", count: "C" }[
+        roles[k]?.role as "total" | "more-currencies" | "count"
+      ];
+      return `${letter} ${Number(b.y0.toFixed(1))}–${Number(b.y1.toFixed(1))}`;
+    });
+    expect(got).toEqual(block);
+    for (const b of boxes.slice(2, -1)) {
+      expect(b.x0).toBe(220);
+      expect(b.x1).toBe(860);
+    }
   });
 });

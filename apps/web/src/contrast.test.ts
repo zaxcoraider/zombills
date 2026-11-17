@@ -1,7 +1,9 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { shareCardLayout, type DrawOp, type MeasureFn, type PathCommand, type ShareCardContent } from "./slice/logic/share-card";
 import { GROUND_ALPHA, STONE_WASH_ALPHA } from "./slice/logic/share-card-art";
+import { BLOCK_SHAPES, textBoxes, type Point } from "./slice/logic/test-share-card-geometry";
 
 const CSS = readFileSync(new URL("./index.css", import.meta.url), "utf8");
 
@@ -176,6 +178,143 @@ describe("share card contrast (sRGB compositing, as the canvas does)", () => {
     expect(over(tokenHex("fog"), tokenHex("bone"), 0)).toBe(tokenHex("fog").toLowerCase());
     expect(over(tokenHex("fog"), tokenHex("bone"), 1)).toBe(tokenHex("bone").toLowerCase());
   });
+});
+
+/** Even-odd ray cast over the straight-line commands of one closed path. */
+function insidePath(commands: readonly PathCommand[], x: number, y: number): boolean {
+  const points: Point[] = commands.flatMap((c) => (c.op === "close" ? [] : [{ x: c.x, y: c.y }]));
+  let inside = false;
+  for (let i = 0; i < points.length; i += 1) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    if (a && b && a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function distanceToSegment(x: number, y: number, a: Point, b: Point): number {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const len2 = abx * abx + aby * aby;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * abx + (y - a.y) * aby) / len2));
+  return Math.hypot(x - (a.x + t * abx), y - (a.y + t * aby));
+}
+
+/** Channel-wise linear interpolation of two hex colours, on the gamma-encoded 8-bit values. */
+function lerpHex(a: string, b: string, t: number): string {
+  const channelAt = (hex: string, start: number): number => parseInt(hex.slice(start, start + 2), 16);
+  return `#${[1, 3, 5]
+    .map((start) =>
+      Math.round(channelAt(a, start) * (1 - t) + channelAt(b, start) * t)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+/** The colour that the art operations leave at (x, y); the canvas starts transparent black. */
+function compositeAt(ops: readonly DrawOp[], x: number, y: number): string {
+  let colour = "#000000";
+  for (const op of ops) {
+    if (op.kind === "text") break;
+    if (op.kind === "vertical-gradient") {
+      if (x < op.x || x > op.x + op.w || y < op.y || y > op.y + op.h) continue;
+      const offset = (y - op.y) / op.h;
+      const stops = op.stops;
+      let sky = tokenHex(stops[stops.length - 1]?.paint.token ?? "night");
+      if (offset <= (stops[0]?.offset ?? 0)) sky = tokenHex(stops[0]?.paint.token ?? "night");
+      for (let i = 1; i < stops.length; i += 1) {
+        const lo = stops[i - 1];
+        const hi = stops[i];
+        if (lo && hi && offset >= lo.offset && offset <= hi.offset) {
+          const span = hi.offset - lo.offset;
+          sky = lerpHex(tokenHex(lo.paint.token), tokenHex(hi.paint.token), span === 0 ? 1 : (offset - lo.offset) / span);
+          break;
+        }
+      }
+      colour = sky;
+    } else if (op.kind === "rect") {
+      if (x >= op.x && x <= op.x + op.w && y >= op.y && y <= op.y + op.h) {
+        colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
+      }
+    } else if (op.kind === "circle") {
+      if (Math.hypot(x - op.cx, y - op.cy) <= op.r) colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
+    } else if (op.kind === "path") {
+      if (insidePath(op.commands, x, y)) colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
+    } else if (op.kind === "radial-gradient") {
+      const fraction = Math.hypot(x - op.cx, y - op.cy) / op.r;
+      if (fraction >= 1) continue;
+      for (let i = 1; i < op.stops.length; i += 1) {
+        const lo = op.stops[i - 1];
+        const hi = op.stops[i];
+        if (lo && hi && fraction >= lo.offset && fraction <= hi.offset) {
+          const t = (fraction - lo.offset) / (hi.offset - lo.offset);
+          const alpha = lo.paint.alpha * (1 - t) + hi.paint.alpha * t;
+          colour = over(colour, tokenHex(lo.paint.token), alpha);
+          break;
+        }
+      }
+    } else {
+      const points: Point[] = op.commands.flatMap((c) => (c.op === "close" ? [] : [{ x: c.x, y: c.y }]));
+      const touches = points.some((a, i) => {
+        const b = points[i + 1];
+        return b !== undefined && distanceToSegment(x, y, a, b) <= op.lineWidth / 2;
+      });
+      if (touches) colour = over(colour, tokenHex(op.stroke.token), op.stroke.alpha);
+    }
+  }
+  return colour;
+}
+
+describe("share card contrast per operation (R11.8)", () => {
+  /** Fake measure of Req 2.9: sizePx × 0.5 × code points. */
+  const fakeMeasure: MeasureFn = (text, font) => {
+    const match = /(\d+)px /.exec(font);
+    return (match ? Number(match[1]) : 0) * 0.5 * Array.from(text).length;
+  };
+  const contents: readonly ShareCardContent[] = [
+    ...BLOCK_SHAPES,
+    { totalLines: ["I buried $215.88 a year."], moreCurrencies: 0, countLine: "1 subscription buried." },
+    { totalLines: [], moreCurrencies: 0, countLine: "I buried 2 subscriptions. Saving unknown." },
+  ];
+
+  it("samples the sky between night and fog on the encoded channels", () => {
+    const ops = shareCardLayout(contents[0] as ShareCardContent, fakeMeasure);
+    expect(compositeAt(ops, 5, 0)).toBe(tokenHex("night").toLowerCase());
+    expect(compositeAt(ops, 5, 432)).toBe(tokenHex("night").toLowerCase());
+    expect(compositeAt(ops, 5, 864)).toBe(lerpHex(tokenHex("night"), tokenHex("fog"), (0.8 - 0.4) / 0.6));
+    const skyAt1000 = lerpHex(tokenHex("night"), tokenHex("fog"), (1000 / 1080 - 0.4) / 0.6);
+    expect(compositeAt(ops, 5, 1000)).toBe(over(skyAt1000, tokenHex("night"), GROUND_ALPHA));
+  });
+
+  it.each(contents.map((c, i) => [i, c] as const))(
+    "every text line box of content %i is at least 4.5:1 against what is drawn under it",
+    (_i, content) => {
+      const ops = shareCardLayout(content, fakeMeasure);
+      const boxes = textBoxes(ops);
+      const texts = ops.filter((op) => op.kind === "text");
+      expect(boxes).toHaveLength(texts.length);
+      texts.forEach((op, i) => {
+        const box = boxes[i];
+        if (!box || op.kind !== "text") throw new Error("missing box");
+        const midX = (box.x0 + box.x1) / 2;
+        const samples: Point[] = [
+          { x: box.x0, y: box.y0 },
+          { x: box.x1, y: box.y0 },
+          { x: box.x0, y: box.y1 },
+          { x: box.x1, y: box.y1 },
+          { x: midX, y: box.y0 },
+          { x: midX, y: box.y1 },
+        ];
+        const text = over("#000000", tokenHex(op.fill.token), op.fill.alpha);
+        for (const p of samples) {
+          expect(contrast(text, compositeAt(ops, p.x, p.y))).toBeGreaterThanOrEqual(4.5);
+        }
+      });
+    },
+  );
 });
 
 describe("index.css rules", () => {

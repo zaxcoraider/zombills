@@ -6,6 +6,7 @@ import { formatMoney } from "./money";
 import {
   MAX_TOTAL_LINES,
   ROLE_STYLES,
+  SHARE_EPITAPH,
   SHARE_SITE_ADDRESS,
   SHARE_SITE_NAME,
   moreCurrenciesLine,
@@ -18,8 +19,14 @@ import {
   type TextOp,
   type TextRole,
 } from "./share-card";
-import { TOMBSTONE_BOX } from "./share-card-art";
+import { DIVIDER, TOMBSTONE_BOX } from "./share-card-art";
 import { answerRecordArb, deepFreeze } from "./test-arbitraries";
+import {
+  discRectDistance,
+  polylineSegments,
+  segmentRectDistance,
+  textBoxes,
+} from "./test-share-card-geometry";
 
 // Generators (design "Generators", Req 10.1)
 
@@ -94,6 +101,7 @@ describe("share card properties", () => {
         const content = shareCardContent(g.tombstones, g.savings, locale);
         const sources: { role: TextRole; text: string }[] = [
           { role: "brand", text: SHARE_SITE_NAME },
+          { role: "epitaph", text: SHARE_EPITAPH },
           ...content.totalLines.map((text) => ({ role: "total" as const, text })),
         ];
         if (content.moreCurrencies > 0) {
@@ -155,7 +163,12 @@ describe("share card properties", () => {
           expect(op.x - op.maxWidth / 2).toBeGreaterThanOrEqual(48);
           expect(op.x + op.maxWidth / 2).toBeLessThanOrEqual(1032);
 
-          if (op.role === "total" || op.role === "more-currencies" || op.role === "count") {
+          if (
+            op.role === "epitaph" ||
+            op.role === "total" ||
+            op.role === "more-currencies" ||
+            op.role === "count"
+          ) {
             expect(top).toBeGreaterThanOrEqual(TOMBSTONE_BOX.y);
             expect(bottom).toBeLessThanOrEqual(TOMBSTONE_BOX.y + TOMBSTONE_BOX.h);
             expect(op.x - op.maxWidth / 2).toBeGreaterThanOrEqual(TOMBSTONE_BOX.x);
@@ -194,6 +207,45 @@ describe("share card properties", () => {
         for (const line of content.totalLines) expect(alt).toContain(line);
         expect(alt).toContain(content.countLine);
         expect(alt.endsWith("zombills.netlify.app.")).toBe(true);
+      }),
+    );
+  });
+
+  it("P5: art stays off the text", () => {
+    fc.assert(
+      fc.property(contentArb, measureArb, (content, measure) => {
+        const ops = shareCardLayout(content, measure);
+        const boxes = textBoxes(ops);
+        expect(boxes.length).toBeGreaterThan(0);
+        const art = ops.filter((op) => op.kind !== "text");
+        for (const op of art) {
+          for (const box of boxes) {
+            if (op.kind === "circle" && op.r <= 3) {
+              expect(discRectDistance(op.cx, op.cy, op.r, box)).toBeGreaterThan(0);
+            } else if (op.kind === "radial-gradient") {
+              expect(discRectDistance(op.cx, op.cy, op.r, box)).toBeGreaterThan(0);
+            } else if (op.kind === "stroke-path") {
+              for (const [a, b] of polylineSegments(op.commands)) {
+                expect(segmentRectDistance(a, b, box)).toBeGreaterThan(op.lineWidth / 2);
+              }
+            } else if (op.kind === "rect" && op.y === DIVIDER.y) {
+              expect(op.y + op.h < box.y0 || op.y > box.y1 || op.x + op.w < box.x0 || op.x > box.x1).toBe(true);
+            } else if (op.kind === "path" && op.fill.token === "moss") {
+              const points = op.commands.flatMap((c) => (c.op === "close" ? [] : [c]));
+              const xs = points.map((p) => p.x);
+              const ys = points.map((p) => p.y);
+              const apart =
+                Math.max(...xs) < box.x0 ||
+                Math.min(...xs) > box.x1 ||
+                Math.max(...ys) < box.y0 ||
+                Math.min(...ys) > box.y1;
+              expect(apart).toBe(true);
+            }
+          }
+        }
+        // the layout holds each kind of art, so the loop above checked something
+        expect(art.some((op) => op.kind === "radial-gradient")).toBe(true);
+        expect(art.filter((op) => op.kind === "stroke-path")).toHaveLength(2);
       }),
     );
   });

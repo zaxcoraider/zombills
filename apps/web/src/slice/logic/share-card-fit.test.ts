@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { ROLE_STYLES, type TextRole } from "./share-card";
 import {
   DISPLAY_FAMILY,
   ELLIPSIS,
@@ -23,6 +24,7 @@ function cssFont(name: string): string {
 const SANS_STYLE: RoleStyle = {
   family: "sans",
   weight: 600,
+  style: "normal",
   startPx: 72,
   floorPx: 1,
   shorten: false,
@@ -31,6 +33,7 @@ const SANS_STYLE: RoleStyle = {
 const DISPLAY_STYLE: RoleStyle = {
   family: "display",
   weight: 400,
+  style: "normal",
   startPx: 40,
   floorPx: 20,
   shorten: true,
@@ -50,6 +53,25 @@ describe("fontFor", () => {
 
   it("builds the display shorthand", () => {
     expect(fontFor(DISPLAY_STYLE, 40)).toBe('400 40px "IM Fell English", Georgia, serif');
+  });
+
+  it("puts italic first for the epitaph style", () => {
+    expect(fontFor(ROLE_STYLES.epitaph, 40)).toBe('italic 400 40px "IM Fell English", Georgia, serif');
+  });
+
+  it("leaves every other role's font without italic", () => {
+    const expected: Record<Exclude<TextRole, "epitaph">, string> = {
+      brand: '400 72px "IM Fell English", Georgia, serif',
+      total: '600 72px "Inter", ui-sans-serif, system-ui, sans-serif',
+      "more-currencies": '500 36px "Inter", ui-sans-serif, system-ui, sans-serif',
+      count: '500 40px "Inter", ui-sans-serif, system-ui, sans-serif',
+      address: '500 36px "Inter", ui-sans-serif, system-ui, sans-serif',
+    };
+    for (const role of Object.keys(expected) as (keyof typeof expected)[]) {
+      const style = ROLE_STYLES[role];
+      expect(fontFor(style, style.startPx)).toBe(expected[role]);
+      expect(fontFor(style, style.startPx)).not.toContain("italic");
+    }
   });
 
   it("uses the weight given", () => {

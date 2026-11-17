@@ -9,6 +9,8 @@ export const MAX_TOTAL_LINES = 3;
 export const SHARE_SITE_NAME = "Zombills";
 export const SHARE_SITE_ADDRESS = "zombills.netlify.app";
 export const SHARE_FILE_NAME = "zombills-graveyard.png";
+/** R11.6. The epitaph's source text. */
+export const SHARE_EPITAPH = "Rest in peace";
 
 export type ShareCardContent = {
   readonly totalLines: readonly string[]; // "I buried $215.88 a year.", at most MAX_TOTAL_LINES
@@ -20,7 +22,7 @@ export type MeasureFn = (text: string, font: string) => number;
 export type ColourToken = "night" | "fog" | "bone" | "moss";
 export type Paint = { readonly token: ColourToken; readonly alpha: number }; // alpha in [0, 1]
 
-export type TextRole = "brand" | "total" | "more-currencies" | "count" | "address";
+export type TextRole = "brand" | "epitaph" | "total" | "more-currencies" | "count" | "address";
 
 export type TextOp = {
   readonly kind: "text";
@@ -67,6 +69,21 @@ export type ShapeOp =
       readonly kind: "path";
       readonly commands: readonly PathCommand[];
       readonly fill: Paint;
+    }
+  // R11.1: fills the disc of radius r; offsets ascending in [0, 1]
+  | {
+      readonly kind: "radial-gradient";
+      readonly cx: number;
+      readonly cy: number;
+      readonly r: number;
+      readonly stops: readonly { readonly offset: number; readonly paint: Paint }[];
+    }
+  // R11.1: lineWidth > 0; straight lines only; drawn with round joins and caps
+  | {
+      readonly kind: "stroke-path";
+      readonly commands: readonly PathCommand[];
+      readonly stroke: Paint;
+      readonly lineWidth: number;
     };
 
 export type DrawOp = TextOp | ShapeOp;
@@ -133,15 +150,27 @@ export const ROLE_STYLES: Readonly<Record<TextRole, RoleStyle & { readonly fill:
   brand: {
     family: "display",
     weight: 400,
+    style: "normal",
     startPx: 72,
     floorPx: 40,
     shorten: true,
     maxWidth: 888,
     fill: { token: "bone", alpha: 1 },
   },
+  epitaph: {
+    family: "display",
+    weight: 400,
+    style: "italic",
+    startPx: 40,
+    floorPx: 28,
+    shorten: true,
+    maxWidth: 360,
+    fill: { token: "bone", alpha: 1 },
+  },
   total: {
     family: "sans",
     weight: 600,
+    style: "normal",
     startPx: 72,
     floorPx: 1,
     shorten: false,
@@ -151,6 +180,7 @@ export const ROLE_STYLES: Readonly<Record<TextRole, RoleStyle & { readonly fill:
   "more-currencies": {
     family: "sans",
     weight: 500,
+    style: "normal",
     startPx: 36,
     floorPx: 24,
     shorten: true,
@@ -160,6 +190,7 @@ export const ROLE_STYLES: Readonly<Record<TextRole, RoleStyle & { readonly fill:
   count: {
     family: "sans",
     weight: 500,
+    style: "normal",
     startPx: 40,
     floorPx: 1,
     shorten: false,
@@ -169,6 +200,7 @@ export const ROLE_STYLES: Readonly<Record<TextRole, RoleStyle & { readonly fill:
   address: {
     family: "sans",
     weight: 500,
+    style: "normal",
     startPx: 36,
     floorPx: 24,
     shorten: true,
@@ -180,6 +212,8 @@ export const ROLE_STYLES: Readonly<Record<TextRole, RoleStyle & { readonly fill:
 export const TEXT_LAYOUT = {
   centreX: 540,
   brandBaseline: 150,
+  /** R11.6. Fixed, above the block band, so no block position changes */
+  epitaphBaseline: 384,
   addressBaseline: 1004,
   /** The band on the stone that holds the total, more-currencies and count lines */
   bandTop: 410,
@@ -223,6 +257,7 @@ function textOp(
 export function shareCardLayout(content: ShareCardContent, measure: MeasureFn): readonly DrawOp[] {
   const ops: DrawOp[] = [...shareCardArt()];
   ops.push(textOp("brand", SHARE_SITE_NAME, TEXT_LAYOUT.brandBaseline, measure));
+  ops.push(textOp("epitaph", SHARE_EPITAPH, TEXT_LAYOUT.epitaphBaseline, measure));
 
   const block: { readonly role: "total" | "more-currencies" | "count"; readonly text: string }[] =
     content.totalLines.map((text) => ({ role: "total", text }));

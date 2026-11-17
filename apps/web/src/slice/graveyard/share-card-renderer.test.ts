@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import {
+  SHARE_EPITAPH,
   SHARE_FILE_NAME,
   SHARE_IMAGE_SIZE,
   SHARE_SITE_ADDRESS,
@@ -13,6 +14,7 @@ import {
   type MeasureFn,
   type ShareCardContent,
 } from "../logic/share-card";
+import { GLOW_R } from "../logic/share-card-art";
 import {
   defaultResolveToken,
   drawOp,
@@ -41,13 +43,27 @@ type Log = Entry[];
 const fakeResolve = (token: ColourToken): string => `<${token}>`;
 const fakeMeasure: MeasureFn = (text) => text.length * 10;
 
-function makeCtx(log: Log, fail?: { fillText?: boolean }): CanvasContextLike {
+type CtxFailures = {
+  fillText?: boolean;
+  /** The radial gradient's addColorStop throws. */
+  radialStop?: boolean;
+  /** createRadialGradient itself throws. */
+  radialCreate?: boolean;
+  /** The linear gradient's addColorStop throws. */
+  linearStop?: boolean;
+};
+
+function makeCtx(log: Log, fail?: CtxFailures): CanvasContextLike {
   const values: Record<string, unknown> = {
     font: "",
     textAlign: "start",
     textBaseline: "alphabetic",
     fillStyle: "",
     globalAlpha: 1,
+    strokeStyle: "",
+    lineWidth: 1,
+    lineJoin: "miter",
+    lineCap: "butt",
   };
   const call =
     <R>(name: string, result?: R) =>
@@ -71,11 +87,26 @@ function makeCtx(log: Log, fail?: { fillText?: boolean }): CanvasContextLike {
     closePath: call("closePath"),
     arc: call("arc"),
     fill: call("fill"),
+    stroke: call("stroke"),
     createLinearGradient: (...args: unknown[]) => {
       log.push({ kind: "call", name: "createLinearGradient", args });
       // A fake gradient: only addColorStop is used, so the cast is limited to this one object.
       return {
-        addColorStop: (...stop: unknown[]) => log.push({ kind: "call", name: "addColorStop", args: stop }),
+        addColorStop: (...stop: unknown[]) => {
+          log.push({ kind: "call", name: "addColorStop", args: stop });
+          if (fail?.linearStop) throw new Error("linear stop refused");
+        },
+      } as unknown as CanvasGradient;
+    },
+    createRadialGradient: (...args: unknown[]) => {
+      log.push({ kind: "call", name: "createRadialGradient", args });
+      if (fail?.radialCreate) throw new Error("radial refused");
+      // A fake gradient, as above.
+      return {
+        addColorStop: (...stop: unknown[]) => {
+          log.push({ kind: "call", name: "radialAddColorStop", args: stop });
+          if (fail?.radialStop) throw new Error("radial stop refused");
+        },
       } as unknown as CanvasGradient;
     },
   };
@@ -223,7 +254,7 @@ describe("renderShareCard drawing", () => {
     const loads = indexesOf(log, "load");
     const firstMeasure = indexesOf(log, "measureText")[0] ?? -1;
     expect(ready).toHaveLength(1);
-    expect(loads).toHaveLength(3);
+    expect(loads).toHaveLength(4);
     expect(firstMeasure).toBeGreaterThan(-1);
     for (const index of loads) {
       expect(index).toBeGreaterThan(ready[0] as number);
@@ -231,11 +262,14 @@ describe("renderShareCard drawing", () => {
     }
     const faces = loads.map((index) => log[index]?.args as [string, string]);
     const brand = faces.find(([font]) => font.startsWith("400 "));
+    const epitaph = faces.find(([font]) => font.startsWith("italic 400 "));
     const total = faces.find(([font]) => font.startsWith("600 "));
     const inter = faces.find(([font]) => font.startsWith("500 "));
     expect(brand?.[0]).toContain("IM Fell English");
     expect(brand?.[1]).toContain("Zombills");
     expect(brand?.[1]).toContain("…");
+    expect(epitaph?.[0]).toBe('italic 400 40px "IM Fell English", Georgia, serif');
+    expect(epitaph?.[1]).toBe(`${SHARE_EPITAPH} …`);
     expect(total?.[0]).toContain("Inter");
     for (const line of CONTENT.totalLines) expect(total?.[1]).toContain(line);
     expect(inter?.[0]).toContain("Inter");
@@ -247,12 +281,12 @@ describe("renderShareCard drawing", () => {
   it("skips the Inter 600 face when there is no total line", async () => {
     const { log } = await render(NO_TOTALS);
     const fonts = indexesOf(log, "load").map((index) => (log[index]?.args as [string, string])[0]);
-    expect(fonts).toHaveLength(2);
+    expect(fonts).toHaveLength(3);
     expect(fonts.some((font) => font.startsWith("600 "))).toBe(false);
-    const inter = log[indexesOf(log, "load")[1] as number]?.args as [string, string];
+    const inter = log[indexesOf(log, "load")[2] as number]?.args as [string, string];
     expect(inter[1]).not.toContain("more");
-    expect(facesToLoad(NO_TOTALS)).toHaveLength(2);
-    expect(facesToLoad(CONTENT)).toHaveLength(3);
+    expect(facesToLoad(NO_TOTALS)).toHaveLength(3);
+    expect(facesToLoad(CONTENT)).toHaveLength(4);
   });
 
   it("calls fillText with exactly three arguments and the layout's texts in order", async () => {
@@ -290,7 +324,9 @@ describe("renderShareCard drawing", () => {
     const writes = log.flatMap((entry, index) => (entry.kind === "set" && entry.name === "globalAlpha" ? [index] : []));
     const values = writes.map((index) => log[index]?.args[0]);
     const alphas = shareCardLayout(CONTENT, fakeMeasure).flatMap((op) =>
-      op.kind === "vertical-gradient" ? [] : [op.fill.alpha],
+      op.kind === "vertical-gradient" || op.kind === "radial-gradient"
+        ? []
+        : [op.kind === "stroke-path" ? op.stroke.alpha : op.fill.alpha],
     );
     for (const alpha of new Set(alphas)) expect(values).toContain(alpha);
     expect([...new Set(alphas)].some((alpha) => alpha !== 1)).toBe(true);
@@ -389,6 +425,46 @@ describe("renderShareCard failures", () => {
     expectNoContent(message);
   });
 
+  it("rejects with 'drawing failed' when the sky's addColorStop throws, so the sky is not wrapped in the glow's try", async () => {
+    const log: Log = [];
+    const canvas = makeCanvas(log, { ctx: makeCtx(log, { linearStop: true }) });
+    const message = await failure(
+      renderShareCard(CONTENT, { createCanvas: () => canvas, fonts: null, resolveToken: fakeResolve }),
+    );
+    expect(message).toBe("share-card: drawing failed");
+  });
+
+  it.each([
+    ["only the radial gradient's addColorStop throwing", { radialStop: true }],
+    ["createRadialGradient throwing", { radialCreate: true }],
+  ] satisfies [string, CtxFailures][])(
+    "still renders, without the glow and without logging, with %s",
+    async (_name, fail) => {
+      const baseline = await render();
+      const log: Log = [];
+      const canvas = makeCanvas(log, { ctx: makeCtx(log, fail) });
+      const result = await renderShareCard(CONTENT, {
+        createCanvas: () => canvas,
+        fonts: null,
+        resolveToken: fakeResolve,
+      });
+      expect(result).toBeDefined();
+      const arcs = (entries: Log) => entries.filter((entry) => entry.name === "arc");
+      expect(arcs(log).some((entry) => entry.args[2] === GLOW_R)).toBe(false);
+      expect(arcs(baseline.log).some((entry) => entry.args[2] === GLOW_R)).toBe(true);
+      // every other op is drawn: the same calls as a normal render, less the glow's own
+      expect(arcs(log)).toHaveLength(arcs(baseline.log).length - 1);
+      for (const name of ["fillText", "fillRect", "stroke", "fill", "closePath", "createLinearGradient"]) {
+        const count = (entries: Log) => entries.filter((entry) => entry.name === name).length;
+        const glowFill = name === "fill" ? 1 : 0;
+        expect(count(log)).toBe(count(baseline.log) - glowFill);
+      }
+      const texts = (entries: Log) => entries.filter((entry) => entry.name === "fillText").map((entry) => entry.args);
+      expect(texts(log)).toEqual(texts(baseline.log));
+      expect(canvas.sizeAtToBlob).toEqual([{ width: SHARE_IMAGE_SIZE, height: SHARE_IMAGE_SIZE }]);
+    },
+  );
+
   it.each([
     ["a null blob", { blob: null }],
     ["a toBlob that throws", { toBlobThrows: true }],
@@ -433,8 +509,24 @@ describe("renderShareCard fonts", () => {
     expect(indexesOf(log, "fillText").length).toBeGreaterThan(0);
     expect(result.file.name).toBe(SHARE_FILE_NAME);
     if (behaviour === "load-rejects" || behaviour === "load-throws") {
-      expect(indexesOf(log, "load")).toHaveLength(3);
+      expect(indexesOf(log, "load")).toHaveLength(4);
     }
+  });
+});
+
+describe("facesToLoad (R11.9)", () => {
+  it("gives the italic IM Fell face second, with the epitaph text", () => {
+    for (const content of [CONTENT, NO_TOTALS]) {
+      expect(facesToLoad(content)[1]).toEqual({
+        font: 'italic 400 40px "IM Fell English", Georgia, serif',
+        text: "Rest in peace …",
+      });
+    }
+  });
+
+  it("returns four faces with totals and three without", () => {
+    expect(facesToLoad(CONTENT)).toHaveLength(4);
+    expect(facesToLoad(NO_TOTALS)).toHaveLength(3);
   });
 });
 
@@ -498,6 +590,75 @@ describe("drawOp", () => {
     expect(callNames(log)).toEqual(["fillRect", "beginPath", "arc", "fill"]);
     expect(log.find((entry) => entry.name === "arc")?.args).toEqual([5, 6, 7, 0, 2 * Math.PI]);
     expect(written(log, "globalAlpha")).toEqual([0.25, 1, 0.75, 1]);
+  });
+
+  const GLOW: DrawOp = {
+    kind: "radial-gradient",
+    cx: 100,
+    cy: 200,
+    r: 50,
+    stops: [
+      { offset: 0, paint: { token: "bone", alpha: 0.2 } },
+      { offset: 0.5, paint: { token: "bone", alpha: 0.1 } },
+      { offset: 1, paint: { token: "bone", alpha: 0 } },
+    ],
+  };
+
+  it("draws a radial gradient with color-mix stops, then globalAlpha 1, arc and fill", () => {
+    const log: Log = [];
+    drawOp(makeCtx(log), GLOW, fakeResolve);
+    expect(callNames(log)).toEqual([
+      "createRadialGradient",
+      "radialAddColorStop",
+      "radialAddColorStop",
+      "radialAddColorStop",
+      "beginPath",
+      "arc",
+      "fill",
+    ]);
+    expect(log[0]?.args).toEqual([100, 200, 0, 100, 200, 50]);
+    expect(log.filter((entry) => entry.name === "radialAddColorStop").map((entry) => entry.args)).toEqual([
+      [0, "color-mix(in srgb, <bone> 20%, transparent)"],
+      [0.5, "color-mix(in srgb, <bone> 10%, transparent)"],
+      [1, "color-mix(in srgb, <bone> 0%, transparent)"],
+    ]);
+    expect(log.find((entry) => entry.name === "arc")?.args).toEqual([100, 200, 50, 0, 2 * Math.PI]);
+    expect(written(log, "globalAlpha")).toEqual([1, 1]);
+  });
+
+  it.each([
+    ["a throwing addColorStop", { radialStop: true }],
+    ["a throwing createRadialGradient", { radialCreate: true }],
+  ] satisfies [string, CtxFailures][])("skips the glow without throwing or logging for %s", (_name, fail) => {
+    const log: Log = [];
+    const ctx = makeCtx(log, fail);
+    expect(() => drawOp(ctx, GLOW, fakeResolve)).not.toThrow();
+    expect(callNames(log)).not.toContain("arc");
+    expect(callNames(log)).not.toContain("fill");
+    expect(ctx.globalAlpha).toBe(1);
+  });
+
+  it("draws a stroke path with round joins and caps, then resets globalAlpha", () => {
+    const log: Log = [];
+    const op: DrawOp = {
+      kind: "stroke-path",
+      commands: [
+        { op: "move", x: 1, y: 2 },
+        { op: "line", x: 3, y: 4 },
+      ],
+      stroke: { token: "bone", alpha: 0.3 },
+      lineWidth: 2,
+    };
+    drawOp(makeCtx(log), op, fakeResolve);
+    expect(log.filter((entry) => entry.kind === "set").map((entry) => [entry.name, entry.args[0]])).toEqual([
+      ["strokeStyle", "<bone>"],
+      ["globalAlpha", 0.3],
+      ["lineWidth", 2],
+      ["lineJoin", "round"],
+      ["lineCap", "round"],
+      ["globalAlpha", 1],
+    ]);
+    expect(callNames(log)).toEqual(["beginPath", "moveTo", "lineTo", "stroke"]);
   });
 
   it("resets globalAlpha to 1 even when the operation throws", () => {

@@ -3,6 +3,8 @@ import type { MeasureFn } from "./share-card";
 export type RoleStyle = {
   readonly family: "display" | "sans";
   readonly weight: 400 | 500 | 600;
+  /** R11.6: "italic" only for epitaph. */
+  readonly style: "normal" | "italic";
   readonly startPx: number;
   /** Lowest size the shrink loop reaches: 1 for total and count. */
   readonly floorPx: number;
@@ -15,10 +17,11 @@ export const DISPLAY_FAMILY = '"IM Fell English", Georgia, serif'; // --font-dis
 export const SANS_FAMILY = '"Inter", ui-sans-serif, system-ui, sans-serif'; // --font-sans
 export const ELLIPSIS = "…";
 
-/** e.g. `600 72px "Inter", ui-sans-serif, system-ui, sans-serif` */
+/** e.g. `600 72px "Inter", ui-sans-serif, system-ui, sans-serif`, or `italic 400 40px "IM Fell English", Georgia, serif` */
 export function fontFor(style: RoleStyle, sizePx: number): string {
   const family = style.family === "display" ? DISPLAY_FAMILY : SANS_FAMILY;
-  return `${style.weight} ${sizePx}px ${family}`;
+  const prefix = style.style === "italic" ? "italic " : "";
+  return `${prefix}${style.weight} ${sizePx}px ${family}`;
 }
 
 export type FittedLine = {

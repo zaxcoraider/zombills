@@ -4,6 +4,7 @@
 
 import {
   ROLE_STYLES,
+  SHARE_EPITAPH,
   SHARE_FILE_NAME,
   SHARE_IMAGE_SIZE,
   SHARE_SITE_ADDRESS,
@@ -34,6 +35,12 @@ export type CanvasContextLike = Pick<
   | "arc"
   | "fill"
   | "createLinearGradient"
+  | "stroke"
+  | "strokeStyle"
+  | "lineWidth"
+  | "lineJoin"
+  | "lineCap"
+  | "createRadialGradient"
 >;
 
 export interface CanvasLike {
@@ -73,7 +80,7 @@ export function defaultResolveToken(token: ColourToken): string {
     .trim();
 }
 
-/** The three faces of Req 3.2, each with the font at its start size and the texts drawn in it. */
+/** The faces of Req 3.2 and 11.9 (three or four), each with the font at its start size and the texts drawn in it. */
 export function facesToLoad(content: ShareCardContent): readonly { font: string; text: string }[] {
   const inter500: string[] = [];
   if (content.moreCurrencies > 0) inter500.push(moreCurrenciesLine(content.moreCurrencies));
@@ -83,6 +90,7 @@ export function facesToLoad(content: ShareCardContent): readonly { font: string;
       font: fontFor(ROLE_STYLES.brand, 72),
       text: SHARE_SITE_NAME + " " + ELLIPSIS,
     },
+    { font: fontFor(ROLE_STYLES.epitaph, 40), text: SHARE_EPITAPH + " " + ELLIPSIS },
     ...(content.totalLines.length > 0
       ? [{ font: fontFor(ROLE_STYLES.total, 72), text: content.totalLines.join(" ") }]
       : []),
@@ -161,6 +169,29 @@ function readDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+type RadialOp = Extract<DrawOp, { kind: "radial-gradient" }>;
+
+/** Builds the glow gradient; null when the browser refuses it (R11.2). Wraps only the construction. */
+function tryRadial(
+  ctx: CanvasContextLike,
+  op: RadialOp,
+  resolveToken: (token: ColourToken) => string,
+): CanvasGradient | null {
+  try {
+    const gradient = ctx.createRadialGradient(op.cx, op.cy, 0, op.cx, op.cy, op.r);
+    for (const stop of op.stops) {
+      const percent = stop.paint.alpha * 100;
+      gradient.addColorStop(
+        stop.offset,
+        `color-mix(in srgb, ${resolveToken(stop.paint.token)} ${percent}%, transparent)`,
+      );
+    }
+    return gradient;
+  } catch {
+    return null;
+  }
+}
+
 /** Executes one operation; resets globalAlpha to 1 afterwards. Exported for the path and gradient tests. */
 export function drawOp(
   ctx: CanvasContextLike,
@@ -207,6 +238,30 @@ export function drawOp(
           else ctx.closePath();
         }
         ctx.fill();
+        break;
+      case "radial-gradient": {
+        const gradient = tryRadial(ctx, op, resolveToken);
+        if (gradient === null) break;
+        ctx.fillStyle = gradient;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(op.cx, op.cy, op.r, 0, 2 * Math.PI);
+        ctx.fill();
+        break;
+      }
+      case "stroke-path":
+        ctx.strokeStyle = resolveToken(op.stroke.token);
+        ctx.globalAlpha = op.stroke.alpha;
+        ctx.lineWidth = op.lineWidth;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        for (const c of op.commands) {
+          if (c.op === "move") ctx.moveTo(c.x, c.y);
+          else if (c.op === "line") ctx.lineTo(c.x, c.y);
+          else ctx.closePath();
+        }
+        ctx.stroke();
         break;
       default: {
         const unreachable: never = op;

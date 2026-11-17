@@ -102,6 +102,15 @@ export default tseslint.config(
         { object: "Date", property: "now", message: PURITY_MESSAGE },
         { object: "performance", property: "now", message: PURITY_MESSAGE },
         { object: "Math", property: "random", message: PURITY_MESSAGE },
+        { object: "crypto", property: "getRandomValues", message: PURITY_MESSAGE },
+      ],
+      // Flat config replaces options, so the two money selectors are repeated (R11.3).
+      "no-restricted-syntax": [
+        "error",
+        { selector: "CallExpression[callee.property.name='toFixed']", message: MONEY_MESSAGE },
+        { selector: "BinaryExpression[operator='/'][right.value=100]", message: MONEY_MESSAGE },
+        { selector: "NewExpression[callee.name='Date']", message: PURITY_MESSAGE },
+        { selector: "MemberExpression[property.name='getRandomValues']", message: PURITY_MESSAGE },
       ],
     },
   },
