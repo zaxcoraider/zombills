@@ -86,7 +86,7 @@ for (const viewport of VIEWPORTS) {
       page,
     }) => {
       await page.goto("/");
-      await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+      await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
 
       // The first card, then Skip for now: the next card in the queue rises whole too.
       await expectCardWhole(page, "Adobe Creative Cloud");
@@ -111,7 +111,7 @@ for (const viewport of VIEWPORTS) {
 
     test("small tombstones hold their text and leave Unbury clear", async ({ page }) => {
       await page.goto("/");
-      await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+      await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
 
       // Bury all four cards, whatever order they come in.
       for (let card = 0; card < 4; card += 1) {
@@ -172,7 +172,7 @@ async function buryNetflix(page: Page, fontSize: string | null = null): Promise<
       document.documentElement.style.fontSize = size;
     }, fontSize);
   }
-  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
   for (let card = 0; card < 4; card += 1) {
     const heading = page.locator("[data-burial-stage] section h3");
     await expect(heading).toBeVisible();

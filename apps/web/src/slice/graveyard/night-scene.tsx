@@ -16,25 +16,33 @@ const VIGNETTE =
 export interface NightSceneProps {
   fogCleared: boolean;
   reduceMotion: boolean;
+  /** The Landing view draws its own moon inside the Banner and keeps the fog still. */
+  landing: boolean;
   children: ReactNode;
 }
 
-export function NightScene({ fogCleared, reduceMotion, children }: NightSceneProps) {
+export function NightScene({ fogCleared, reduceMotion, landing, children }: NightSceneProps) {
+  const fogStill = reduceMotion || landing;
   return (
     <div className="relative isolate min-h-svh text-bone" style={SCENE_STYLE}>
       <div className="pointer-events-none fixed inset-0" aria-hidden="true">
-        <BackdropLayers reduceMotion={reduceMotion} fogCleared={fogCleared} />
+        <BackdropLayers
+          reduceMotion={reduceMotion}
+          fogCleared={fogCleared}
+          fogStill={fogStill}
+          moon={!landing}
+        />
       </div>
       <div className="pointer-events-none fixed inset-0" aria-hidden="true">
         <Ground />
-        <ForegroundFog reduceMotion={reduceMotion} fogCleared={fogCleared} />
+        <ForegroundFog reduceMotion={reduceMotion} fogCleared={fogCleared} fogStill={fogStill} />
       </div>
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0"
         style={{ background: VIGNETTE }}
       />
-      <div className="relative">{children}</div>
+      <div className="relative isolate overflow-clip">{children}</div>
     </div>
   );
 }

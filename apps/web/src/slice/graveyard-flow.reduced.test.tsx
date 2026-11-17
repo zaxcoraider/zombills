@@ -4,6 +4,7 @@ import { MotionGlobalConfig } from "framer-motion";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { COPY_LABEL_FADE, helperPanelMotion, helperPanelVariants } from "./graveyard/motion";
+import { PRIMARY_ACTION_NAME } from "./logic/landing-text";
 import { formatMoney } from "./logic/money";
 
 vi.mock("framer-motion", async () => {
@@ -28,7 +29,7 @@ afterEach(cleanup);
 describe("graveyard flow: reduced motion", () => {
   it("buries without the condemned step and lands focus on the tombstone", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "US bank, signed amounts" }));
+    fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
     await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
     for (let i = 0; i < 2; i += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));

@@ -10,12 +10,19 @@ import { fakeStorage, fakeStoreTarget } from "./storage/test-store";
 import { createGraveyardStore } from "./storage/graveyard-store";
 import { formatMoney } from "./logic/money";
 import {
-  IDLE_SENTENCE,
   NEWER_NOTE,
+  PRIVACY_NOTE,
+  STATEMENT_TIP,
   UNREADABLE_NOTE,
   droppedNote,
   restoredLine,
 } from "./logic/memory-text";
+import {
+  PRIMARY_ACTION_NAME,
+  READ_PRIVACY_NOTE,
+  REAPER_LINK,
+  REPO_LINK,
+} from "./logic/landing-text";
 import { SAMPLES } from "./samples";
 
 const US_LABEL = "US bank, signed amounts";
@@ -39,6 +46,12 @@ async function chooseSample(label: string) {
   await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
 }
 
+/** Summon the undead with the US Sample, through the Landing view's Primary action. */
+async function summon() {
+  fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
+  await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+}
+
 function liveRegion(): HTMLElement {
   return screen.getByRole("status");
 }
@@ -54,24 +67,37 @@ afterEach(() => {
 });
 
 describe("SlicePage: Idle", () => {
-  it("shows the heading, tagline, privacy sentence, inputs and samples", () => {
+  it("shows the heading, tagline, privacy note, tip, inputs, Primary action and samples", () => {
     const { container } = render(<App />);
 
     const h1 = screen.getByRole("heading", { level: 1, name: "Zombills" });
     expect(h1.className).toContain("font-display");
-    expect(container.querySelector("main")?.className).toContain("max-w-[640px]");
-    expect(screen.getByText(IDLE_SENTENCE)).toBeTruthy();
+    expect(container.querySelector("main")?.className).toContain("max-w-[1184px]");
+    expect(screen.getAllByText(PRIVACY_NOTE)).toHaveLength(1);
+    expect(screen.getAllByText(STATEMENT_TIP)).toHaveLength(1);
     expect(dropAreaElement()).toBeTruthy();
     expect(screen.getByRole("button", { name: "Choose a file" })).toBeTruthy();
     const input = container.querySelector('input[type="file"]');
     expect(input?.getAttribute("accept")).toBe(".csv,text/csv");
     expect(input?.getAttribute("aria-label")).toBe("CSV statement file");
-    for (const sample of SAMPLES) {
-      expect(screen.getByRole("button", { name: sample.label })).toBeTruthy();
-    }
+    expect(screen.getByRole("button", { name: PRIMARY_ACTION_NAME })).toBeTruthy();
+    const otherSamples = within(screen.getByRole("list", { name: "Other sample statements" }));
+    expect(otherSamples.getAllByRole("button").map((button) => button.textContent)).toEqual(
+      SAMPLES.slice(1).map((sample) => sample.label),
+    );
     expect(SAMPLES).toHaveLength(4);
+    const usSample = SAMPLES[0] as (typeof SAMPLES)[number];
+    expect(usSample.fileName).toBe("us-signed.csv");
+    expect(screen.queryByRole("button", { name: usSample.label })).toBeNull();
     expect(screen.getByText("Your bank statement is haunted.")).toBeTruthy();
-    expect(screen.queryByRole("link")).toBeNull();
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(2);
+    for (const link of links) expect(link.closest("footer")).not.toBeNull();
+    expect(links.map((link) => link.textContent)).toEqual([REPO_LINK.text, REAPER_LINK.text]);
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      REPO_LINK.href,
+      REAPER_LINK.href,
+    ]);
     expect(liveRegion().textContent).toBe("");
   });
 });
@@ -102,13 +128,9 @@ function renderWithStore(text: string | null) {
 
 describe("SlicePage: Idle, loaded Store", () => {
   it("shows the restored line above Open the graveyard", () => {
-    renderWithStore(
-      JSON.stringify({ version: 1, records: [NETFLIX_BURIED, SPOTIFY_KEPT] }),
-    );
+    renderWithStore(JSON.stringify({ version: 1, records: [NETFLIX_BURIED, SPOTIFY_KEPT] }));
     const line = screen.getByText(restoredLine(1, 1));
-    expect(line.textContent).toBe(
-      "Your graveyard from this device is back: 1 buried, 1 resting.",
-    );
+    expect(line.textContent).toBe("Your graveyard from this device is back: 1 buried, 1 resting.");
     const open = screen.getByRole("button", { name: "Open the graveyard" });
     expect(line.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(liveRegion().textContent).toBe("");
@@ -127,19 +149,15 @@ describe("SlicePage: Idle, loaded Store", () => {
   });
 
   it("shows the dropped note for an ok load with one bad record", () => {
-    renderWithStore(
-      JSON.stringify({ version: 1, records: [NETFLIX_BURIED, { id: "bad" }] }),
-    );
+    renderWithStore(JSON.stringify({ version: 1, records: [NETFLIX_BURIED, { id: "bad" }] }));
     expect(screen.getByText(droppedNote(1))).toBeTruthy();
     expect(screen.getByText(restoredLine(1, 0))).toBeTruthy();
     expect(liveRegion().textContent).toBe("");
   });
 
   it("drops the line and the notes after a statement is analysed", async () => {
-    renderWithStore(
-      JSON.stringify({ version: 1, records: [NETFLIX_BURIED, { id: "bad" }] }),
-    );
-    await chooseSample(US_LABEL);
+    renderWithStore(JSON.stringify({ version: 1, records: [NETFLIX_BURIED, { id: "bad" }] }));
+    await summon();
     expect(screen.queryByText(restoredLine(1, 0))).toBeNull();
     expect(screen.queryByText(droppedNote(1))).toBeNull();
   });
@@ -157,7 +175,7 @@ describe("SlicePage: Working", () => {
     );
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: US_LABEL }));
+    fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
 
     await waitFor(() => expect(frames).toHaveLength(1));
     expect(screen.getAllByText(`Reading ${US_LABEL}…`).length).toBeGreaterThan(0);
@@ -166,8 +184,15 @@ describe("SlicePage: Working", () => {
     const fileButton = screen.getByRole("button", { name: "Choose a file" });
     expect(fileButton.getAttribute("aria-disabled")).toBe("true");
     expect(fileButton.hasAttribute("disabled")).toBe(false);
-    for (const sample of SAMPLES) {
-      const button = screen.getByRole("button", { name: sample.label });
+    // The Landing-origin working view keeps the Primary action and the three Secondary samples,
+    // all four aria-disabled (the US Sample has no button of its own besides the Primary action).
+    const primaryAction = screen.getByRole("button", { name: PRIMARY_ACTION_NAME });
+    const secondarySamples = SAMPLES.slice(1).map((sample) =>
+      screen.getByRole("button", { name: sample.label }),
+    );
+    expect(secondarySamples).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: US_LABEL })).toBeNull();
+    for (const button of [primaryAction, ...secondarySamples]) {
       expect(button.getAttribute("aria-disabled")).toBe("true");
       expect(button.hasAttribute("disabled")).toBe(false);
     }
@@ -203,7 +228,7 @@ describe("SlicePage: Working", () => {
 describe("SlicePage: Results from a Sample", () => {
   it("shows the summary, the Rising order, the cards, the total and the first card's focus", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     const adobeHeading = screen.getByRole("heading", { level: 3, name: "Adobe Creative Cloud" });
     await waitFor(() => expect(document.activeElement).toBe(adobeHeading));
@@ -265,7 +290,7 @@ describe("SlicePage: Results from a Sample", () => {
 
   it("announces the first card in the live region", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     expect(liveRegion().textContent).toBe(
       `Found 4 recurring charges. Still draining ${formatMoney(135564, "USD")} a year. ` +
         `Adobe Creative Cloud. Monthly, ${formatMoney(5499, "USD")}. ` +
@@ -297,7 +322,7 @@ describe("SlicePage: No subscriptions", () => {
 describe("SlicePage: Start again", () => {
   it("returns to idle, focuses the drop area and drops the result", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
 
@@ -316,7 +341,7 @@ describe("SlicePage: Start again", () => {
 describe("SlicePage: Replace result", () => {
   it("replaces the first result when another sample is chosen", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     expect(screen.getByText(/2 Jan 2026 to 25 Mar 2026/).textContent).toContain(US_LABEL);
 
     fireEvent.click(screen.getByRole("button", { name: UK_LABEL }));
@@ -333,11 +358,19 @@ describe("SlicePage: Replace result", () => {
 });
 
 describe("SlicePage: Keyboard", () => {
-  it("tabs through drop area, Choose a file and the four samples", async () => {
+  it("tabs through the Primary action, the three Secondary samples, the privacy note, drop area, Choose a file and the two Footer links", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const expected = [DROP_AREA_NAME, "Choose a file", ...SAMPLES.map((sample) => sample.label)];
+    const expected = [
+      PRIMARY_ACTION_NAME,
+      ...SAMPLES.slice(1).map((sample) => sample.label),
+      READ_PRIVACY_NOTE,
+      DROP_AREA_NAME,
+      "Choose a file",
+      "Zombills on GitHub",
+      "The Reaper on GitHub",
+    ];
     for (const name of expected) {
       await user.tab();
       const active = document.activeElement as HTMLElement;
@@ -624,7 +657,7 @@ describe("SlicePage: Guessed-only group", () => {
 describe("SlicePage: Assumed value", () => {
   it("notes that USD was assumed when the statement names no currency", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     expect(
       screen.getByText("No currency was found in the statement, so amounts are shown in USD."),
     ).toBeTruthy();
@@ -672,7 +705,7 @@ describe("SlicePage: fog panels", () => {
       }),
     );
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: US_LABEL }));
+    fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
     await waitFor(() => expect(frames).toHaveLength(1));
     const reading = screen.getAllByText(`Reading ${US_LABEL}…`)[0] as HTMLElement;
     expect(reading.closest(FOG_PANEL)).not.toBeNull();

@@ -9,7 +9,7 @@ import {
   FORGET_QUESTION,
   FORGOTTEN,
   FORGOTTEN_REMOVE_FAILED,
-  IDLE_SENTENCE,
+  PRIVACY_NOTE,
   MEMORY_HEADING,
   MEMORY_HINT,
   MEMORY_KEPT,
@@ -26,7 +26,20 @@ import {
   droppedNote,
   leftOutNote,
   restoredLine,
+  STATEMENT_TIP,
 } from "./memory-text";
+
+describe("Landing privacy texts", () => {
+  it("PRIVACY_NOTE and STATEMENT_TIP equal their texts and join into the graveyard-memory Req 1.6 sentence", () => {
+    expect(PRIVACY_NOTE).toBe(
+      "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard.",
+    );
+    expect(STATEMENT_TIP).toBe("A statement covering 2 to 3 months gives the best results.");
+    expect(`${PRIVACY_NOTE} ${STATEMENT_TIP}`).toBe(
+      "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard. A statement covering 2 to 3 months gives the best results.",
+    );
+  });
+});
 
 describe("memory text constants", () => {
   it("equal the requirement text", () => {
@@ -34,9 +47,6 @@ describe("memory text constants", () => {
     expect(MEMORY_LABEL).toBe("Remember my graveyard on this device");
     expect(MEMORY_HINT).toBe(
       "Only merchant text as printed on your statement (it can include reference numbers), amounts and your answers are kept, in this browser on this device. Transactions, dates and file names are not. Nothing is sent anywhere.",
-    );
-    expect(IDLE_SENTENCE).toBe(
-      "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard. A statement covering 2 to 3 months gives the best results.",
     );
     expect(MEMORY_KEPT).toBe("Your graveyard will be kept on this device until you forget it.");
     expect(MEMORY_NOT_KEPT).toBe(

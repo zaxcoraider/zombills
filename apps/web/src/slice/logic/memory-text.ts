@@ -1,4 +1,4 @@
-/** Copy for the Memory panel, the idle panel and the Live region (graveyard-memory, Req 1, 3.5, 4, 5, 7.1, 8). */
+/** Copy for the Memory panel, the Landing view and the Live region (graveyard-memory, Req 1, 3.5, 4, 5, 7.1, 8). */
 
 import type { MemoryEventKind, MemoryModel } from "../page-state";
 
@@ -6,8 +6,9 @@ export const MEMORY_HEADING = "Memory";
 export const MEMORY_LABEL = "Remember my graveyard on this device";
 export const MEMORY_HINT =
   "Only merchant text as printed on your statement (it can include reference numbers), amounts and your answers are kept, in this browser on this device. Transactions, dates and file names are not. Nothing is sent anywhere.";
-export const IDLE_SENTENCE =
-  "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard. A statement covering 2 to 3 months gives the best results.";
+export const PRIVACY_NOTE =
+  "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard.";
+export const STATEMENT_TIP = "A statement covering 2 to 3 months gives the best results.";
 
 export function restoredLine(buried: number, resting: number): string {
   return `Your graveyard from this device is back: ${buried} buried, ${resting} resting.`;

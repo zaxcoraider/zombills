@@ -68,7 +68,7 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
   };
 
   // Step 4: choose a sample; the Rising summary shows the whole yearly cost.
-  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
   await expect(stillDraining("$1,355.64")).toBeVisible();
 
   // Step 5: keep Adobe Creative Cloud and Riverside Gym Membership.
@@ -156,7 +156,7 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
 
   // Step 9: at 320 px wide nothing scrolls sideways on the Rising or the Graveyard view.
   await page.setViewportSize({ width: 320, height: 640 });
-  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
   // The Graveyard keeps Netflix's tombstone, so the same Sample now has less left to drain.
   await expect(stillDraining("$1,139.76")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
@@ -220,7 +220,7 @@ test("memory path: remember, reload, restore and forget, with no stray requests"
   };
 
   // Skip Adobe and Riverside so Netflix is the only answered card.
-  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
   for (const name of ["Adobe Creative Cloud", "Riverside Gym Membership"]) {
     await expect(page.getByRole("region", { name })).toBeVisible();
     await answer("Skip for now");

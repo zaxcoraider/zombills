@@ -20,7 +20,7 @@ import {
   POSSESSED_TRIAL_TRAP,
   TRIAL_TRAP,
 } from "./graveyard/test-fixtures";
-import { INITIAL_PAGE_MODEL, initialPageModel, pageReducer } from "./page-state";
+import { INITIAL_PAGE_MODEL, initialPageModel, isLandingView, pageReducer } from "./page-state";
 import type { MemoryModel, PageAction, PageModel, RisingModel } from "./page-state";
 
 const FACTS = {
@@ -56,7 +56,7 @@ const IDLE: PageModel = { ...INITIAL_PAGE_MODEL, runId: 3 };
 const WORKING: PageModel = {
   ...INITIAL_PAGE_MODEL,
   runId: 7,
-  view: { kind: "working", sourceName: "a.csv" },
+  view: { kind: "working", sourceName: "a.csv", origin: "landing" },
 };
 const RESULTS_MODEL: PageModel = {
   ...INITIAL_PAGE_MODEL,
@@ -90,7 +90,11 @@ describe("pageReducer: start", () => {
     for (const model of NOT_WORKING) {
       const next = pageReducer(model, { type: "start", runId: 9, sourceName: "b.csv" });
       expect(next.runId).toBe(9);
-      expect(next.view).toEqual({ kind: "working", sourceName: "b.csv" });
+      expect(next.view).toEqual({
+        kind: "working",
+        sourceName: "b.csv",
+        origin: model === IDLE ? "landing" : "other",
+      });
       expect(next.screen).toBe("main");
       expect(next.event).toBeNull();
       expect(next.focus).toBe(model.focus);
@@ -105,7 +109,49 @@ describe("pageReducer: start", () => {
   it("starts from the initial model", () => {
     const next = pageReducer(INITIAL_PAGE_MODEL, { type: "start", runId: 1, sourceName: "a.csv" });
     expect(next.runId).toBe(1);
-    expect(next.view).toEqual({ kind: "working", sourceName: "a.csv" });
+    expect(next.view).toEqual({ kind: "working", sourceName: "a.csv", origin: "landing" });
+  });
+});
+
+describe("pageReducer: start origin", () => {
+  const onGraveyard = (model: PageModel): PageModel => ({ ...model, screen: "graveyard" });
+  const rows: [string, PageModel, "landing" | "other"][] = [
+    ["idle, main", IDLE, "landing"],
+    ["INITIAL_PAGE_MODEL", INITIAL_PAGE_MODEL, "landing"],
+    ["results, main", RESULTS_MODEL, "other"],
+    ["no-subscriptions, main", NO_SUBS_MODEL, "other"],
+    ["error, main", ERROR_MODEL, "other"],
+    ["idle, graveyard", onGraveyard(IDLE), "other"],
+    ["results, graveyard", onGraveyard(RESULTS_MODEL), "other"],
+    ["error, graveyard", onGraveyard(ERROR_MODEL), "other"],
+  ];
+
+  it.each(rows)("%s gives origin %s", (_name, model, origin) => {
+    const next = pageReducer(model, { type: "start", runId: 9, sourceName: "b.csv" });
+    expect(next.view).toEqual({ kind: "working", sourceName: "b.csv", origin });
+    expect(next.screen).toBe("main");
+  });
+});
+
+describe("isLandingView", () => {
+  const views: PageModel["view"][] = [
+    { kind: "idle" },
+    { kind: "working", sourceName: "a.csv", origin: "landing" },
+    { kind: "working", sourceName: "a.csv", origin: "other" },
+    RESULTS_MODEL.view,
+    NO_SUBS_MODEL.view,
+    ERROR_MODEL.view,
+  ];
+
+  it("is true only on the main screen, for idle and for working from the Landing view", () => {
+    for (const view of views) {
+      for (const screen of ["main", "graveyard"] as const) {
+        const expected =
+          screen === "main" &&
+          (view.kind === "idle" || (view.kind === "working" && view.origin === "landing"));
+        expect(isLandingView({ view, screen })).toBe(expected);
+      }
+    }
   });
 });
 
@@ -252,7 +298,7 @@ function risingModel(outcome: ResultsOutcome = MANY, graveyard = INITIAL_PAGE_MO
     ...INITIAL_PAGE_MODEL,
     graveyard,
     runId: 1,
-    view: { kind: "working", sourceName: "a.csv" },
+    view: { kind: "working", sourceName: "a.csv", origin: "landing" },
   };
   return pageReducer(working, { type: "finish", runId: 1, outcome });
 }
@@ -348,7 +394,10 @@ describe("pageReducer: finish with results", () => {
 describe("pageReducer: other outcomes, fail, reject, start, reset", () => {
   it("finish with a non-results outcome, fail and reject set screen main, event null, focus state-heading", () => {
     const base = { ...risingModel(), screen: "graveyard" as const };
-    const working: PageModel = { ...base, view: { kind: "working", sourceName: "a.csv" } };
+    const working: PageModel = {
+      ...base,
+      view: { kind: "working", sourceName: "a.csv", origin: "landing" },
+    };
     for (const next of [
       pageReducer(working, { type: "finish", runId: 1, outcome: NO_SUBS }),
       pageReducer(working, { type: "fail", runId: 1, error: ERR }),

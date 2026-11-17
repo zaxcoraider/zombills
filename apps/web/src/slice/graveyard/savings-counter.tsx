@@ -10,6 +10,8 @@ export interface SavingsCounterProps {
   /** Shown as formatMoney(0, currency) when totals is empty */
   fallbackCurrency: string | null;
   reduceMotion: boolean;
+  /** Extra classes for the group, for the Landing view's counter card */
+  className?: string;
 }
 
 interface CounterLineProps {
@@ -44,7 +46,7 @@ function CounterLine({ cents, initialCents, currency, reduceMotion }: CounterLin
         // Under reduced motion the new figure fades in instead of counting.
         key={reduceMotion ? cents : "counting"}
         aria-hidden="true"
-        className="mt-2 inline-block min-w-[7ch] text-right text-[2rem] font-semibold leading-none text-moss tabular-nums sm:text-[2.5rem]"
+        className="mt-2 inline-block min-w-[7ch] text-right [overflow-wrap:anywhere] text-[2rem] font-semibold leading-none text-moss tabular-nums sm:text-[2.5rem]"
         style={{
           textShadow:
             cents > 0 ? "0 0 1.5rem color-mix(in oklab, var(--moss) 45%, transparent)" : "none",
@@ -59,7 +61,12 @@ function CounterLine({ cents, initialCents, currency, reduceMotion }: CounterLin
 }
 
 /** Yearly savings, one line per currency (Req 6.2, 6.3, 6.8). */
-export function SavingsCounter({ totals, fallbackCurrency, reduceMotion }: SavingsCounterProps) {
+export function SavingsCounter({
+  totals,
+  fallbackCurrency,
+  reduceMotion,
+  className,
+}: SavingsCounterProps) {
   // Lines present at the first mount start at their value; lines added later count up from 0.
   const firstMount = useRef<Map<string, number> | null>(null);
   firstMount.current ??= new Map(totals.map((t) => [t.currency, t.totalCents]));
@@ -74,7 +81,13 @@ export function SavingsCounter({ totals, fallbackCurrency, reduceMotion }: Savin
   if (lines.length === 0) return null;
 
   return (
-    <div role="group" aria-label="Saved per year" className="flex flex-col items-end">
+    <div
+      role="group"
+      aria-label="Saved per year"
+      className={
+        className === undefined ? "flex flex-col items-end" : `flex flex-col items-end ${className}`
+      }
+    >
       <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-bone/70">
         Saved per year
       </span>

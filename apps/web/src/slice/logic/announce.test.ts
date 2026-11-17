@@ -63,9 +63,9 @@ describe("announcement: slice views", () => {
   });
 
   it("names the source while working", () => {
-    expect(announcement(withView({ kind: "working", sourceName: "march.csv" }))).toBe(
-      "Reading march.csv…",
-    );
+    expect(
+      announcement(withView({ kind: "working", sourceName: "march.csv", origin: "landing" })),
+    ).toBe("Reading march.csv…");
   });
 
   it("says no recurring charges were found", () => {

@@ -37,9 +37,12 @@ export interface RisingModel {
   stage: RisingStage;
 }
 
+/** Whether the run started from the Landing view or from another view or screen. */
+export type WorkingOrigin = "landing" | "other";
+
 export type PageView =
   | { kind: "idle" }
-  | { kind: "working"; sourceName: string }
+  | { kind: "working"; sourceName: string; origin: WorkingOrigin }
   | {
       kind: "results";
       sourceName: string;
@@ -192,6 +195,14 @@ export function initialPageModel(read: ReadResult): PageModel {
     event: null,
     focus: null,
   };
+}
+
+/** The Landing view: the main screen while `idle`, or `working` from the Landing view. */
+export function isLandingView(model: Pick<PageModel, "view" | "screen">): boolean {
+  if (model.screen !== "main") return false;
+  return (
+    model.view.kind === "idle" || (model.view.kind === "working" && model.view.origin === "landing")
+  );
 }
 
 export const INITIAL_PAGE_MODEL: PageModel = initialPageModel({ kind: "empty" });
@@ -405,7 +416,12 @@ export function pageReducer(model: PageModel, action: PageAction): PageModel {
       return {
         ...model,
         runId: action.runId,
-        view: { kind: "working", sourceName: action.sourceName },
+        view: {
+          kind: "working",
+          sourceName: action.sourceName,
+          // Read before `screen` is reset to "main" below.
+          origin: view.kind === "idle" && model.screen === "main" ? "landing" : "other",
+        },
         screen: "main",
         event: null,
       };

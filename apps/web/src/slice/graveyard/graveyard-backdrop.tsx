@@ -3,17 +3,14 @@
 
 import { motion } from "framer-motion";
 import { useId, type CSSProperties } from "react";
+import { FOG_DENSITIES, SKY_GLOW_ALPHA } from "../logic/scene-alphas";
 import { fogFade } from "./motion";
 
 /** Shorthand for a token mixed toward another token (or transparent). */
 const mix = (token: string, pct: number, other = "transparent") =>
   `color-mix(in oklab, var(--${token}) ${pct}%, ${other === "transparent" ? other : `var(--${other})`})`;
 
-export const SKY_BACKGROUND = [
-  // Moon glow, centred on the moon (left 70%, top 17%).
-  `radial-gradient(ellipse 36rem 28rem at 70% 17%, ${mix("bone", 9)}, transparent 70%)`,
-  `linear-gradient(to bottom, var(--night) 0%, var(--night) 22%, ${mix("fog", 65, "night")} 62%, var(--fog) 88%)`,
-].join(", ");
+export const SKY_BACKGROUND = `linear-gradient(to bottom, var(--night) 0%, var(--night) 22%, ${mix("fog", 65, "night")} 62%, var(--fog) 88%)`;
 
 /* ------------------------------------------------------------------------------------------------
  * Stars: fixed positions from a seeded PRNG so they never shift between renders. Static, no
@@ -70,53 +67,84 @@ function Stars() {
  * Moon
  * ---------------------------------------------------------------------------------------------- */
 
-function Moon() {
-  const id = useId();
-  return (
-    <svg
-      className="absolute left-[70%] top-[17%] size-[clamp(11rem,22vw,20rem)] -translate-x-1/2 -translate-y-1/2"
-      viewBox="-100 -100 200 200"
-      aria-hidden="true"
-    >
-      <defs>
-        <radialGradient id={`${id}-halo`}>
-          <stop offset="0.38" style={{ stopColor: "var(--bone)", stopOpacity: 0.22 }} />
-          <stop offset="0.6" style={{ stopColor: "var(--bone)", stopOpacity: 0.06 }} />
-          <stop offset="1" style={{ stopColor: "var(--bone)", stopOpacity: 0 }} />
-        </radialGradient>
-        <radialGradient id={`${id}-disc`} cx="0.62" cy="0.36" r="0.75">
-          <stop offset="0" style={{ stopColor: "var(--bone)" }} />
-          <stop offset="0.7" style={{ stopColor: mix("bone", 90, "fog") }} />
-          <stop offset="1" style={{ stopColor: mix("bone", 68, "fog") }} />
-        </radialGradient>
-        <clipPath id={`${id}-clip`}>
-          <circle r="40" />
-        </clipPath>
-        <filter id={`${id}-soft`} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2.2" />
-        </filter>
-      </defs>
+export type MoonPlacement = "landing" | "sky";
 
-      <circle r="100" fill={`url(#${id}-halo)`} />
-      <circle r="40" fill={`url(#${id}-disc)`} />
-      {/* Maria: blurred darker seas on the moon's face. */}
-      <g clipPath={`url(#${id}-clip)`}>
-        <g filter={`url(#${id}-soft)`} style={{ fill: "var(--fog)" }}>
-          <path
-            d="M-26-10c2-9 12-13 20-10 6 2 9 8 6 13-3 6-11 7-17 6-6-1-10-4-9-9Z"
-            opacity="0.16"
-          />
-          <path d="M-6-22c4-3 11-2 13 2 1 4-3 6-8 6-4 0-7-4-5-8Z" opacity="0.12" />
-          <path d="M2 4c5-5 15-4 18 2 2 6-3 11-10 11-6 0-11-6-8-13Z" opacity="0.14" />
-          <path d="M-22 12c3-3 9-2 10 2 1 4-3 7-7 6-4 0-5-5-3-8Z" opacity="0.11" />
-          <ellipse cx="6" cy="25" rx="6" ry="3.5" opacity="0.1" />
+const MOON_PLACEMENT: Record<MoonPlacement, { className: string; style: CSSProperties }> = {
+  // Anchored inside the Landing Banner, which sets --moon-d (the disc diameter).
+  landing: {
+    className: "pointer-events-none absolute -z-10",
+    style: {
+      width: "calc(var(--moon-d) * 2.5)",
+      height: "calc(var(--moon-d) * 2.5)",
+      right: "calc(var(--moon-d) * -0.75)",
+      top: "calc(12px - var(--moon-d) * 0.75)",
+    },
+  },
+  // Fixed to the scene, in the band right of the 640 px column; hidden below 1024 px.
+  sky: {
+    className:
+      "pointer-events-none absolute hidden aspect-square -translate-x-1/2 -translate-y-1/2 lg:block",
+    style: {
+      left: "calc(75% + 160px)",
+      top: "17%",
+      width: "calc(2.5 * min(112px, 20% - 120px))",
+    },
+  },
+};
+
+export function Moon({ placement }: { placement: MoonPlacement }) {
+  const id = useId();
+  const { className, style } = MOON_PLACEMENT[placement];
+  return (
+    <div className={className} style={style} aria-hidden="true">
+      <div
+        data-moon-glow
+        className="absolute left-1/2 top-1/2 h-[56rem] w-[72rem] -translate-x-1/2 -translate-y-1/2"
+        style={{
+          background: `radial-gradient(closest-side, ${mix("bone", SKY_GLOW_ALPHA * 100)}, transparent 70%)`,
+        }}
+      />
+      <svg className="absolute inset-0 size-full" viewBox="-100 -100 200 200" aria-hidden="true">
+        <defs>
+          <radialGradient id={`${id}-halo`}>
+            <stop offset="0.38" style={{ stopColor: "var(--bone)", stopOpacity: 0.22 }} />
+            <stop offset="0.6" style={{ stopColor: "var(--bone)", stopOpacity: 0.06 }} />
+            <stop offset="1" style={{ stopColor: "var(--bone)", stopOpacity: 0 }} />
+          </radialGradient>
+          <radialGradient id={`${id}-disc`} cx="0.62" cy="0.36" r="0.75">
+            <stop offset="0" style={{ stopColor: "var(--bone)" }} />
+            <stop offset="0.7" style={{ stopColor: mix("bone", 90, "fog") }} />
+            <stop offset="1" style={{ stopColor: mix("bone", 68, "fog") }} />
+          </radialGradient>
+          <clipPath id={`${id}-clip`}>
+            <circle r="40" />
+          </clipPath>
+          <filter id={`${id}-soft`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="2.2" />
+          </filter>
+        </defs>
+
+        <circle data-moon-halo r="100" fill={`url(#${id}-halo)`} />
+        <circle data-moon-disc r="40" fill={`url(#${id}-disc)`} />
+        {/* Maria: blurred darker seas on the moon's face. */}
+        <g clipPath={`url(#${id}-clip)`}>
+          <g filter={`url(#${id}-soft)`} style={{ fill: "var(--fog)" }}>
+            <path
+              d="M-26-10c2-9 12-13 20-10 6 2 9 8 6 13-3 6-11 7-17 6-6-1-10-4-9-9Z"
+              opacity="0.16"
+            />
+            <path d="M-6-22c4-3 11-2 13 2 1 4-3 6-8 6-4 0-7-4-5-8Z" opacity="0.12" />
+            <path d="M2 4c5-5 15-4 18 2 2 6-3 11-10 11-6 0-11-6-8-13Z" opacity="0.14" />
+            <path d="M-22 12c3-3 9-2 10 2 1 4-3 7-7 6-4 0-5-5-3-8Z" opacity="0.11" />
+            <ellipse cx="6" cy="25" rx="6" ry="3.5" opacity="0.1" />
+          </g>
+          <g style={{ fill: "var(--fog)" }}>
+            <circle cx="18" cy="-18" r="2" opacity="0.12" />
+            <circle cx="-25" cy="3" r="1.4" opacity="0.1" />
+          </g>
         </g>
-        <g style={{ fill: "var(--fog)" }}>
-          <circle cx="18" cy="-18" r="2" opacity="0.12" />
-          <circle cx="-25" cy="3" r="1.4" opacity="0.1" />
-        </g>
-      </g>
-    </svg>
+      </svg>
+    </div>
   );
 }
 
@@ -163,12 +191,13 @@ type FogBandProps = {
   density: number;
   durationS: number;
   direction: 1 | -1;
-  reduceMotion: boolean;
+  /** Drift is paused at the first point of the loop (reduced motion, or the Landing view). */
+  still: boolean;
 };
 
 const FOG_TILE = { width: 1600, height: 240 };
 
-function FogBand({ seed, style, density, durationS, direction, reduceMotion }: FogBandProps) {
+function FogBand({ seed, style, density, durationS, direction, still }: FogBandProps) {
   const filterId = `${useId()}-fog`;
   const loop: [string, string] = direction === 1 ? ["-50%", "0%"] : ["0%", "-50%"];
   const tile = (
@@ -192,6 +221,7 @@ function FogBand({ seed, style, density, durationS, direction, reduceMotion }: F
           "linear-gradient(to bottom, transparent, var(--night) 35%, var(--night) 70%, transparent)",
       }}
       aria-hidden="true"
+      data-backdrop-fog
     >
       <svg width="0" height="0" className="absolute">
         <filter
@@ -219,9 +249,9 @@ function FogBand({ seed, style, density, durationS, direction, reduceMotion }: F
         className="flex h-full w-[200%]"
         style={{ fill: "var(--bone)", willChange: "transform" }}
         initial={{ x: loop[0] }}
-        animate={reduceMotion ? { x: loop[0] } : { x: loop }}
+        animate={still ? { x: loop[0] } : { x: loop }}
         transition={
-          reduceMotion ? { duration: 0 } : { duration: durationS, ease: "linear", repeat: Infinity }
+          still ? { duration: 0 } : { duration: durationS, ease: "linear", repeat: Infinity }
         }
       >
         {tile}
@@ -339,23 +369,28 @@ export function Ground() {
  * Composed layers. Fog thins as you bury (design.md: "fog clears as you bury more").
  * ---------------------------------------------------------------------------------------------- */
 
-type LayerProps = { reduceMotion: boolean; fogCleared: boolean };
+type LayerProps = { reduceMotion: boolean; fogCleared: boolean; fogStill: boolean };
 
 /** Everything behind the card: sky, stars, moon, hills, far fog, fence, low fog. */
-export function BackdropLayers({ reduceMotion, fogCleared }: LayerProps) {
+export function BackdropLayers({
+  reduceMotion,
+  fogCleared,
+  fogStill,
+  moon,
+}: LayerProps & { moon: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden="true">
       <Stars />
-      <Moon />
+      {moon && <Moon placement="sky" />}
       <Hills />
       <motion.div className="absolute inset-0" {...fogFade(reduceMotion, fogCleared)}>
         <FogBand
           seed={7}
           style={{ bottom: "calc(var(--ground-h) + 1.5rem)", height: "15rem" }}
-          density={0.13}
+          density={FOG_DENSITIES[0]}
           durationS={40}
           direction={-1}
-          reduceMotion={reduceMotion}
+          still={fogStill}
         />
       </motion.div>
       <Fence />
@@ -363,10 +398,10 @@ export function BackdropLayers({ reduceMotion, fogCleared }: LayerProps) {
         <FogBand
           seed={23}
           style={{ bottom: "calc(var(--ground-h) - 2.5rem)", height: "9rem" }}
-          density={0.11}
+          density={FOG_DENSITIES[1]}
           durationS={28}
           direction={1}
-          reduceMotion={reduceMotion}
+          still={fogStill}
         />
       </motion.div>
     </div>
@@ -374,7 +409,7 @@ export function BackdropLayers({ reduceMotion, fogCleared }: LayerProps) {
 }
 
 /** Fog in front of the earth. Stays below the ground line so it never covers the card. */
-export function ForegroundFog({ reduceMotion, fogCleared }: LayerProps) {
+export function ForegroundFog({ reduceMotion, fogCleared, fogStill }: LayerProps) {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0"
@@ -384,10 +419,10 @@ export function ForegroundFog({ reduceMotion, fogCleared }: LayerProps) {
       <FogBand
         seed={61}
         style={{ bottom: "-2rem", height: "calc(var(--ground-h) + 2rem)" }}
-        density={0.08}
+        density={FOG_DENSITIES[2]}
         durationS={22}
         direction={-1}
-        reduceMotion={reduceMotion}
+        still={fogStill}
       />
     </motion.div>
   );

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "../App";
+import { PRIMARY_ACTION_NAME } from "./logic/landing-text";
 
 beforeEach(() => {
   window.location.hash = "";
@@ -15,7 +16,7 @@ describe("graveyard flow: keep focus with real animation", () => {
   it("moves focus to 'Kept. It rests.' and never leaves it on body once the note mounted", async () => {
     const user = userEvent.setup();
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "US bank, signed amounts" }));
+    fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
     await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
 
     const yes = screen.getByRole("button", { name: "Yes, let it rest" });

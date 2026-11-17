@@ -9,6 +9,7 @@ import { App } from "../App";
 import { expectUniqueButtonNames } from "./graveyard/test-a11y";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { COPY_FAILED_NOTICE, copiedNotice } from "./logic/cancel-text";
+import { PRIMARY_ACTION_NAME } from "./logic/landing-text";
 import { partsToText, priceRiseParts } from "./logic/label-text";
 import { formatMoney } from "./logic/money";
 import { SAMPLES } from "./samples";
@@ -65,6 +66,12 @@ async function chooseSample(label: string) {
   await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
 }
 
+/** Summon the undead with the US Sample, through the Landing view's Primary action. */
+async function summon() {
+  fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
+  await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+}
+
 /** Every button on the page has a name and no two share one (Req 14.1). */
 function expectUnique() {
   expectUniqueButtonNames(document.body);
@@ -104,7 +111,7 @@ function counterText(): string {
 describe("graveyard flow: first card", () => {
   it("shows the first card, the Still draining total, the progress line and its focus", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     const main = within(document.querySelector("main") as HTMLElement);
     expect(main.getByText(/Still draining/).textContent).toContain(formatMoney(135564, "USD"));
@@ -125,7 +132,7 @@ describe("graveyard flow: first card", () => {
 describe("graveyard flow: keep", () => {
   it("rests the card, counts the answer, focuses the note and announces it", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));
 
@@ -145,7 +152,7 @@ describe("graveyard flow: keep", () => {
 describe("graveyard flow: Netflix card", () => {
   it("shows Possessed and the price rise on Netflix only", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     expect(card("Adobe Creative Cloud").textContent).not.toContain("Price went up");
     fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));
@@ -172,7 +179,7 @@ describe("graveyard flow: Netflix card", () => {
 describe("graveyard flow: bury", () => {
   it("runs the burial, shows the tombstone and updates the totals, focus and live region", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     reachNetflix();
 
     fireEvent.click(screen.getByRole("button", { name: "No, bury it" }));
@@ -206,7 +213,7 @@ describe("graveyard flow: bury", () => {
 describe("graveyard flow: burial fallback", () => {
   it("ends a burial whose mound never closes after 2 seconds", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     reachNetflix();
     mound.stalled = true;
     vi.useFakeTimers();
@@ -227,7 +234,7 @@ describe("graveyard flow: Gate keeps focus", () => {
   it("does not remount the Gate while another statement is read", async () => {
     const frames: FrameRequestCallback[] = [];
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     vi.stubGlobal(
       "requestAnimationFrame",
@@ -308,7 +315,7 @@ async function buryNetflixAndSpotify() {
 describe("graveyard flow: skip and next", () => {
   it("moves a skipped card to the end and ends on 'Every undead has an answer.'", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
     await waitFor(() =>
@@ -376,7 +383,7 @@ describe("graveyard flow: guessed", () => {
 describe("graveyard flow: Graveyard view", () => {
   it("lists tombstones, resting, unanswered, and returns to the gym card", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     // Adobe is kept first, then Gym is skipped to leave it unanswered.
     fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -418,7 +425,7 @@ describe("graveyard flow: Graveyard view", () => {
 
   it("says nothing is buried yet when no answer was given", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
 
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
 
@@ -428,7 +435,7 @@ describe("graveyard flow: Graveyard view", () => {
 
   it("goes back to the start from idle and focuses the drop area", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     reachNetflix();
     await buryCurrent("Netflix");
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
@@ -469,7 +476,7 @@ describe("graveyard flow: Already stopped", () => {
 describe("graveyard flow: change answers", () => {
   it("unburies Netflix to Resting and buries it again after all", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     await buryNetflixAndSpotify();
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
     expect(screen.getByText(/You buried/).textContent).toContain(formatMoney(34776, "USD"));
@@ -510,7 +517,7 @@ describe("graveyard flow: default empty load", () => {
     );
     const hashBefore = window.location.hash;
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     reachNetflix();
     await buryCurrent("Netflix");
 
@@ -532,7 +539,7 @@ describe("graveyard flow: unique names and Tab order", () => {
   it("tabs the first card in the drawn order", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     await waitFor(() => expect(document.activeElement).toBe(cardHeading("Adobe Creative Cloud")));
     (document.activeElement as HTMLElement).blur();
 
@@ -558,7 +565,7 @@ describe("graveyard flow: unique names and Tab order", () => {
 describe("graveyard flow: scene is decorative", () => {
   it("hides every svg and backdrop layer and draws no img", async () => {
     const { container } = render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     reachNetflix();
     await buryCurrent("Netflix");
 
@@ -596,7 +603,7 @@ function panel(name: string): HTMLElement {
 }
 
 async function buryNetflix() {
-  await chooseSample(US_LABEL);
+  await summon();
   reachNetflix();
   await buryCurrent("Netflix");
 }
@@ -665,7 +672,7 @@ describe("graveyard flow: Helper panel on the Burial stage", () => {
 
   it("shows the email-only panel for Riverside Gym Membership", async () => {
     render(<App />);
-    await chooseSample(US_LABEL);
+    await summon();
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
     cardHeading("Riverside Gym Membership");
     await buryCurrent("Riverside Gym Membership");

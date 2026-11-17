@@ -16,7 +16,7 @@ import {
   pageGraveyardArb,
   resultsOutcomeOf,
 } from "./logic/test-arbitraries";
-import { INITIAL_PAGE_MODEL, initialPageModel, pageReducer } from "./page-state";
+import { INITIAL_PAGE_MODEL, initialPageModel, isLandingView, pageReducer } from "./page-state";
 import { STORE_KEY } from "./storage/graveyard-store";
 import { fakeStorage } from "./storage/test-store";
 import type { BurialPhase, PageAction, PageModel } from "./page-state";
@@ -175,6 +175,18 @@ describe("page reducer properties", () => {
           const working = before.view.kind === "working";
           if ((action.type === "start" || action.type === "reject") && working) {
             expect(model).toBe(before);
+          }
+          if (action.type === "start" && !working) {
+            expect(model.view.kind).toBe("working");
+            if (model.view.kind === "working") {
+              expect(model.view.origin).toBe(
+                before.view.kind === "idle" && before.screen === "main" ? "landing" : "other",
+              );
+            }
+          }
+          if (isLandingView(model)) {
+            expect(model.screen).toBe("main");
+            expect(["idle", "working"]).toContain(model.view.kind);
           }
           if (action.type === "finish" || action.type === "fail") {
             const applies = working && action.runId === before.runId;

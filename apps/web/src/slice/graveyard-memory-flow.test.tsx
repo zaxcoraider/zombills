@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { App } from "../App";
 import { expectUniqueButtonNames } from "./graveyard/test-a11y";
 import { formatMoney } from "./logic/money";
+import { PRIMARY_ACTION_NAME } from "./logic/landing-text";
 import {
   CARRIED_OVER_NOTE,
   EARLIER_NOTE,
@@ -26,7 +27,8 @@ import {
   REMOVE_FAILED_NOTE,
   UNREADABLE_NOTE,
   WRITE_FAILED_NOTE,
-  IDLE_SENTENCE,
+  PRIVACY_NOTE,
+  STATEMENT_TIP,
   carriedOverLine,
   droppedNote,
   restoredLine,
@@ -58,8 +60,6 @@ vi.mock("./graveyard/motion", async (importOriginal) => {
     },
   };
 });
-
-const US_LABEL = "US bank, signed amounts";
 
 /** The Glossary example: us-signed.csv with Netflix buried. */
 const GLOSSARY_TEXT =
@@ -197,7 +197,7 @@ function cardHeading(name: string): HTMLElement {
 }
 
 async function chooseSample() {
-  fireEvent.click(screen.getByRole("button", { name: US_LABEL }));
+  fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
   await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
 }
 
@@ -235,7 +235,8 @@ async function expectPageWorks(buried: number) {
 describe("graveyard memory flow: first visit", () => {
   it("shows an unticked checkbox, the hint and the new idle sentence, and makes no storage call", async () => {
     const { storage } = mount();
-    expect(screen.getByText(IDLE_SENTENCE)).toBeTruthy();
+    expect(screen.getAllByText(PRIVACY_NOTE)).toHaveLength(1);
+    expect(screen.getAllByText(STATEMENT_TIP)).toHaveLength(1);
 
     await chooseSample();
     reachNetflix();
@@ -444,7 +445,8 @@ describe("graveyard memory flow: Req 5.7 storage rows", () => {
   it("Req 5.7 extra row, getItem throws on load: Memory off, no note, the Page works", async () => {
     const { storage } = mount({ storage: { throwOn: { get: true } }, throughLoad: true });
     expect(methodCalls(storage, "getItem")).toHaveLength(1);
-    expect(screen.getByText(IDLE_SENTENCE)).toBeTruthy();
+    expect(screen.getAllByText(PRIVACY_NOTE)).toHaveLength(1);
+    expect(screen.getAllByText(STATEMENT_TIP)).toHaveLength(1);
     expect(screen.queryByText(UNREADABLE_NOTE)).toBeNull();
     await chooseSample();
     await buryNetflix();

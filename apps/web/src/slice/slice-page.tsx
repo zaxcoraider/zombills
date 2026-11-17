@@ -18,17 +18,16 @@ import { decodeStatementBytes } from "./logic/decode-bytes";
 import { checkFiles, containsNul } from "./logic/file-checks";
 import { deriveHaunt } from "./logic/haunt-view";
 import type { HauntView } from "./logic/haunt-view";
+import { HowItWorks } from "./landing/how-it-works";
+import { Hero } from "./landing/hero";
+import { LandingBanner } from "./landing/landing-banner";
+import { OwnStatement } from "./landing/own-statement";
 import { NoSubscriptionsView } from "./no-subscriptions-view";
-import {
-  IDLE_SENTENCE,
-  NEWER_NOTE,
-  UNREADABLE_NOTE,
-  droppedNote,
-  restoredLine,
-} from "./logic/memory-text";
-import { initialPageModel, pageReducer } from "./page-state";
-import type { LoadNote, PageAction, PageModel } from "./page-state";
+import { restoredLine } from "./logic/memory-text";
+import { initialPageModel, isLandingView, pageReducer } from "./page-state";
+import type { PageAction, PageModel } from "./page-state";
 import { SampleButtons } from "./sample-buttons";
+import { SiteFooter } from "./site-footer";
 import type { Sample } from "./samples";
 import { useGraveyardMemory } from "./storage/use-graveyard-memory";
 import type { GraveyardStore, StoreLoad } from "./storage/graveyard-store";
@@ -49,34 +48,15 @@ interface MainStateProps {
   onStartAgain: () => void;
 }
 
-function loadNoteText(note: LoadNote): string {
-  switch (note.kind) {
-    case "unreadable":
-      return UNREADABLE_NOTE;
-    case "dropped":
-      return droppedNote(note.count);
-    case "newer":
-      return NEWER_NOTE;
-  }
-}
-
 /** The state content of `main` on the main screen: one view at a time. */
 function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainStateProps) {
   const { view } = model;
   switch (view.kind) {
     case "idle":
-      return (
-        <div className={PANEL_CLASS}>
-          <div className="flex flex-col gap-3">
-            <p>{IDLE_SENTENCE}</p>
-            {model.memory.restored && model.graveyard.length > 0 ? (
-              <p>{restoredLine(haunt.tombstones.length, haunt.kept.length)}</p>
-            ) : null}
-            {model.memory.loadNote !== null ? <p>{loadNoteText(model.memory.loadNote)}</p> : null}
-          </div>
-        </div>
-      );
+      // The Landing view renders this state (Req 1.1).
+      return null;
     case "working":
+      if (view.origin === "landing") return null;
       return (
         <FadeIn key="working">
           <div className={PANEL_CLASS}>
@@ -140,6 +120,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
   useBurialFallback(view.kind === "results" ? view.rising.stage : null, dispatch);
   const nextRunId = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
+  const privacyNoteRef = useRef<HTMLParagraphElement>(null);
   const handledSeq = useRef(0);
   const claim = useCallback((seq: number) => {
     if (seq <= handledSeq.current) return false;
@@ -240,6 +221,11 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
     dispatch({ type: "reset" });
   }
 
+  const landing = isLandingView(model);
+  const onReadNote = useCallback(() => {
+    if (privacyNoteRef.current !== null) focusAndReveal(privacyNoteRef.current);
+  }, []);
+
   const working = view.kind === "working";
   const onGraveyard = model.screen === "graveyard";
   const hasStatement = view.kind === "results";
@@ -254,70 +240,104 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
   return (
     <FocusRequestContext.Provider value={focusValue}>
       <AnnounceContext.Provider value={announceValue}>
-        <NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMotion}>
-          <div className="mx-auto max-w-[640px] px-4 pt-8">
-            <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-fog/95 p-6">
-              <div className="flex flex-col gap-2">
-                <h1 className="font-display text-4xl">Zombills</h1>
-                <p>Your bank statement is haunted.</p>
+        <NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMotion} landing={landing}>
+          {landing ? (
+            <>
+              <LandingBanner haunt={haunt} reduceMotion={reduceMotion} />
+              <main
+                ref={mainRef}
+                className="mx-auto flex w-full max-w-[1184px] flex-col gap-12 px-4 pb-12 pt-6 sm:px-8 sm:pt-8"
+              >
+                <Hero
+                  working={working}
+                  workingSourceName={view.kind === "working" ? view.sourceName : null}
+                  onChooseSample={onChooseSample}
+                  onReadNote={onReadNote}
+                  returnNotes={{
+                    restored:
+                      model.memory.restored && model.graveyard.length > 0
+                        ? restoredLine(haunt.tombstones.length, haunt.kept.length)
+                        : null,
+                    loadNote: model.memory.loadNote,
+                    showOpen: showOpenGraveyard,
+                    onOpen: () => dispatch({ type: "open-graveyard" }),
+                  }}
+                />
+                <HowItWorks />
+                <OwnStatement disabled={working} onFiles={onFiles} />
+              </main>
+              <SiteFooter noteRef={privacyNoteRef} wide />
+            </>
+          ) : (
+            <>
+              <div className="mx-auto max-w-[640px] px-4 pt-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-fog/95 p-6">
+                  <div className="flex flex-col gap-2">
+                    <h1 className="font-display text-4xl">Zombills</h1>
+                    <p>Your bank statement is haunted.</p>
+                  </div>
+                  <SavingsCounter
+                    totals={haunt.savings}
+                    fallbackCurrency={haunt.counterFallbackCurrency}
+                    reduceMotion={reduceMotion}
+                  />
+                </header>
               </div>
-              <SavingsCounter
-                totals={haunt.savings}
-                fallbackCurrency={haunt.counterFallbackCurrency}
-                reduceMotion={reduceMotion}
-              />
-            </header>
-          </div>
-          <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
-            <div className="order-1">
-              {onGraveyard ? (
-                <GraveyardView
-                  haunt={haunt}
-                  hasStatement={hasStatement}
-                  enteringId={enteringId}
-                  enteringSeq={enteringId !== null ? (model.focus?.seq ?? null) : null}
-                  memory={model.memory}
-                  reduceMotion={reduceMotion}
-                  dispatch={dispatch}
-                />
-              ) : (
-                <MainState
-                  model={model}
-                  haunt={haunt}
-                  reduceMotion={reduceMotion}
-                  dispatch={dispatch}
-                  onStartAgain={onStartAgain}
-                />
-              )}
-            </div>
-            <div key="gate" className="order-2 flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
-              {gateHeading ? <h2 className="text-xl font-bold">Read another statement</h2> : null}
-              <DropZone disabled={working} onFiles={onFiles} />
-              <SampleButtons disabled={working} onChoose={onChooseSample} />
-              {showOpenGraveyard ? (
-                <div>
-                  <button
-                    type="button"
-                    className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-                    onClick={() => dispatch({ type: "open-graveyard" })}
-                  >
-                    Open the graveyard
-                  </button>
+              <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
+                <div className="order-1">
+                  {onGraveyard ? (
+                    <GraveyardView
+                      haunt={haunt}
+                      hasStatement={hasStatement}
+                      enteringId={enteringId}
+                      enteringSeq={enteringId !== null ? (model.focus?.seq ?? null) : null}
+                      memory={model.memory}
+                      reduceMotion={reduceMotion}
+                      dispatch={dispatch}
+                    />
+                  ) : (
+                    <MainState
+                      model={model}
+                      haunt={haunt}
+                      reduceMotion={reduceMotion}
+                      dispatch={dispatch}
+                      onStartAgain={onStartAgain}
+                    />
+                  )}
                 </div>
-              ) : null}
-            </div>
-            <div className="order-3">
-              {showStartAgain ? (
-                <button
-                  type="button"
-                  className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-                  onClick={onStartAgain}
-                >
-                  Start again
-                </button>
-              ) : null}
-            </div>
-          </main>
+                <div key="gate" className="order-2 flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+                  {gateHeading ? (
+                    <h2 className="text-xl font-bold">Read another statement</h2>
+                  ) : null}
+                  <DropZone disabled={working} onFiles={onFiles} />
+                  <SampleButtons disabled={working} onChoose={onChooseSample} />
+                  {showOpenGraveyard ? (
+                    <div>
+                      <button
+                        type="button"
+                        className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+                        onClick={() => dispatch({ type: "open-graveyard" })}
+                      >
+                        Open the graveyard
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="order-3">
+                  {showStartAgain ? (
+                    <button
+                      type="button"
+                      className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+                      onClick={onStartAgain}
+                    >
+                      Start again
+                    </button>
+                  ) : null}
+                </div>
+              </main>
+              <SiteFooter noteRef={privacyNoteRef} wide={false} />
+            </>
+          )}
           <p role="status" className="sr-only">
             {notice ?? sentence}
           </p>
