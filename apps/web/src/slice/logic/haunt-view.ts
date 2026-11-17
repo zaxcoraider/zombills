@@ -45,6 +45,8 @@ export interface HauntView {
   answeredCount: number; // Risen with a Current record
   names: ReadonlyMap<string, string>;
   currentIds: ReadonlySet<string>;
+  /** Records that are not Current records; every record outside the results view */
+  earlierIds: ReadonlySet<string>;
   tombstones: readonly AnswerRecord[]; // Graveyard order
   kept: readonly AnswerRecord[]; // Graveyard order
   /** From the settled Graveyard */
@@ -103,6 +105,9 @@ export function deriveHaunt(input: HauntInput, locale?: string): HauntView {
     answeredCount,
     names,
     currentIds,
+    earlierIds: new Set(
+      graveyard.filter((record) => !currentIds.has(record.id)).map((record) => record.id),
+    ),
     tombstones,
     kept,
     savings,

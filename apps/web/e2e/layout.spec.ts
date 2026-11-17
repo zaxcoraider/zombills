@@ -325,3 +325,47 @@ for (const shareCase of SHARE_CASES) {
     }
   });
 }
+
+test("the Memory panel is one column with no sideways scroll at 320x568", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await buryNetflix(page);
+  await page.getByRole("button", { name: "Open the graveyard" }).click();
+  await expect(page.getByRole("heading", { name: "Your graveyard", exact: true })).toBeVisible();
+
+  const panel = page.locator("section", {
+    has: page.getByRole("heading", { level: 3, name: "Memory", exact: true }),
+  });
+  await expect(panel).toBeVisible();
+
+  const expectOneColumn = async (): Promise<void> => {
+    const boxes = await panel.locator(":scope > *").evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const { x, y, width, height } = node.getBoundingClientRect();
+        return { x, y, width, height };
+      }),
+    );
+    const panelBox = await boxOf(panel);
+    expect(boxes.length).toBeGreaterThan(1);
+    let previousBottom = -Infinity;
+    for (const box of boxes) {
+      expect(box.y, "each part starts below the one before").toBeGreaterThanOrEqual(
+        previousBottom - 1,
+      );
+      expect(box.x).toBeGreaterThanOrEqual(panelBox.x - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 1);
+      previousBottom = box.y + box.height;
+    }
+    const overflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+    }));
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth);
+  };
+
+  await page.waitForTimeout(1500);
+  await expectOneColumn();
+
+  await page.getByRole("button", { name: "Forget everything" }).click();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+  await expectOneColumn();
+});

@@ -7,6 +7,7 @@ import usSigned from "../../../../../samples/us-signed.csv?raw";
 import { analyzeStatement } from "../logic/analyze-statement";
 import type { AnalysisOutcome, ResultsOutcome } from "../logic/analyze-statement";
 import { deriveHaunt } from "../logic/haunt-view";
+import { MEMORY_ON_LINE, MEMORY_SETTINGS } from "../logic/memory-text";
 import { formatMoney } from "../logic/money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageAction, PageModel } from "../page-state";
@@ -46,14 +47,17 @@ function Harness({ initial, actions }: { initial: PageModel; actions: PageAction
       rising={model.view.rising}
       haunt={haunt}
       reduceMotion={false}
+      memoryOn={model.memory.on}
       dispatch={dispatch}
     />
   );
 }
 
-function renderRising(csv: string) {
+function renderRising(csv: string, memoryOn = false) {
   const actions: PageAction[] = [];
-  render(<Harness initial={modelFor(resultsOf(csv))} actions={actions} />);
+  const model = modelFor(resultsOf(csv));
+  const initial = memoryOn ? { ...model, memory: { ...model.memory, on: true } } : model;
+  render(<Harness initial={initial} actions={actions} />);
   return actions;
 }
 
@@ -175,5 +179,22 @@ describe("RisingView", () => {
     expect(draining).toHaveLength(1);
     expect(within(draining[0] as HTMLElement).getByText(formatMoney(36000, "USD"))).toBeTruthy();
     expect(screen.queryByText(/Still draining.*€/)).toBeNull();
+  });
+});
+
+describe("RisingView: Memory on", () => {
+  it("shows the reminder and a Memory settings button that opens the settings", () => {
+    const actions = renderRising(usSigned, true);
+    expect(screen.getByText(MEMORY_ON_LINE)).toBe(
+      screen.getByText("Your answers are kept on this device."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: MEMORY_SETTINGS }));
+    expect(actions).toEqual([{ type: "open-memory-settings" }]);
+  });
+
+  it("shows neither while Memory is off", () => {
+    renderRising(usSigned);
+    expect(screen.queryByText(MEMORY_ON_LINE)).toBeNull();
+    expect(screen.queryByRole("button", { name: MEMORY_SETTINGS })).toBeNull();
   });
 });

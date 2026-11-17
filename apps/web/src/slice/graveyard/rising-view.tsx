@@ -7,6 +7,7 @@ import { assumedValueNotes } from "../logic/assumed-values";
 import { formatDisplayDate } from "../logic/display-date";
 import type { HauntView } from "../logic/haunt-view";
 import type { PageAction, RisingModel } from "../page-state";
+import { MEMORY_ON_LINE, MEMORY_SETTINGS } from "../logic/memory-text";
 import { BurialStage } from "./burial-stage";
 import { Money } from "./money-text";
 import { useFocusRequest } from "./use-focus-request";
@@ -17,6 +18,8 @@ export interface RisingViewProps {
   rising: RisingModel;
   haunt: HauntView;
   reduceMotion: boolean;
+  /** true while Memory is on: shows the reminder and the Memory settings button */
+  memoryOn: boolean;
   dispatch: Dispatch<PageAction>;
 }
 
@@ -120,6 +123,7 @@ export function RisingView({
   rising,
   haunt,
   reduceMotion,
+  memoryOn,
   dispatch,
 }: RisingViewProps) {
   const { stage } = rising;
@@ -176,6 +180,18 @@ export function RisingView({
             Open the graveyard
           </button>
         </div>
+        {memoryOn ? (
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p>{MEMORY_ON_LINE}</p>
+            <button
+              type="button"
+              className={BUTTON_CLASS}
+              onClick={() => dispatch({ type: "open-memory-settings" })}
+            >
+              {MEMORY_SETTINGS}
+            </button>
+          </div>
+        ) : null}
       </div>
       {noRisen ? (
         <NoRisen haunt={haunt} />

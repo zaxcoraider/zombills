@@ -19,10 +19,19 @@ import { checkFiles, containsNul } from "./logic/file-checks";
 import { deriveHaunt } from "./logic/haunt-view";
 import type { HauntView } from "./logic/haunt-view";
 import { NoSubscriptionsView } from "./no-subscriptions-view";
-import { INITIAL_PAGE_MODEL, pageReducer } from "./page-state";
-import type { PageAction, PageModel } from "./page-state";
+import {
+  IDLE_SENTENCE,
+  NEWER_NOTE,
+  UNREADABLE_NOTE,
+  droppedNote,
+  restoredLine,
+} from "./logic/memory-text";
+import { initialPageModel, pageReducer } from "./page-state";
+import type { LoadNote, PageAction, PageModel } from "./page-state";
 import { SampleButtons } from "./sample-buttons";
 import type { Sample } from "./samples";
+import { useGraveyardMemory } from "./storage/use-graveyard-memory";
+import type { GraveyardStore, StoreLoad } from "./storage/graveyard-store";
 
 type StatementSource = { kind: "file"; file: File } | { kind: "sample"; sample: Sample };
 
@@ -40,6 +49,17 @@ interface MainStateProps {
   onStartAgain: () => void;
 }
 
+function loadNoteText(note: LoadNote): string {
+  switch (note.kind) {
+    case "unreadable":
+      return UNREADABLE_NOTE;
+    case "dropped":
+      return droppedNote(note.count);
+    case "newer":
+      return NEWER_NOTE;
+  }
+}
+
 /** The state content of `main` on the main screen: one view at a time. */
 function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainStateProps) {
   const { view } = model;
@@ -47,10 +67,13 @@ function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainS
     case "idle":
       return (
         <div className={PANEL_CLASS}>
-          <p>
-            Your statement stays on this device. A statement covering 2 to 3 months gives the best
-            results.
-          </p>
+          <div className="flex flex-col gap-3">
+            <p>{IDLE_SENTENCE}</p>
+            {model.memory.restored && model.graveyard.length > 0 ? (
+              <p>{restoredLine(haunt.tombstones.length, haunt.kept.length)}</p>
+            ) : null}
+            {model.memory.loadNote !== null ? <p>{loadNoteText(model.memory.loadNote)}</p> : null}
+          </div>
         </div>
       );
     case "working":
@@ -70,6 +93,7 @@ function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainS
             rising={view.rising}
             haunt={haunt}
             reduceMotion={reduceMotion}
+            memoryOn={model.memory.on}
             dispatch={dispatch}
           />
         </FadeIn>
@@ -101,8 +125,14 @@ function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainS
   }
 }
 
-export function SlicePage() {
-  const [model, dispatch] = useReducer(pageReducer, INITIAL_PAGE_MODEL);
+export interface SlicePageProps {
+  store: GraveyardStore;
+  initialStore: StoreLoad;
+}
+
+export function SlicePage({ store, initialStore }: SlicePageProps) {
+  const [model, dispatch] = useReducer(pageReducer, initialStore.result, initialPageModel);
+  useGraveyardMemory(model, store, initialStore.text, dispatch);
   const { view } = model;
   const reduceMotion = useReducedMotion() ?? false;
   const haunt = useMemo(() => deriveHaunt(model), [model.view, model.graveyard]);
@@ -244,6 +274,8 @@ export function SlicePage() {
                   haunt={haunt}
                   hasStatement={hasStatement}
                   enteringId={enteringId}
+                  enteringSeq={enteringId !== null ? (model.focus?.seq ?? null) : null}
+                  memory={model.memory}
                   reduceMotion={reduceMotion}
                   dispatch={dispatch}
                 />

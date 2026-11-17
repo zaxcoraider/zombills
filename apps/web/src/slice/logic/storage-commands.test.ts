@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { initialPageModel, pageReducer } from "../page-state";
+import { STORE_KEY } from "../storage/graveyard-store";
+import { fakeStorage } from "../storage/test-store";
 import { encodeGraveyard } from "./graveyard-codec";
 import type { AnswerRecord, Graveyard } from "./graveyard";
 import {
@@ -145,5 +148,42 @@ describe("lastWrittenAfter", () => {
   it("gives null after a remove", () => {
     expect(lastWrittenAfter("old", remove, true)).toBeNull();
     expect(lastWrittenAfter("old", remove, false)).toBeNull();
+  });
+});
+
+describe("storage failures (Req 3.8)", () => {
+  it("a throwing setItem followed by store-write-failed gives Memory off and a write-failed note", () => {
+    const storage = fakeStorage({ throwOn: { set: true } });
+    const ticked = pageReducer(initialPageModel({ kind: "empty" }), {
+      type: "set-memory",
+      on: true,
+    });
+    const next = snap({ on: ticked.memory.on, graveyard: ONE, removal: ticked.memory.removal });
+    const commands = storageCommands(snap(), next);
+    expect(commands).toHaveLength(1);
+    const [command] = commands;
+    expect(command?.kind).toBe("write");
+    if (command?.kind !== "write") return;
+    expect(() => storage.setItem(STORE_KEY, command.text)).toThrow();
+    expect(lastWrittenAfter(null, command, false)).toBeNull();
+    const failed = pageReducer(ticked, { type: "store-write-failed" });
+    expect(failed.memory.on).toBe(false);
+    expect(failed.memory.storageNote).toBe("write-failed");
+  });
+
+  it("a throwing removeItem after untick followed by store-remove-failed gives Memory off and a remove-failed note", () => {
+    const storage = fakeStorage({ throwOn: { remove: true }, initial: { [STORE_KEY]: ONE_TEXT } });
+    const on = initialPageModel({ kind: "ok", graveyard: ONE, dropped: 0 });
+    const unticked = pageReducer(on, { type: "set-memory", on: false });
+    expect(unticked.memory.on).toBe(false);
+    const commands = storageCommands(
+      snap({ on: true, graveyard: ONE, lastWritten: ONE_TEXT }),
+      snap({ on: false, graveyard: ONE, removal: unticked.memory.removal }),
+    );
+    expect(commands).toEqual([{ kind: "remove", reason: "untick" }]);
+    expect(() => storage.removeItem(STORE_KEY)).toThrow();
+    const failed = pageReducer(unticked, { type: "store-remove-failed", reason: "untick" });
+    expect(failed.memory.on).toBe(false);
+    expect(failed.memory.storageNote).toBe("remove-failed");
   });
 });

@@ -185,3 +185,47 @@ describe("deriveHaunt: other views", () => {
     expect(haunt.queue).toEqual([]);
   });
 });
+
+describe("deriveHaunt: earlierIds", () => {
+  const OTHER = {
+    id: "sub:USD:monthly:*:old-gym",
+    merchant: "Old Gym",
+    currency: "USD",
+    cadence: "monthly",
+    currentAmountCents: 2_000,
+  } as const;
+
+  it("holds every record outside the results view", () => {
+    const outcome = usResults();
+    const netflix = outcome.subscriptions.find((s) => s.id === NETFLIX);
+    if (!netflix) throw new Error("no Netflix");
+    const graveyard = recordAnswer(
+      buriedNetflix(outcome),
+      { ...netflix, id: OTHER.id },
+      "still-using",
+    );
+    for (const kind of ["idle", "working", "error"] as const) {
+      expect(deriveHaunt({ view: { kind }, graveyard }).earlierIds).toEqual(
+        new Set(graveyard.map((record) => record.id)),
+      );
+    }
+  });
+
+  it("holds only the non-Current records in results", () => {
+    const outcome = usResults();
+    const netflix = outcome.subscriptions.find((s) => s.id === NETFLIX);
+    if (!netflix) throw new Error("no Netflix");
+    const graveyard = recordAnswer(
+      buriedNetflix(outcome),
+      { ...netflix, id: OTHER.id, merchant: OTHER.merchant },
+      "still-using",
+    );
+    const haunt = deriveHaunt(resultsInput(graveyard, { kind: "ask" }, outcome));
+    expect(haunt.earlierIds).toEqual(new Set([OTHER.id]));
+    expect(haunt.currentIds.has(NETFLIX)).toBe(true);
+  });
+
+  it("is empty for an empty Graveyard", () => {
+    expect(deriveHaunt(resultsInput(EMPTY_GRAVEYARD)).earlierIds.size).toBe(0);
+  });
+});

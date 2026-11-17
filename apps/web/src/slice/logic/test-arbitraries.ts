@@ -12,6 +12,8 @@ import {
   type Subscription,
   type UsageAnswer,
 } from "@zombills/core";
+import type { PageAction } from "../page-state";
+import type { ResultsOutcome } from "./analyze-statement";
 import { yearlySavingFor, type AnswerRecord } from "./graveyard";
 import type { StoredRecord } from "./graveyard-codec";
 
@@ -576,3 +578,86 @@ export const pageOutcomeArb: fc.Arbitrary<Subscription[]> = fc.uniqueArray(pageS
   selector: (s) => s.id,
   maxLength: 12,
 });
+
+/** Statement facts for generated outcomes; only `statement.currencies` varies. */
+const OUTCOME_FACTS = {
+  transactionCount: 3,
+  rowErrorCount: 0,
+  detectedCurrency: { code: "USD", source: "symbol" as const },
+  detectedDateFormat: null,
+  detectedSignConvention: null,
+};
+
+/** A results outcome over `subscriptions`; `totals` is empty because the reducer never reads it. */
+export function resultsOutcomeOf(subscriptions: readonly Subscription[]): ResultsOutcome {
+  const currencies = [...new Set(subscriptions.map((s) => s.currency))].sort();
+  return {
+    kind: "results",
+    ...OUTCOME_FACTS,
+    statement: {
+      firstDate: "2026-01-02",
+      lastDate: "2026-03-25",
+      asOf: "2026-03-25",
+      asOfSource: "statement",
+      currencies,
+    },
+    subscriptions: subscriptions.map((s): ClassifiedSubscription => ({
+      ...s,
+      priceRise: null,
+      trial: null,
+    })),
+    totals: [],
+  };
+}
+
+/** A `results` outcome drawn from `pageOutcomeArb`. */
+export const pageResultsOutcomeArb: fc.Arbitrary<ResultsOutcome> =
+  pageOutcomeArb.map(resultsOutcomeOf);
+
+/**
+ * The graveyard-ui actions plus `set-memory` (both values), `forget`, `store-removed-elsewhere` and
+ * `finish` with an outcome redrawn from `pageOutcomeArb` (design "Generators"). `pool` lets some
+ * outcomes reuse the same subscriptions, so id actions and restored records hit Current records.
+ */
+export function memoryActionArb(
+  ids: readonly string[],
+  pool: readonly Subscription[] = [],
+): fc.Arbitrary<PageAction> {
+  const poolIds = pool.map((s) => s.id);
+  const idArb = fc.constantFrom("none", ...ids, ...poolIds);
+  const runIdArb = fc.integer({ min: 0, max: 3 });
+  const outcomeArb: fc.Arbitrary<ResultsOutcome> = fc.oneof(
+    pageResultsOutcomeArb,
+    fc.subarray([...pool]).map(resultsOutcomeOf),
+  );
+  return fc.oneof(
+    fc.record({
+      type: fc.constant("start" as const),
+      runId: runIdArb,
+      sourceName: fc.constantFrom("a.csv", "b.csv"),
+    }),
+    fc.record({ type: fc.constant("finish" as const), runId: runIdArb, outcome: outcomeArb }),
+    fc.record({ type: fc.constant("finish" as const), runId: runIdArb, outcome: outcomeArb }),
+    fc.constant({ type: "reset" as const }),
+    fc.record({ type: fc.constant("keep" as const), id: idArb }),
+    fc.record({ type: fc.constant("bury" as const), id: idArb, reducedMotion: fc.boolean() }),
+    fc.record({
+      type: fc.constant("burial-step" as const),
+      id: idArb,
+      from: fc.constantFrom<"condemned" | "sinking" | "closing">("condemned", "sinking", "closing"),
+    }),
+    fc.record({ type: fc.constant("burial-finish" as const), id: idArb }),
+    fc.record({ type: fc.constant("skip" as const), id: idArb }),
+    fc.constant({ type: "next" as const }),
+    fc.constant({ type: "open-graveyard" as const }),
+    fc.constant({ type: "back-to-rising" as const }),
+    fc.constant({ type: "back-to-start" as const }),
+    fc.record({ type: fc.constant("answer-now" as const), id: idArb }),
+    fc.record({ type: fc.constant("unbury" as const), id: idArb }),
+    fc.record({ type: fc.constant("bury-after-all" as const), id: idArb }),
+    fc.record({ type: fc.constant("set-memory" as const), on: fc.boolean() }),
+    fc.record({ type: fc.constant("set-memory" as const), on: fc.boolean() }),
+    fc.constant({ type: "forget" as const }),
+    fc.constant({ type: "store-removed-elsewhere" as const }),
+  );
+}

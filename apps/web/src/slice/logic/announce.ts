@@ -1,11 +1,12 @@
 // Live-region text per page model (Req 1.6a, 14.3). Pure: no React, DOM or clock.
 import type { ClassifiedSubscription } from "@zombills/core";
-import type { HauntEvent, PageModel } from "../page-state";
+import type { HauntEvent, MemoryModel, PageModel } from "../page-state";
 import { CADENCE_LABELS } from "./display-date";
 import { deriveHaunt } from "./haunt-view";
 import type { HauntView } from "./haunt-view";
 import { partsToText, priceRiseParts, trialParts } from "./label-text";
 import { errorMessage } from "./messages";
+import { memoryAnnouncement } from "./memory-text";
 import { formatMoney } from "./money";
 
 /** "Still draining <amount> a year." per currency with a figure (Req 1.6a). */
@@ -59,6 +60,7 @@ function buriedSentence(haunt: HauntView, id: string, name: string, locale?: str
 function eventSentence(
   event: HauntEvent,
   haunt: HauntView,
+  memory: MemoryModel,
   foundSentence: string,
   locale?: string,
 ): string {
@@ -79,6 +81,8 @@ function eventSentence(
       return [buriedSentence(haunt, event.id, name(event.id), locale), ...draining].join(" ");
     case "unburied":
       return [`${name(event.id)} is unburied and rests.`, ...draining].join(" ");
+    case "memory":
+      return memoryAnnouncement(event.what, memory, event.removeFailed === true);
   }
 }
 
@@ -90,7 +94,7 @@ export function announcement(model: PageModel, locale?: string): string {
     view.kind === "results"
       ? `Found ${view.outcome.subscriptions.length} recurring ${view.outcome.subscriptions.length === 1 ? "charge" : "charges"}.`
       : "";
-  if (event !== null) return eventSentence(event, haunt, found, locale);
+  if (event !== null) return eventSentence(event, haunt, model.memory, found, locale);
   if (model.screen === "graveyard") return "Your graveyard.";
   switch (view.kind) {
     case "idle":

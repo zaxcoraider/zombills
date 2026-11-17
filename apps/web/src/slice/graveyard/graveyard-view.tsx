@@ -1,15 +1,16 @@
 // The Graveyard view: tombstones, what is resting, what is waiting and what has stopped.
 
-import type { Cadence } from "@zombills/core";
 import { motion } from "framer-motion";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { Dispatch } from "react";
 import { CADENCE_LABELS } from "../logic/display-date";
-import type { AnswerRecord } from "../logic/graveyard";
+import { CADENCE_FACTOR, type AnswerRecord } from "../logic/graveyard";
 import type { HauntView } from "../logic/haunt-view";
-import type { PageAction } from "../page-state";
+import { EARLIER_NOTE } from "../logic/memory-text";
+import type { MemoryModel, PageAction } from "../page-state";
 import { CancelHelper } from "./cancel-helper";
-import { helperPanelVariants } from "./motion";
+import { MemoryPanel } from "./memory-panel";
+import { BURIAL_FALLBACK_MS, helperPanelVariants } from "./motion";
 import { Money } from "./money-text";
 import { EndedList } from "./rising-view";
 import { SharePanel } from "./share-panel";
@@ -22,18 +23,15 @@ export interface GraveyardViewProps {
   hasStatement: boolean;
   /** id of the tombstone that should rise (event buried(id) on this screen) */
   enteringId: string | null;
+  /** model.focus.seq while enteringId is set, else null; keys the rise for busy */
+  enteringSeq: number | null;
+  /** model.memory, for MemoryPanel */
+  memory: MemoryModel;
   reduceMotion: boolean;
   dispatch: Dispatch<PageAction>;
 }
 
 const BUTTON_CLASS = "rounded border border-bone bg-fog px-4 py-2 text-bone";
-
-/** Same factors the detector uses for `yearlyCostCents`; only for a guessed Kept record. */
-const PERIODS_PER_YEAR: Readonly<Record<Cadence, number>> = {
-  weekly: 52,
-  monthly: 12,
-  yearly: 1,
-};
 
 /** `How to cancel` and the Helper panel it opens; the panel stays mounted while hidden. */
 function HelperDisclosure({
@@ -79,7 +77,6 @@ function HelperDisclosure({
 function TombstoneActions({
   record,
   name,
-  isCurrent,
   ended,
   reduceMotion,
   open,
@@ -88,7 +85,6 @@ function TombstoneActions({
 }: {
   record: AnswerRecord;
   name: string;
-  isCurrent: boolean;
   ended: boolean;
   reduceMotion: boolean;
   open: boolean;
@@ -97,16 +93,14 @@ function TombstoneActions({
 }) {
   return (
     <div className="flex flex-wrap justify-center gap-3">
-      {isCurrent ? (
-        <button
-          type="button"
-          className={BUTTON_CLASS}
-          aria-label={`Unbury ${name}`}
-          onClick={() => dispatch({ type: "unbury", id: record.id })}
-        >
-          Unbury
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className={BUTTON_CLASS}
+        aria-label={`Unbury ${name}`}
+        onClick={() => dispatch({ type: "unbury", id: record.id })}
+      >
+        Unbury
+      </button>
       {ended ? null : (
         <HelperDisclosure
           record={record}
@@ -125,16 +119,18 @@ function TombstoneItem({
   record,
   name,
   ended,
-  isCurrent,
+  note,
   entering,
+  onRisen,
   reduceMotion,
   dispatch,
 }: {
   record: AnswerRecord;
   name: string;
   ended: boolean;
-  isCurrent: boolean;
+  note: string | undefined;
   entering: boolean;
+  onRisen: () => void;
   reduceMotion: boolean;
   dispatch: Dispatch<PageAction>;
 }) {
@@ -148,19 +144,18 @@ function TombstoneItem({
         entering={entering}
         reduceMotion={reduceMotion}
         ended={ended}
+        {...(note === undefined ? {} : { note })}
+        onRisen={onRisen}
         action={
-          isCurrent || !ended ? (
-            <TombstoneActions
-              record={record}
-              name={name}
-              isCurrent={isCurrent}
-              ended={ended}
-              reduceMotion={reduceMotion}
-              open={open}
-              onToggle={() => setOpen(!open)}
-              dispatch={dispatch}
-            />
-          ) : null
+          <TombstoneActions
+            record={record}
+            name={name}
+            ended={ended}
+            reduceMotion={reduceMotion}
+            open={open}
+            onToggle={() => setOpen(!open)}
+            dispatch={dispatch}
+          />
         }
       />
     </li>
@@ -171,35 +166,34 @@ function RestingItem({
   record,
   name,
   yearlyCents,
-  isCurrent,
+  note,
   dispatch,
 }: {
   record: AnswerRecord;
   name: string;
   yearlyCents: number;
-  isCurrent: boolean;
+  note: string | undefined;
   dispatch: Dispatch<PageAction>;
 }) {
   const focusRef = useFocusRequest(`resting-item:${record.id}`);
   return (
     <li ref={focusRef} tabIndex={-1} className="flex flex-col items-start gap-2">
       <p>
-        {name} · {CADENCE_LABELS[record.cadence]} ·{" "}
+        {name}
+        {note === undefined ? null : <span> · {note}</span>} · {CADENCE_LABELS[record.cadence]} ·{" "}
         <Money cents={record.currentAmountCents} currency={record.currency} /> ·{" "}
         {record.cadenceAssumed ? "about " : ""}
         <Money cents={yearlyCents} currency={record.currency} /> a year
         {record.cadenceAssumed ? " (estimate)" : ""}
       </p>
-      {isCurrent ? (
-        <button
-          type="button"
-          className={BUTTON_CLASS}
-          aria-label={`Bury after all ${name}`}
-          onClick={() => dispatch({ type: "bury-after-all", id: record.id })}
-        >
-          Bury after all
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className={BUTTON_CLASS}
+        aria-label={`Bury after all ${name}`}
+        onClick={() => dispatch({ type: "bury-after-all", id: record.id })}
+      >
+        Bury after all
+      </button>
     </li>
   );
 }
@@ -208,11 +202,23 @@ export function GraveyardView({
   haunt,
   hasStatement,
   enteringId,
+  enteringSeq,
+  memory,
   reduceMotion,
   dispatch,
 }: GraveyardViewProps) {
   const headingRef = useFocusRequest("graveyard-heading");
-  const { tombstones, kept, names, currentIds, savings } = haunt;
+  const { tombstones, kept, names, savings } = haunt;
+  const [risenSeq, setRisenSeq] = useState<number | null>(null);
+  const busy = enteringSeq !== null && risenSeq !== enteringSeq;
+  // A skipped animation never calls onAnimationComplete, so a timer ends the busy state too.
+  useEffect(() => {
+    if (enteringSeq === null) return undefined;
+    const timer = setTimeout(() => setRisenSeq(enteringSeq), BURIAL_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [enteringSeq]);
+  const noteOf = (id: string) => (haunt.earlierIds.has(id) ? EARLIER_NOTE : undefined);
+  const hasRecords = tombstones.length + kept.length > 0;
   const nameOf = (id: string, fallback: string) => names.get(id) ?? fallback;
   const queued = haunt.queue.flatMap((id) => {
     const subscription = haunt.byId.get(id);
@@ -244,8 +250,9 @@ export function GraveyardView({
                 record={record}
                 name={nameOf(record.id, record.merchant)}
                 ended={haunt.byId.get(record.id)?.status === "ended"}
-                isCurrent={currentIds.has(record.id)}
+                note={noteOf(record.id)}
                 entering={record.id === enteringId}
+                onRisen={() => setRisenSeq(enteringSeq)}
                 reduceMotion={reduceMotion}
                 dispatch={dispatch}
               />
@@ -266,9 +273,9 @@ export function GraveyardView({
                 yearlyCents={
                   record.yearlySavingCents ??
                   haunt.byId.get(record.id)?.yearlyCostCents ??
-                  record.currentAmountCents * PERIODS_PER_YEAR[record.cadence]
+                  record.currentAmountCents * CADENCE_FACTOR[record.cadence]
                 }
-                isCurrent={currentIds.has(record.id)}
+                note={noteOf(record.id)}
                 dispatch={dispatch}
               />
             ))}
@@ -311,6 +318,7 @@ export function GraveyardView({
           <EndedList ended={haunt.ended} names={names} />
         </section>
       ) : null}
+      <MemoryPanel memory={memory} hasRecords={hasRecords} busy={busy} dispatch={dispatch} />
       <div>
         {hasStatement ? (
           <button

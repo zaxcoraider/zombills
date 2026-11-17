@@ -4,6 +4,16 @@ import { analyzeStatement } from "./analyze-statement";
 import type { NoSubscriptionsOutcome, ResultsOutcome } from "./analyze-statement";
 import { announcement, cardSentence } from "./announce";
 import { errorMessage } from "./messages";
+import {
+  FORGOTTEN,
+  FORGOTTEN_REMOVE_FAILED,
+  MEMORY_KEPT,
+  MEMORY_NOT_KEPT,
+  MEMORY_NOT_KEPT_REMOVE_FAILED,
+  WRITE_FAILED_NOTE,
+  leftOutNote,
+} from "./memory-text";
+import { recordAnswer } from "./graveyard";
 import { formatMoney } from "./money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageModel, PageView } from "../page-state";
@@ -197,5 +207,55 @@ describe("announcement: haunt events", () => {
     const text = announcement(resultsModel(), "de-DE");
     expect(text).toContain(formatMoney(135_564, "USD", "de-DE"));
     expect(text).not.toBe(announcement(resultsModel(), "en-US"));
+  });
+});
+
+describe("announcement: memory events", () => {
+  const memoryModel = (
+    what: "kept" | "not-kept" | "write-failed" | "left-out" | "forgotten",
+    leftOut = 0,
+    removeFailed = false,
+  ): PageModel => ({
+    ...INITIAL_PAGE_MODEL,
+    memory: { ...INITIAL_PAGE_MODEL.memory, leftOut },
+    event: removeFailed ? { kind: "memory", what, removeFailed: true } : { kind: "memory", what },
+  });
+
+  it("announces each memory event", () => {
+    expect(announcement(memoryModel("kept"))).toBe(MEMORY_KEPT);
+    expect(announcement(memoryModel("not-kept"))).toBe(MEMORY_NOT_KEPT);
+    expect(announcement(memoryModel("write-failed"))).toBe(WRITE_FAILED_NOTE);
+    expect(announcement(memoryModel("left-out", 2))).toBe(leftOutNote(2));
+    expect(announcement(memoryModel("forgotten"))).toBe(FORGOTTEN);
+  });
+
+  it("adds the singular and plural left-out note to kept", () => {
+    expect(announcement(memoryModel("kept", 1))).toBe(`${MEMORY_KEPT} ${leftOutNote(1)}`);
+    expect(announcement(memoryModel("kept", 2))).toBe(`${MEMORY_KEPT} ${leftOutNote(2)}`);
+    expect(leftOutNote(1)).not.toBe(leftOutNote(2));
+  });
+
+  it("announces one combined sentence when the removal failed", () => {
+    expect(announcement(memoryModel("not-kept", 0, true))).toBe(MEMORY_NOT_KEPT_REMOVE_FAILED);
+    expect(announcement(memoryModel("forgotten", 0, true))).toBe(FORGOTTEN_REMOVE_FAILED);
+  });
+
+  it("uses the Display name for Earlier records", () => {
+    const base = pageReducer(resultsModel(), { type: "open-graveyard" });
+    const netflix = usResults().subscriptions.find((s) => s.id === NETFLIX);
+    if (!netflix) throw new Error("no Netflix");
+    const earlier = { ...netflix, id: "sub:USD:monthly:*:old-gym", merchant: "Old Gym" };
+    const open: PageModel = {
+      ...base,
+      graveyard: recordAnswer(
+        recordAnswer([], earlier, "not-using"),
+        { ...earlier, id: "sub:USD:monthly:*:old-gym-2", merchant: "Old Gym Two" },
+        "still-using",
+      ),
+    };
+    const unburied = pageReducer(open, { type: "unbury", id: earlier.id });
+    expect(announcement(unburied, "en-US")).toMatch(/^Old Gym is unburied and rests\./);
+    const reburied = pageReducer(unburied, { type: "bury-after-all", id: earlier.id });
+    expect(announcement(reburied, "en-US")).toMatch(/^Old Gym is buried\. Saves /);
   });
 });

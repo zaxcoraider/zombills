@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MotionGlobalConfig } from "framer-motion";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,7 @@ import { analyzeStatement } from "../logic/analyze-statement";
 import type { AnalysisOutcome, ResultsOutcome } from "../logic/analyze-statement";
 import { answerRecordFor } from "../logic/graveyard";
 import { deriveHaunt } from "../logic/haunt-view";
+import { EARLIER_NOTE } from "../logic/memory-text";
 import { formatMoney } from "../logic/money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageAction, PageModel } from "../page-state";
@@ -70,7 +71,12 @@ function usGraveyardModel(): PageModel {
 
 function renderView(
   model: PageModel,
-  options: { hasStatement?: boolean; enteringId?: string | null; reduceMotion?: boolean } = {},
+  options: {
+    hasStatement?: boolean;
+    enteringId?: string | null;
+    enteringSeq?: number | null;
+    reduceMotion?: boolean;
+  } = {},
 ) {
   const dispatch = vi.fn<(action: PageAction) => void>();
   const haunt = deriveHaunt(model);
@@ -79,6 +85,8 @@ function renderView(
       haunt={haunt}
       hasStatement={options.hasStatement ?? model.view.kind === "results"}
       enteringId={options.enteringId ?? null}
+      enteringSeq={options.enteringSeq ?? null}
+      memory={model.memory}
       reduceMotion={options.reduceMotion ?? false}
       dispatch={dispatch}
     />,
@@ -185,7 +193,7 @@ describe("GraveyardView", () => {
     expect(screen.queryByRole("heading", { name: "Not answered yet" })).toBeNull();
   });
 
-  it("shows an Earlier record as a tombstone with no Unbury button", () => {
+  it("shows an Earlier record as a tombstone with Unbury and the earlier note", () => {
     const first = usGraveyardModel();
     const other = [
       "Date,Description,Amount",
@@ -198,8 +206,12 @@ describe("GraveyardView", () => {
     const { haunt } = renderView(second);
     expect(haunt.currentIds.has(haunt.tombstones[0]?.id ?? "")).toBe(false);
     expect(screen.getAllByText(/^Netflix\.$/).length).toBe(1);
-    expect(screen.queryByRole("button", { name: /^Unbury/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Bury after all/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Unbury Netflix" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Unbury Spotify" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Bury after all/ })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Here lies Netflix." }).textContent).toContain(
+      EARLIER_NOTE,
+    );
     expect(screen.getByText(`${formatMoney(34776, "USD")}`, { exact: false })).toBeTruthy();
   });
 
@@ -333,7 +345,7 @@ describe("GraveyardView: How to cancel", () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
-  it("shows an Earlier record's disclosure without Unbury", () => {
+  it("shows an Earlier record's disclosure with Unbury and the earlier note", () => {
     const first = usGraveyardModel();
     const other = [
       "Date,Description,Amount",
@@ -344,8 +356,11 @@ describe("GraveyardView: How to cancel", () => {
     const back = pageReducer(pageReducer(first, { type: "back-to-rising" }), { type: "reset" });
     const second = pageReducer(load(back, resultsOf(other), 2), { type: "open-graveyard" });
     renderView(second);
-    expect(screen.queryByRole("button", { name: /^Unbury/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Unbury Netflix" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "How to cancel Netflix" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Here lies Netflix." }).textContent).toContain(
+      EARLIER_NOTE,
+    );
   });
 
   it("gives an Ended tombstone the stopped line and no disclosure", () => {
@@ -388,5 +403,125 @@ describe("GraveyardView: How to cancel", () => {
     const netflix = screen.getByRole("region", { name: "Seal the grave: Netflix" });
     expect(within(netflix).getByRole("button", { name: "Copy email for Netflix" })).toBeTruthy();
     expectUniqueButtonNames(container);
+  });
+});
+
+describe("GraveyardView: Memory and Earlier records", () => {
+  const FORGET = "Forget everything";
+
+  /** Netflix and Spotify buried and Adobe kept in an earlier statement; a gym statement is current. */
+  function earlierModel(): PageModel {
+    const first = usGraveyardModel();
+    const other = [
+      "Date,Description,Amount",
+      "2026-01-03,RIVERSIDE GYM,-30.00",
+      "2026-02-03,RIVERSIDE GYM,-30.00",
+      "2026-03-03,RIVERSIDE GYM,-30.00",
+    ].join("\n");
+    const back = pageReducer(pageReducer(first, { type: "back-to-rising" }), { type: "reset" });
+    return pageReducer(load(back, resultsOf(other), 2), { type: "open-graveyard" });
+  }
+
+  function expectPanelBeforeBackRow(): void {
+    const panel = screen.getByRole("heading", { level: 3, name: "Memory" }).closest("section");
+    expect(panel).not.toBeNull();
+    const row = panel?.nextElementSibling;
+    expect(row?.tagName).toBe("DIV");
+    expect(row?.querySelector("button")?.textContent).toMatch(/^Back to /);
+    expect(row?.nextElementSibling).toBeNull();
+  }
+
+  it("puts the Memory panel directly before the back-button row with records", () => {
+    renderView(usGraveyardModel());
+    expectPanelBeforeBackRow();
+    expect(screen.getByRole("button", { name: FORGET })).toBeTruthy();
+  });
+
+  it("puts the Memory panel directly before the back-button row with an empty Graveyard", () => {
+    const model = pageReducer(load(INITIAL_PAGE_MODEL, resultsOf(usSigned), 1), {
+      type: "open-graveyard",
+    });
+    renderView(model);
+    expect(screen.getByText("Nothing buried yet.")).toBeTruthy();
+    expectPanelBeforeBackRow();
+    expect(screen.queryByRole("button", { name: FORGET })).toBeNull();
+  });
+
+  it("puts the panel after Already stopped", () => {
+    const csv = [
+      "Date,Description,Amount",
+      "2026-01-05,RIVERSIDE GYM,-30.00",
+      "2026-02-05,RIVERSIDE GYM,-30.00",
+      "2026-03-05,RIVERSIDE GYM,-30.00",
+      "2026-06-20,CORNER BAKERY,-4.50",
+    ].join("\n");
+    renderView(
+      pageReducer(load(INITIAL_PAGE_MODEL, resultsOf(csv), 1), { type: "open-graveyard" }),
+    );
+    const stopped = screen.getByRole("heading", { level: 3, name: "Already stopped" });
+    const memory = screen.getByRole("heading", { level: 3, name: "Memory" });
+    expect(stopped.compareDocumentPosition(memory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("marks Earlier tombstones and Resting items and gives each its action", () => {
+    renderView(earlierModel());
+    for (const name of ["Netflix", "Spotify"]) {
+      const stone = screen.getByRole("region", { name: `Here lies ${name}.` });
+      expect(stone.textContent).toContain(EARLIER_NOTE);
+      expect(screen.getByRole("button", { name: `Unbury ${name}` })).toBeTruthy();
+    }
+    const adobe = screen.getByRole("button", { name: "Bury after all Adobe Creative Cloud" });
+    const item = adobe.closest("li");
+    expect(item?.querySelector("p")?.textContent).toContain(EARLIER_NOTE);
+    expect(item?.querySelector("p > span")?.textContent).toContain(EARLIER_NOTE);
+  });
+
+  it("shows no note on a Current record", () => {
+    renderView(usGraveyardModel());
+    expect(screen.queryByText(EARLIER_NOTE, { exact: false })).toBeNull();
+  });
+
+  it("keeps button names unique with Earlier records and the panel", () => {
+    const { container } = renderView(earlierModel());
+    expectUniqueButtonNames(container);
+  });
+
+  describe("busy", () => {
+    beforeAll(() => {
+      MotionGlobalConfig.skipAnimations = false;
+    });
+    afterAll(() => {
+      MotionGlobalConfig.skipAnimations = true;
+    });
+
+    const forgetButton = () => screen.getByRole("button", { name: FORGET });
+
+    it("leaves Forget everything aria-disabled until each rise of the same record ends", async () => {
+      const model = usGraveyardModel();
+      const haunt = deriveHaunt(model);
+      const id = haunt.tombstones[0]?.id ?? "";
+      const dispatch = vi.fn<(action: PageAction) => void>();
+      const view = (seq: number | null) => (
+        <GraveyardView
+          haunt={haunt}
+          hasStatement
+          enteringId={seq === null ? null : id}
+          enteringSeq={seq}
+          memory={model.memory}
+          reduceMotion
+          dispatch={dispatch}
+        />
+      );
+      const { rerender } = render(view(null));
+      expect(forgetButton().getAttribute("aria-disabled")).toBeNull();
+      for (const seq of [1, 2, 3]) {
+        rerender(view(seq));
+        expect(forgetButton().getAttribute("aria-disabled")).toBe("true");
+        await waitFor(() => expect(forgetButton().getAttribute("aria-disabled")).toBeNull(), {
+          timeout: 3000,
+        });
+        expect(forgetButton().hasAttribute("disabled")).toBe(false);
+      }
+    });
   });
 });

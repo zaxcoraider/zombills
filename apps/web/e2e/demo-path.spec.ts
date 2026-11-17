@@ -185,3 +185,99 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
     expect(ALLOWED_EXTENSIONS.has(extension)).toBe(true);
   }
 });
+
+test("memory path: remember, reload, restore and forget, with no stray requests", async ({
+  page,
+  context,
+}) => {
+  // Same console listeners as the demo path.
+  const problems: string[] = [];
+  page.on("console", (message) => problems.push(`console ${message.type()}: ${message.text()}`));
+  page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
+
+  // Same request and CSP checks as the demo path; the listener stays on across the reload.
+  const response = await page.goto("/");
+  if (response === null) throw new Error("page.goto returned no response");
+  await page.waitForLoadState("load");
+  const urlAfterLoad = page.url();
+  const requests: { url: string; method: string; postData: string | null }[] = [];
+  page.on("request", (request) =>
+    requests.push({ url: request.url(), method: request.method(), postData: request.postData() }),
+  );
+  const body = await response.text();
+  const cspIndex = body.indexOf(CSP_TAG);
+  const scriptIndex = body.indexOf("<script");
+  expect(cspIndex).toBeGreaterThanOrEqual(0);
+  expect(scriptIndex).toBeGreaterThanOrEqual(0);
+  expect(cspIndex).toBeLessThan(scriptIndex);
+
+  // Answer buttons are focused and pressed with Enter, as in the demo path.
+  const answer = async (name: string) => {
+    const button = page.getByRole("button", { name });
+    await button.focus();
+    await expect(button).toBeFocused();
+    await page.keyboard.press("Enter");
+  };
+
+  // Skip Adobe and Riverside so Netflix is the only answered card.
+  await page.getByRole("button", { name: "US bank, signed amounts" }).click();
+  for (const name of ["Adobe Creative Cloud", "Riverside Gym Membership"]) {
+    await expect(page.getByRole("region", { name })).toBeVisible();
+    await answer("Skip for now");
+  }
+  await expect(page.getByRole("region", { name: "Netflix" })).toBeVisible();
+  await answer("No, bury it");
+  await expect(page.getByRole("region", { name: "Here lies Netflix." })).toBeVisible();
+
+  // Open the graveyard and tick the checkbox: exactly one key, version 1, one record.
+  await page.getByRole("button", { name: "Open the graveyard" }).click();
+  await page.getByRole("checkbox", { name: "Remember my graveyard on this device" }).check();
+  const stored = await page.evaluate(() => ({
+    keys: Object.keys(localStorage),
+    value: localStorage.getItem("zombills.graveyard.v1"),
+  }));
+  expect(stored.keys).toEqual(["zombills.graveyard.v1"]);
+  if (stored.value === null) throw new Error("the Store key has no value");
+  const parsed: unknown = JSON.parse(stored.value);
+  expect(parsed).toMatchObject({ version: 1, records: [expect.anything()] });
+  expect((parsed as { records: unknown[] }).records).toHaveLength(1);
+
+  // Reload: the idle panel says the graveyard is back, and the tombstone comes from the Store.
+  await page.reload();
+  await expect(
+    page.getByText("Your graveyard from this device is back: 1 buried, 0 resting."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Open the graveyard" }).click();
+  const tombstone = page.getByRole("region", { name: "Here lies Netflix." });
+  await expect(tombstone).toBeVisible();
+  await expect(tombstone).toContainText("From an earlier statement");
+  await expect(page.getByRole("group", { name: "Saved per year" })).toContainText("$215.88");
+
+  // Forget everything leaves nothing in any browser store.
+  await page.getByRole("button", { name: "Forget everything" }).click();
+  await page.getByRole("button", { name: "Forget", exact: true }).click();
+  await expect(page.getByText("Nothing buried yet.")).toBeVisible();
+  const after = await page.evaluate(() => ({
+    local: localStorage.length,
+    session: sessionStorage.length,
+    cookie: document.cookie,
+  }));
+  expect(after).toEqual({ local: 0, session: 0, cookie: "" });
+  expect(await context.cookies()).toEqual([]);
+
+  // Every request is a same-origin GET for a file in dist; the console is empty.
+  const origin = new URL(urlAfterLoad).origin;
+  for (const request of requests) {
+    const url = new URL(request.url);
+    expect(url.origin).toBe(origin);
+    expect(request.method).toBe("GET");
+    expect(url.search).toBe("");
+    expect(request.postData).toBeNull();
+    // The reload requests the document at "/", which the server answers with dist/index.html.
+    const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+    const file = path.resolve(DIST, `.${decodeURIComponent(pathname)}`);
+    expect(file.startsWith(DIST + path.sep)).toBe(true);
+    expect(statSync(file).isFile()).toBe(true);
+  }
+  expect(problems).toEqual([]);
+});

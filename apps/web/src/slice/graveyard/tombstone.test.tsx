@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MotionGlobalConfig } from "framer-motion";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AnswerRecord } from "../logic/graveyard";
 import { formatMoney } from "../logic/money";
 import { Tombstone } from "./tombstone";
@@ -108,5 +108,63 @@ describe("Tombstone", () => {
     cleanup();
     renderStone(NETFLIX, "stage", action);
     expect(screen.queryByRole("button", { name: "Unbury Netflix" })).toBeNull();
+  });
+});
+
+describe("Tombstone: note and onRisen", () => {
+  it("renders the note under the title and keeps the region name", () => {
+    render(
+      <Tombstone
+        record={NETFLIX}
+        displayName="Netflix"
+        size="list"
+        entering={false}
+        reduceMotion={false}
+        note="From an earlier statement"
+      />,
+    );
+    const stone = screen.getByRole("region", { name: "Here lies Netflix." });
+    const note = screen.getByText("From an earlier statement");
+    expect(stone.contains(note)).toBe(true);
+    const title = screen.getByText("Netflix.").closest("p");
+    expect(title?.nextElementSibling).toBe(note);
+  });
+
+  it("renders no note when none is given", () => {
+    renderStone(NETFLIX, "list");
+    expect(screen.queryByText("From an earlier statement")).toBeNull();
+  });
+
+  it("calls onRisen once when the entering rise ends", async () => {
+    const onRisen = vi.fn();
+    render(
+      <Tombstone
+        record={NETFLIX}
+        displayName="Netflix"
+        size="list"
+        entering={true}
+        reduceMotion={false}
+        onRisen={onRisen}
+      />,
+    );
+    await waitFor(() => expect(onRisen).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(onRisen).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call onRisen when not entering", async () => {
+    const onRisen = vi.fn();
+    render(
+      <Tombstone
+        record={NETFLIX}
+        displayName="Netflix"
+        size="list"
+        entering={false}
+        reduceMotion={false}
+        onRisen={onRisen}
+      />,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(onRisen).not.toHaveBeenCalled();
   });
 });

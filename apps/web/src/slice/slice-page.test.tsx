@@ -5,7 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { partsToText, priceRiseParts } from "./logic/label-text";
+import { storeLoadOf } from "./storage/test-store";
+import { fakeStorage, fakeStoreTarget } from "./storage/test-store";
+import { createGraveyardStore } from "./storage/graveyard-store";
 import { formatMoney } from "./logic/money";
+import {
+  IDLE_SENTENCE,
+  NEWER_NOTE,
+  UNREADABLE_NOTE,
+  droppedNote,
+  restoredLine,
+} from "./logic/memory-text";
 import { SAMPLES } from "./samples";
 
 const US_LABEL = "US bank, signed amounts";
@@ -50,11 +60,7 @@ describe("SlicePage: Idle", () => {
     const h1 = screen.getByRole("heading", { level: 1, name: "Zombills" });
     expect(h1.className).toContain("font-display");
     expect(container.querySelector("main")?.className).toContain("max-w-[640px]");
-    expect(
-      screen.getByText(
-        "Your statement stays on this device. A statement covering 2 to 3 months gives the best results.",
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText(IDLE_SENTENCE)).toBeTruthy();
     expect(dropAreaElement()).toBeTruthy();
     expect(screen.getByRole("button", { name: "Choose a file" })).toBeTruthy();
     const input = container.querySelector('input[type="file"]');
@@ -67,6 +73,75 @@ describe("SlicePage: Idle", () => {
     expect(screen.getByText("Your bank statement is haunted.")).toBeTruthy();
     expect(screen.queryByRole("link")).toBeNull();
     expect(liveRegion().textContent).toBe("");
+  });
+});
+
+const NETFLIX_BURIED = {
+  id: "sub:USD:monthly:*:netflix",
+  merchant: "Netflix",
+  serviceId: "netflix",
+  currentAmountCents: 1799,
+  answer: "not-using",
+  cadenceAssumed: false,
+  carriedOver: false,
+};
+const SPOTIFY_KEPT = {
+  id: "sub:USD:monthly:*:spotify",
+  merchant: "Spotify",
+  serviceId: "spotify",
+  currentAmountCents: 1199,
+  answer: "still-using",
+  cadenceAssumed: false,
+  carriedOver: false,
+};
+
+function renderWithStore(text: string | null) {
+  const store = createGraveyardStore(fakeStoreTarget(fakeStorage()));
+  return render(<App store={store} initialStore={storeLoadOf(text)} />);
+}
+
+describe("SlicePage: Idle, loaded Store", () => {
+  it("shows the restored line above Open the graveyard", () => {
+    renderWithStore(
+      JSON.stringify({ version: 1, records: [NETFLIX_BURIED, SPOTIFY_KEPT] }),
+    );
+    const line = screen.getByText(restoredLine(1, 1));
+    expect(line.textContent).toBe(
+      "Your graveyard from this device is back: 1 buried, 1 resting.",
+    );
+    const open = screen.getByRole("button", { name: "Open the graveyard" });
+    expect(line.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(liveRegion().textContent).toBe("");
+  });
+
+  it("shows the unreadable note and keeps the Live region empty", () => {
+    renderWithStore("not json");
+    expect(screen.getByText(UNREADABLE_NOTE)).toBeTruthy();
+    expect(liveRegion().textContent).toBe("");
+  });
+
+  it("shows the newer note and keeps the Live region empty", () => {
+    renderWithStore(JSON.stringify({ version: 2, records: [] }));
+    expect(screen.getByText(NEWER_NOTE)).toBeTruthy();
+    expect(liveRegion().textContent).toBe("");
+  });
+
+  it("shows the dropped note for an ok load with one bad record", () => {
+    renderWithStore(
+      JSON.stringify({ version: 1, records: [NETFLIX_BURIED, { id: "bad" }] }),
+    );
+    expect(screen.getByText(droppedNote(1))).toBeTruthy();
+    expect(screen.getByText(restoredLine(1, 0))).toBeTruthy();
+    expect(liveRegion().textContent).toBe("");
+  });
+
+  it("drops the line and the notes after a statement is analysed", async () => {
+    renderWithStore(
+      JSON.stringify({ version: 1, records: [NETFLIX_BURIED, { id: "bad" }] }),
+    );
+    await chooseSample(US_LABEL);
+    expect(screen.queryByText(restoredLine(1, 0))).toBeNull();
+    expect(screen.queryByText(droppedNote(1))).toBeNull();
   });
 });
 

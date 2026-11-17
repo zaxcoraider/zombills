@@ -7,7 +7,7 @@ The `graveyard-ui` feature turns the plain vertical-slice page of `apps/web` int
 - After analysis, each detected subscription **rises** as an undead card in the art-spike style. The card shows the merchant, cadence, amount, yearly cost and the data labels from the classifier (`possessed` with its price-rise sentence, `trial-trap` with its trial sentence), and asks "Still using this?".
 - "Yes, let it rest" keeps it. "No, bury it" records a `"not-using"` answer, which the classifier turns into the `zombie` label, and plays the burial. A **tombstone** with the yearly saving is left behind and the **savings counter** climbs.
 - The **graveyard** view lists every tombstone with its saving per year, the total per currency, and the kept subscriptions in a calm list. Any answer for the current statement can be changed there.
-- Answers and tombstones stay in memory for the page session only. Nothing is written to any storage; a reload starts with an empty graveyard. Opt-in persistence, re-attaching answers when ids change and "Forget everything" are deferred to the future spec `graveyard-memory` (see "Hand-off to graveyard-memory" at the end).
+- Answers and tombstones stay in memory for the page session only. Nothing is written to any storage; a reload starts with an empty graveyard. Opt-in persistence, re-attaching answers when ids change and "Forget everything" are deferred to the future spec `graveyard-memory` (see "Hand-off to graveyard-memory" at the end). *(Note: changed by `graveyard-memory` Requirements 1 to 12: opt-in persistence, re-attach and "Forget everything" are now specified there, and with Memory on the graveyard survives a reload.)*
 
 The page keeps everything the vertical slice built: the drop area, file button and Sample buttons; the file checks, byte decoding and analysis Pipeline; every Page state and error message; the CSP, the no-network rule and the lint rules (vertical-slice Requirements 2 to 4 and 6 to 9). The visual parts come from the art spike in `apps/web/src/spike` (`UndeadCard`, `Tombstone`, `SavingsCounter`, `BurialMound`, `SinkCrumbs`, the backdrop layers and the icons), generalised from their hard-coded Netflix fixture to real `ClassifiedSubscription` values. After that the spike route is retired (Requirement 1).
 
@@ -113,6 +113,8 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
     | Rising | one undead card | Burial sequence | no Risen subscriptions (Requirement 2.2) | not reachable: an Analyzer error is a Page `error` |
     | Graveyard | tombstones, total, kept list | n/a (no async work) | "Nothing buried yet." (Requirement 7.6) | n/a (no storage or async work in this spec) |
 
+    *(Note: changed by `graveyard-memory` Requirement 9.6: the Gate (`idle`) row gains the restored line and the load notes, and the Graveyard row gains the Memory panel, with its storage error notes, so the Graveyard row is no longer "n/a (no storage or async work)".)*
+
 ### Requirement 2: The Rising (one card at a time)
 
 **User Story:** As a user with many subscriptions, I want them to rise one by one, biggest first, with a clear count of what is left, so that I can answer each one without losing track.
@@ -206,7 +208,7 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 4. THE Graveyard view SHALL list the Queue under the heading "Not answered yet": Display name and yearly cost, each with an "Answer now" button that moves that subscription to the front of the Queue and returns to the Rising with its card shown.
 5. THE Graveyard view SHALL list Ended subscriptions of the current outcome under the heading "Already stopped" as a plain list: Display name and "last charged <date>" (`evidence.lastChargeDate`), with no answer controls. An Ended subscription with a Current record SHALL be shown only in the list its record belongs to.
 6. WHEN the Graveyard has no Tombstone, THE Graveyard view SHALL show "Nothing buried yet." in place of the tombstones and the total.
-7. *Deferred to `graveyard-memory`* (notes for Earlier and carried-over records).
+7. *Deferred to `graveyard-memory`* (notes for Earlier and carried-over records). *(Note: changed by `graveyard-memory` Requirements 5 and 7: the note "From an earlier statement" and the carried-over note are specified there.)*
 8. THE Graveyard view SHALL have a "Back to the rising" button WHEN a statement has been analysed.
 9. WHEN the Graveyard view opens, focus SHALL move to its heading.
 10. THE Graveyard view SHALL stack to a single column at widths up to 640 px with no horizontal scrolling at 320 px.
@@ -218,8 +220,8 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 #### Acceptance Criteria
 
 1. WHEN "Unbury" is activated on a Current record, THE Page SHALL set its `answer` to `"still-using"`, re-classify so `"zombie"` leaves its `labels`, and move it to the Resting list. The Savings totals SHALL drop by its `yearlySavingCents` (nothing WHEN it is `null`).
-2. *Deferred to `graveyard-memory`* ("Unbury" on an Earlier record).
-3. WHEN "Bury after all" is activated on a Kept Current record, THE Page SHALL set its `answer` to `"not-using"` and run Requirement 5 (with `yearlySavingCents: null` WHEN the subscription is guessed, Requirement 5.6), with the tombstone rising in the Graveyard view and the counter counting up. "Bury after all" on an Earlier record is deferred to `graveyard-memory`.
+2. *Deferred to `graveyard-memory`* ("Unbury" on an Earlier record). *(Note: changed by `graveyard-memory` Requirement 7: "Unbury" on an Earlier record is specified there.)*
+3. WHEN "Bury after all" is activated on a Kept Current record, THE Page SHALL set its `answer` to `"not-using"` and run Requirement 5 (with `yearlySavingCents: null` WHEN the subscription is guessed, Requirement 5.6), with the tombstone rising in the Graveyard view and the counter counting up. "Bury after all" on an Earlier record is deferred to `graveyard-memory`. *(Note: changed by `graveyard-memory` Requirement 7: "Bury after all" on an Earlier record is specified there.)*
 4. After a change, focus SHALL move to the changed item in its new list, and the live region SHALL announce it (Requirement 14.3).
 5. A change SHALL NOT change the Answer records of other subscriptions.
 6. Example (`us-signed.csv`, en-US): bury Netflix and Spotify (USD `34776`), then "Unbury" Netflix: the total becomes `13188` ("$131.88"), Netflix is listed under "Resting" with "Bury after all", and Netflix's card would show "Resting".
@@ -236,21 +238,21 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 4. THE Answers map SHALL hold exactly one entry per Current record, `id → answer`, and no entry for an Earlier record.
 5. WHEN a new Analysis outcome arrives, every Current record SHALL be refreshed from its subscription: `merchant`, `currency`, `cadence`, `currentAmountCents` and `cadenceAssumed` from the subscription, and `yearlySavingCents` = `yearlyCostCents`, or `null` WHEN the subscription is guessed. Exception: WHEN the subscription is guessed and the record has `cadenceAssumed: false` (the answer was given while a fuller statement showed it as not guessed), THE Page SHALL remove the record, so the subscription is unanswered, joins the Queue and rises again. Earlier records SHALL stay unchanged. *(Note, cancel-helper Req 9.2: a refresh also copies `serviceId`.)*
 6. A Tombstone whose subscription is now an Ended subscription SHALL be shown as a regular tombstone, and its saving still counts (Requirement 6.5). The classifier gives it no `zombie` label (subscription-classifier Requirement 5.3).
-7. THE Graveyard SHALL live in memory for the page session only: it SHALL survive a new statement and "Start again", and SHALL be lost on reload. THE Page SHALL NOT write it to any storage. "Start again" SHALL still drop the statement text and Analysis outcome (vertical-slice Requirement 7.5).
+7. THE Graveyard SHALL live in memory for the page session only: it SHALL survive a new statement and "Start again", and SHALL be lost on reload. THE Page SHALL NOT write it to any storage. "Start again" SHALL still drop the statement text and Analysis outcome (vertical-slice Requirement 7.5). *(Note: changed by `graveyard-memory` Requirement 10.2: the Graveyard is lost on reload unless Memory is on, and the Page may write the Stored graveyard, and nothing else, to the Store key while Memory is on.)*
 8. *(PBT: answers)* FOR ALL Graveyards, subscriptions and sequences of record, change and refresh actions: the Graveyard SHALL hold at most one record per `id`; the last answer given for an `id` SHALL be its record's answer; recording the same answer twice SHALL equal recording it once; "Unbury" followed by "Bury after all" on a Current record SHALL restore a record deeply equal to the buried one; the Answers map keys SHALL be exactly the ids of Current records; `yearlySavingCents` SHALL be `null` exactly when `cadenceAssumed` is `true`, and otherwise equal `currentAmountCents × Cadence factor(cadence)`; after a refresh, no record with `cadenceAssumed: false` SHALL name a guessed subscription, and every such subscription that is a Risen subscription SHALL be in the Queue; and the inputs (deep-frozen in the test) SHALL be unchanged.
 9. *(PBT: classifier agreement)* FOR ALL subscription lists from the web test arbitraries (`apps/web/src/slice/logic/test-arbitraries.ts`, since web tests import only the public `@zombills/core` entry, vertical-slice Requirement 9.1) and FOR ALL action sequences, a subscription's classified `labels` SHALL contain `"zombie"` exactly when it is active and has a Current record with `answer: "not-using"`.
 
 ### Requirement 10: Opt-in persistence
 
-*Deferred to `graveyard-memory`.* In this spec the Graveyard is never written to any storage (Requirement 9.7, 15.2). Findings carried over: see "Hand-off to graveyard-memory".
+*Deferred to `graveyard-memory`.* In this spec the Graveyard is never written to any storage (Requirement 9.7, 15.2). Findings carried over: see "Hand-off to graveyard-memory". *(Note: changed by `graveyard-memory` Requirements 1 to 5 and 10: opt-in persistence is specified there.)*
 
 ### Requirement 11: Re-attaching answers when ids change
 
-*Deferred to `graveyard-memory`.* In this spec an answer whose id is not in a new outcome stays as an Earlier record, and the subscription with the new id rises again. Findings carried over: see "Hand-off to graveyard-memory".
+*Deferred to `graveyard-memory`.* In this spec an answer whose id is not in a new outcome stays as an Earlier record, and the subscription with the new id rises again. Findings carried over: see "Hand-off to graveyard-memory". *(Note: changed by `graveyard-memory` Requirement 11 (Phase B): re-attach is specified there.)*
 
 ### Requirement 12: "Forget everything"
 
-*Deferred to `graveyard-memory`.* With no storage, a reload already forgets everything.
+*Deferred to `graveyard-memory`.* With no storage, a reload already forgets everything. *(Note: changed by `graveyard-memory` Requirement 8: "Forget everything" is specified there.)*
 
 ### Requirement 13: Motion and reduced motion
 
@@ -286,7 +288,7 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 #### Acceptance Criteria
 
 1. Vertical-slice Requirement 7.1, 7.2, 7.4, 7.5, 7.6 and 7.7 SHALL keep holding: no request other than same-origin `GET`s for static files in `dist`; no third-party request; no `console`, `fetch`, `XMLHttpRequest`, `navigator.sendBeacon`, `WebSocket` or `EventSource` in `apps/web/src` outside tests; the same build-time CSP; `assetsInlineLimit: 0`; no preload polyfill. New art SHALL be inline SVG or files in `dist`; no font, image or script SHALL come from another host.
-2. Vertical-slice Requirement 7.3 SHALL keep holding unchanged: THE Page SHALL NOT write statement text, transactions, Answer records or any value derived from them to `localStorage`, `sessionStorage`, IndexedDB, the Cache API, cookies or the URL.
+2. Vertical-slice Requirement 7.3 SHALL keep holding unchanged: THE Page SHALL NOT write statement text, transactions, Answer records or any value derived from them to `localStorage`, `sessionStorage`, IndexedDB, the Cache API, cookies or the URL. *(Note: changed by `graveyard-memory` Requirement 10.2: while Memory is on, the Store key in `localStorage` holds the Stored graveyard, and nothing else.)*
 3. The vertical-slice `requirements.md` SHALL get notes, each saying this spec changed it: in Requirement 1, that `#spike` and the hash switch are retired (Requirement 1.8); in Requirement 5, that the plain list is replaced by the Rising and the Graveyard view, with its ordering, grouping and totals logic kept and the Currency totals shown as "Still draining <amount> a year" after subtracting Counted savings (Requirement 1.6a); in Requirement 8.1, that the spike link is gone; in Requirement 9.5, that "including `#spike`" no longer applies; in Requirement 10.4 and 10.5, the changed tests (Requirement 16); and in its Introduction's out-of-scope list, that `zombie`, "Still using this?", Keep / Bury, tombstones and the graveyard are now in scope.
 4. THE `privacy-guard` hook and the `no-network` scans SHALL keep passing with no new exception.
 
@@ -306,11 +308,11 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
    - a hand-built guessed subscription: keeping it shows "(how often is a guess)"; burying it shows "Saving unknown: guessed from one charge" and leaves the counter unchanged;
    - the Graveyard view: tombstones, "You buried $347.76 a year." after Netflix and Spotify, the Resting list, "Not answered yet" with "Answer now", "Already stopped", and "Nothing buried yet.";
    - "Unbury" and "Bury after all", with the totals of Requirement 8.6 and focus on the moved item;
-   - no storage: no `getItem`, `setItem`, `removeItem` or `clear` call on a spied `localStorage` through the whole flow; analysing the Sample again after burying Netflix keeps its tombstone and Netflix does not rise;
+   - no storage: no `getItem`, `setItem`, `removeItem` or `clear` call on a spied `localStorage` through the whole flow; analysing the Sample again after burying Netflix keeps its tombstone and Netflix does not rise; *(Note: changed by `graveyard-memory` Requirement 11.3: this check now renders `<App />` with the default empty load; the storage flows are tested there.)*
    - reduced motion (mocked `useReducedMotion`): the motion props use only `opacity`, and the burial still reaches the tombstone with its text and announcement;
    - the vertical-slice state tests (idle, working, every error, no-subscriptions with "No undead here.", the Windows-1252 file, "Start again") still passing with updated content assertions.
 3. THE Spike route tests (`apps/web/src/routing/use-hash-route.test.ts` and the `#spike` tests in `apps/web/src/app.test.tsx`) SHALL be removed and replaced by one test that `#spike` shows the Page.
-4. THE Playwright test `apps/web/e2e/demo-path.spec.ts` SHALL keep its CSP, request, console and storage checks and follow the demo path with `locale: "en-US"` and `timezoneId: "UTC"`: choose "US bank, signed amounts"; check "Still draining $1,355.64 a year"; keep Adobe Creative Cloud and Riverside Gym Membership with "Yes, let it rest"; check that the Netflix card shows the price-rise text of Requirement 3.4; activate "No, bury it"; check the tombstone "Here lies Netflix." with "Saves $215.88/year.", the counter "$215.88" and "Still draining $1,139.76 a year"; open the graveyard and check "You buried $215.88 a year."; check `localStorage.length` is `0`; then "Start again" returns to the drop area. It SHALL fail on any request that breaks Requirement 15.1 or any console output.
+4. THE Playwright test `apps/web/e2e/demo-path.spec.ts` SHALL keep its CSP, request, console and storage checks and follow the demo path with `locale: "en-US"` and `timezoneId: "UTC"`: choose "US bank, signed amounts"; check "Still draining $1,355.64 a year"; keep Adobe Creative Cloud and Riverside Gym Membership with "Yes, let it rest"; check that the Netflix card shows the price-rise text of Requirement 3.4; activate "No, bury it"; check the tombstone "Here lies Netflix." with "Saves $215.88/year.", the counter "$215.88" and "Still draining $1,139.76 a year"; open the graveyard and check "You buried $215.88 a year."; check `localStorage.length` is `0`; then "Start again" returns to the drop area. It SHALL fail on any request that breaks Requirement 15.1 or any console output. *(Note: changed by `graveyard-memory` Requirement 11.4: the same file gains a second test for the memory path; this test, including `localStorage.length` `0` with Memory off, is unchanged.)*
 5. THE root `npm test`, `npm run lint`, `npm run typecheck` and `npm run build` SHALL pass, and the Playwright test SHALL pass with `npm run test:e2e --workspace @zombills/web`.
 
 ---

@@ -1,5 +1,7 @@
 /** Copy for the Memory panel, the idle panel and the Live region (graveyard-memory, Req 1, 3.5, 4, 5, 7.1, 8). */
 
+import type { MemoryEventKind, MemoryModel } from "../page-state";
+
 export const MEMORY_HEADING = "Memory";
 export const MEMORY_LABEL = "Remember my graveyard on this device";
 export const MEMORY_HINT =
@@ -47,3 +49,23 @@ export const FORGOTTEN = "Everything is forgotten. Nothing is kept on this devic
 
 export const MEMORY_NOT_KEPT_REMOVE_FAILED = `Your graveyard is no longer kept on this device. ${REMOVE_FAILED_NOTE}`;
 export const FORGOTTEN_REMOVE_FAILED = `Everything is forgotten. ${REMOVE_FAILED_NOTE}`;
+
+/** The Live region sentence for a memory event (Req 1.3, 1.4, 5.2, 5.3, 8.5). */
+export function memoryAnnouncement(
+  what: MemoryEventKind,
+  memory: Pick<MemoryModel, "leftOut">,
+  removeFailed: boolean,
+): string {
+  switch (what) {
+    case "kept":
+      return memory.leftOut > 0 ? `${MEMORY_KEPT} ${leftOutNote(memory.leftOut)}` : MEMORY_KEPT;
+    case "not-kept":
+      return removeFailed ? MEMORY_NOT_KEPT_REMOVE_FAILED : MEMORY_NOT_KEPT;
+    case "write-failed":
+      return WRITE_FAILED_NOTE;
+    case "left-out":
+      return leftOutNote(memory.leftOut);
+    case "forgotten":
+      return removeFailed ? FORGOTTEN_REMOVE_FAILED : FORGOTTEN;
+  }
+}

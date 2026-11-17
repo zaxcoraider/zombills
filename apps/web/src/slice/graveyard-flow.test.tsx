@@ -501,8 +501,10 @@ describe("graveyard flow: change answers", () => {
   });
 });
 
-describe("graveyard flow: no storage", () => {
-  it("writes nothing to storage, cookies or the URL, and keeps the Graveyard when the Sample is chosen again", async () => {
+// Renders `<App />` with the default `empty` load (graveyard-memory Req 11.3 replaces
+// graveyard-ui Req 16.2's check).
+describe("graveyard flow: default empty load", () => {
+  it("with the default empty load, writes nothing to storage, cookies or the URL, and keeps the Graveyard when the Sample is chosen again", async () => {
     const calls = (["getItem", "setItem", "removeItem", "clear"] as const).map((method) =>
       vi.spyOn(Storage.prototype, method),
     );

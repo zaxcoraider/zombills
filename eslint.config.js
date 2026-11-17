@@ -31,6 +31,16 @@ const WEB_NETWORK_PROPERTIES = ["navigator", "window", "globalThis", "self"].fla
   })),
 );
 
+const STORAGE_MESSAGE =
+  "Only slice/storage/graveyard-store.ts may touch localStorage (graveyard-memory Req 10.3).";
+const STORAGE_NAMES = ["localStorage", "sessionStorage", "indexedDB", "caches"];
+const STORAGE_GLOBALS = STORAGE_NAMES.map((name) => ({ name, message: STORAGE_MESSAGE }));
+const STORAGE_PROPERTIES = ["window", "globalThis", "self"].flatMap((object) =>
+  STORAGE_NAMES.map((property) => ({ object, property, message: STORAGE_MESSAGE })),
+);
+const COOKIE_PROPERTY = { object: "document", property: "cookie", message: STORAGE_MESSAGE };
+const STORE_MODULE = "apps/web/src/slice/storage/graveyard-store.ts";
+
 export default tseslint.config(
   { ignores: ["**/node_modules/**", "**/dist/**", "**/coverage/**"] },
   js.configs.recommended,
@@ -61,8 +71,13 @@ export default tseslint.config(
     files: ["apps/web/src/**/*.{ts,tsx}"],
     ignores: ["apps/web/src/**/*.test.{ts,tsx}"],
     rules: {
-      "no-restricted-globals": ["error", ...WEB_NETWORK_GLOBALS],
-      "no-restricted-properties": ["error", ...WEB_NETWORK_PROPERTIES],
+      "no-restricted-globals": ["error", ...WEB_NETWORK_GLOBALS, ...STORAGE_GLOBALS],
+      "no-restricted-properties": [
+        "error",
+        ...WEB_NETWORK_PROPERTIES,
+        ...STORAGE_PROPERTIES,
+        COOKIE_PROPERTY,
+      ],
       "no-console": "error",
       "no-restricted-imports": [
         "error",
@@ -83,6 +98,26 @@ export default tseslint.config(
     },
   },
   {
+    // The Store module may read localStorage and nothing else in the storage family (Req 10.3).
+    // Flat config replaces rule options, so the network entries are repeated.
+    files: [STORE_MODULE],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        ...WEB_NETWORK_GLOBALS,
+        ...STORAGE_GLOBALS.filter(({ name }) => name !== "localStorage"),
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...WEB_NETWORK_PROPERTIES,
+        ...STORAGE_PROPERTIES.filter(
+          ({ object, property }) => !(object === "window" && property === "localStorage"),
+        ),
+        COOKIE_PROPERTY,
+      ],
+    },
+  },
+  {
     // Analyzer purity (Req 3.1): no DOM, storage, clock or randomness in the pure-logic layer.
     // Flat config replaces rule options, so WEB_NETWORK_PROPERTIES is repeated here.
     files: ["apps/web/src/slice/logic/**/*.ts"],
@@ -99,6 +134,8 @@ export default tseslint.config(
       "no-restricted-properties": [
         "error",
         ...WEB_NETWORK_PROPERTIES,
+        ...STORAGE_PROPERTIES,
+        COOKIE_PROPERTY,
         { object: "Date", property: "now", message: PURITY_MESSAGE },
         { object: "performance", property: "now", message: PURITY_MESSAGE },
         { object: "Math", property: "random", message: PURITY_MESSAGE },

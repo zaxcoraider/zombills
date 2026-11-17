@@ -3,7 +3,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { MotionGlobalConfig } from "framer-motion";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnswerRecord } from "../logic/graveyard";
-import { DOWNLOAD_STARTED, IMAGE_SHARED, SAVE_FAILED, SHARE_FAILED } from "../logic/share-card-text";
+import {
+  DOWNLOAD_STARTED,
+  IMAGE_SHARED,
+  SAVE_FAILED,
+  SHARE_FAILED,
+} from "../logic/share-card-text";
 import type { RenderedShareCard } from "./share-card-renderer";
 import { downloadFile } from "./download-file";
 import { SharePanel } from "./share-panel";
@@ -78,7 +83,10 @@ async function showImage(): Promise<{ result: RenderedShareCard; main: HTMLEleme
 
 function fullShare(share: (data: ShareData) => Promise<void> | void) {
   setNavigator("share", vi.fn(share));
-  setNavigator("canShare", vi.fn(() => true));
+  setNavigator(
+    "canShare",
+    vi.fn(() => true),
+  );
 }
 
 describe("share panel: Share path", () => {
@@ -154,7 +162,10 @@ describe("share panel: Share path", () => {
     const { main } = await showImage();
     fireEvent.click(main);
     await waitFor(() => expect(panelText(SHARE_FAILED)).not.toBeNull());
-    setNavigator("share", vi.fn(() => new Promise<void>(() => undefined)));
+    setNavigator(
+      "share",
+      vi.fn(() => new Promise<void>(() => undefined)),
+    );
     fireEvent.click(main);
     expect(panelText(SHARE_FAILED)).toBeNull();
   });
@@ -179,7 +190,10 @@ describe("share panel: Save path", () => {
 
   it("saves when canShare returns false", async () => {
     setNavigator("share", vi.fn());
-    setNavigator("canShare", vi.fn(() => false));
+    setNavigator(
+      "canShare",
+      vi.fn(() => false),
+    );
     await expectSave();
     expect(vi.mocked(window.navigator.share)).not.toHaveBeenCalled();
   });
@@ -204,7 +218,9 @@ describe("share panel: Save path", () => {
     fireEvent.click(main);
     await waitFor(() => expect(live().textContent).toBe(DOWNLOAD_STARTED));
     fireEvent.click(main);
-    await waitFor(() => expect(watcher.texts.filter((t) => t === DOWNLOAD_STARTED)).toHaveLength(2));
+    await waitFor(() =>
+      expect(watcher.texts.filter((t) => t === DOWNLOAD_STARTED)).toHaveLength(2),
+    );
     watcher.stop();
     const first = watcher.texts.indexOf(DOWNLOAD_STARTED);
     const last = watcher.texts.lastIndexOf(DOWNLOAD_STARTED);

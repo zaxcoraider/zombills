@@ -5,11 +5,18 @@ import type {
   NoSubscriptionsOutcome,
   ResultsOutcome,
 } from "./logic/analyze-statement";
-import { EMPTY_GRAVEYARD, recordAnswer, refreshGraveyard } from "./logic/graveyard";
+import {
+  EMPTY_GRAVEYARD,
+  changeEarlierAnswer,
+  recordAnswer,
+  refreshGraveyard,
+} from "./logic/graveyard";
 import type { Graveyard } from "./logic/graveyard";
+import type { ReadResult } from "./logic/graveyard-codec";
 import { errorFromOutcome } from "./logic/messages";
 import type { PageError } from "./logic/messages";
 import { answerNowInOrder, queueOf, risingOrder, skipInOrder } from "./logic/queue";
+import type { RemovalRequest } from "./logic/storage-commands";
 
 export type BurialPhase = "condemned" | "sinking" | "closing";
 
@@ -38,6 +45,27 @@ export type PageView =
 
 export type Screen = "main" | "graveyard";
 
+export type LoadNote =
+  { kind: "unreadable" } | { kind: "dropped"; count: number } | { kind: "newer" };
+
+export type StorageNote = "write-failed" | "remove-failed";
+
+export interface MemoryModel {
+  on: boolean;
+  /** Bumped once per removal the Page asks for */
+  removal: RemovalRequest | null;
+  /** Shown in the idle panel and the Memory panel */
+  loadNote: LoadNote | null;
+  /** Shown in the Memory panel only */
+  storageNote: StorageNote | null;
+  /** Records the last successful write left out; 0 while off */
+  leftOut: number;
+  /** Show the restored line in the idle panel */
+  restored: boolean;
+}
+
+export type MemoryEventKind = "kept" | "not-kept" | "write-failed" | "left-out" | "forgotten";
+
 /** The last haunt event, for the live region (Req 14.3). */
 export type HauntEvent =
   /** `first` is true when entering results */
@@ -45,7 +73,8 @@ export type HauntEvent =
   | { kind: "all-answered" }
   | { kind: "kept"; id: string }
   | { kind: "buried"; id: string }
-  | { kind: "unburied"; id: string };
+  | { kind: "unburied"; id: string }
+  | { kind: "memory"; what: MemoryEventKind; removeFailed?: true };
 
 export type FocusTarget =
   /** Error and no-subscriptions heading, "No undead here." in the Rising */
@@ -61,7 +90,8 @@ export type FocusTarget =
   /** "Every undead has an answer." */
   | "all-answered"
   | "graveyard-heading"
-  | "resting-item";
+  | "resting-item"
+  | "memory-checkbox";
 
 export interface FocusRequest {
   target: FocusTarget;
@@ -75,8 +105,9 @@ export interface PageModel {
   /** The id of the latest accepted `start`; a `finish` or `fail` with another id is ignored */
   runId: number;
   view: PageView;
-  /** Survives start, finish, reset; lost on reload (Req 9.7) */
+  /** Survives start, finish, reset; kept on reload only while memory.on */
   graveyard: Graveyard;
+  memory: MemoryModel;
   screen: Screen;
   event: HauntEvent | null;
   focus: FocusRequest | null;
@@ -99,16 +130,68 @@ export type PageAction =
   | { type: "back-to-start" }
   | { type: "answer-now"; id: string }
   | { type: "unbury"; id: string }
-  | { type: "bury-after-all"; id: string };
+  | { type: "bury-after-all"; id: string }
+  | { type: "forget" }
+  | { type: "set-memory"; on: boolean }
+  | { type: "store-written"; leftOut: number; reason: "turn-on" | "load" | "change" }
+  | { type: "store-write-failed" }
+  | { type: "store-remove-failed"; reason: RemovalRequest["reason"] }
+  | { type: "store-removed-elsewhere" }
+  | { type: "open-memory-settings" };
 
-export const INITIAL_PAGE_MODEL: PageModel = {
-  runId: 0,
-  view: { kind: "idle" },
-  graveyard: EMPTY_GRAVEYARD,
-  screen: "main",
-  event: null,
-  focus: null,
+const MEMORY_OFF: MemoryModel = {
+  on: false,
+  removal: null,
+  loadNote: null,
+  storageNote: null,
+  leftOut: 0,
+  restored: false,
 };
+
+/** The page at load, from what the store read. */
+export function initialPageModel(read: ReadResult): PageModel {
+  let graveyard: Graveyard = EMPTY_GRAVEYARD;
+  let memory: MemoryModel = MEMORY_OFF;
+  switch (read.kind) {
+    case "empty":
+      break;
+    case "ok":
+      graveyard = read.graveyard;
+      memory = {
+        ...MEMORY_OFF,
+        on: true,
+        loadNote: read.dropped > 0 ? { kind: "dropped", count: read.dropped } : null,
+        restored: read.graveyard.length > 0,
+      };
+      break;
+    case "unreadable":
+      memory = {
+        ...MEMORY_OFF,
+        removal: { seq: 1, reason: "unreadable" },
+        loadNote: { kind: "unreadable" },
+      };
+      break;
+    case "newer":
+      memory = { ...MEMORY_OFF, loadNote: { kind: "newer" } };
+      break;
+  }
+  return {
+    runId: 0,
+    view: { kind: "idle" },
+    graveyard,
+    memory,
+    screen: "main",
+    event: null,
+    focus: null,
+  };
+}
+
+export const INITIAL_PAGE_MODEL: PageModel = initialPageModel({ kind: "empty" });
+
+/** The next removal request, one sequence number higher. */
+function removalRequest(memory: MemoryModel, reason: RemovalRequest["reason"]): RemovalRequest {
+  return { seq: (memory.removal?.seq ?? 0) + 1, reason };
+}
 
 function viewFromOutcome(
   sourceName: string,
@@ -160,10 +243,16 @@ function replaceView(model: PageModel, view: PageView): PageModel {
     runId: model.runId,
     view,
     graveyard: model.graveyard,
+    memory: model.memory,
     screen: "main",
     event: null,
     focus: focusRequest(model, "state-heading"),
   };
+}
+
+/** A finished run clears the notes shown on load, for every outcome. */
+function withClearedLoadNotes(model: PageModel): PageModel {
+  return { ...model, memory: { ...model.memory, loadNote: null, restored: false } };
 }
 
 function finishedModel(model: PageModel, sourceName: string, outcome: AnalysisOutcome): PageModel {
@@ -179,6 +268,7 @@ function finishedModel(model: PageModel, sourceName: string, outcome: AnalysisOu
     runId: model.runId,
     view: { kind: "results", sourceName, outcome, rising },
     graveyard,
+    memory: model.memory,
     screen: "main",
     ...headState(model, rising, graveyard),
   };
@@ -231,6 +321,56 @@ function currentRecordSubscription(model: PageModel, id: string, answer: UsageAn
   return view.outcome.subscriptions.find((candidate) => candidate.id === id) ?? null;
 }
 
+/** The Graveyard screen has a record with `id` and answer `from`; `unbury` and `bury-after-all` change it to `to`. */
+function changeAnswerAfter(
+  model: PageModel,
+  id: string,
+  from: UsageAnswer,
+  to: UsageAnswer,
+): PageModel {
+  if (model.screen !== "graveyard") return model;
+  const record = model.graveyard.find((candidate) => candidate.id === id);
+  if (record === undefined || record.answer !== from) return model;
+  const subscription = currentRecordSubscription(model, id, from);
+  const graveyard =
+    subscription === null
+      ? changeEarlierAnswer(model.graveyard, id, to)
+      : recordAnswer(model.graveyard, subscription, to);
+  return {
+    ...model,
+    graveyard,
+    event: to === "still-using" ? { kind: "unburied", id } : { kind: "buried", id },
+    focus: focusRequest(model, to === "still-using" ? "resting-item" : "tombstone", id),
+  };
+}
+
+/** "Forget everything": empty Graveyard, Memory off with a removal, the Queue rebuilt (Req 8.4). */
+function forgotten(model: PageModel): PageModel {
+  if (model.screen !== "graveyard") return model;
+  const { view, memory } = model;
+  const next: PageModel = {
+    ...model,
+    graveyard: EMPTY_GRAVEYARD,
+    memory: {
+      ...memory,
+      on: false,
+      removal: removalRequest(memory, "forget"),
+      loadNote: null,
+      storageNote: null,
+      leftOut: 0,
+      restored: false,
+    },
+    event: { kind: "memory", what: "forgotten" },
+    focus: focusRequest(model, "graveyard-heading"),
+  };
+  if (view.kind !== "results") return next;
+  const rising: RisingModel = {
+    order: risingOrder(view.outcome.subscriptions, view.outcome.statement),
+    stage: { kind: "ask" },
+  };
+  return { ...next, view: { ...view, rising } };
+}
+
 const NEXT_PHASE: Record<BurialPhase, BurialPhase | null> = {
   condemned: "sinking",
   sinking: "closing",
@@ -261,7 +401,7 @@ export function pageReducer(model: PageModel, action: PageAction): PageModel {
       };
     case "finish":
       if (view.kind !== "working" || action.runId !== model.runId) return model;
-      return finishedModel(model, view.sourceName, action.outcome);
+      return withClearedLoadNotes(finishedModel(model, view.sourceName, action.outcome));
     case "fail":
       if (view.kind !== "working" || action.runId !== model.runId) return model;
       return replaceView(model, {
@@ -392,25 +532,80 @@ export function pageReducer(model: PageModel, action: PageAction): PageModel {
         focus: focusRequest(model, "card-heading", action.id),
       };
     }
-    case "unbury": {
-      const subscription = currentRecordSubscription(model, action.id, "not-using");
-      if (subscription === null) return model;
+    case "set-memory": {
+      const { memory } = model;
+      if (action.on === memory.on) return model;
+      if (action.on) {
+        return {
+          ...model,
+          memory: { ...memory, on: true, loadNote: null, storageNote: null, leftOut: 0 },
+          event: null,
+        };
+      }
       return {
         ...model,
-        graveyard: recordAnswer(model.graveyard, subscription, "still-using"),
-        event: { kind: "unburied", id: action.id },
-        focus: focusRequest(model, "resting-item", action.id),
+        memory: {
+          ...memory,
+          on: false,
+          removal: removalRequest(memory, "untick"),
+          loadNote: memory.loadNote?.kind === "dropped" ? null : memory.loadNote,
+          storageNote: null,
+          leftOut: 0,
+        },
+        event: { kind: "memory", what: "not-kept" },
       };
     }
-    case "bury-after-all": {
-      const subscription = currentRecordSubscription(model, action.id, "still-using");
-      if (subscription === null) return model;
+    case "store-written": {
+      const { memory } = model;
+      if (!memory.on) return model;
+      if (action.reason !== "turn-on" && action.leftOut === memory.leftOut) return model;
+      const next = { ...model, memory: { ...memory, leftOut: action.leftOut } };
+      if (action.reason === "turn-on") return { ...next, event: { kind: "memory", what: "kept" } };
+      if (action.reason === "change" && action.leftOut > memory.leftOut) {
+        return { ...next, event: { kind: "memory", what: "left-out" } };
+      }
+      return next;
+    }
+    case "store-write-failed": {
+      const { memory } = model;
+      if (!memory.on) return model;
       return {
         ...model,
-        graveyard: recordAnswer(model.graveyard, subscription, "not-using"),
-        event: { kind: "buried", id: action.id },
-        focus: focusRequest(model, "tombstone", action.id),
+        memory: {
+          ...memory,
+          on: false,
+          removal: removalRequest(memory, "write-failed"),
+          storageNote: "write-failed",
+          leftOut: 0,
+        },
+        event: { kind: "memory", what: "write-failed" },
       };
     }
+    case "store-remove-failed": {
+      if (action.reason === "write-failed") return model;
+      const memory: MemoryModel = { ...model.memory, storageNote: "remove-failed" };
+      if (action.reason === "unreadable") return { ...model, memory };
+      const what = action.reason === "untick" ? "not-kept" : "forgotten";
+      return { ...model, memory, event: { kind: "memory", what, removeFailed: true } };
+    }
+    case "store-removed-elsewhere":
+      if (!model.memory.on) return model;
+      return { ...model, memory: { ...model.memory, on: false, leftOut: 0 } };
+    case "open-memory-settings": {
+      if (view.kind !== "results" || model.screen !== "main") return model;
+      const opened = {
+        ...model,
+        screen: "graveyard" as const,
+        event: null,
+        focus: focusRequest(model, "memory-checkbox"),
+      };
+      return withStage(opened, { kind: "ask" }, {});
+    }
+    case "unbury":
+      return changeAnswerAfter(model, action.id, "not-using", "still-using");
+    case "bury-after-all":
+      return changeAnswerAfter(model, action.id, "still-using", "not-using");
+    case "forget":
+      return forgotten(model);
   }
 }

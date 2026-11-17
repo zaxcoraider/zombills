@@ -168,6 +168,10 @@ export interface TombstoneProps {
   action?: ReactNode;
   /** The charges have stopped: the subscription is gone from the current statement. */
   ended?: boolean;
+  /** A small line under the title, for example "From an earlier statement" */
+  note?: string;
+  /** Called when the entering rise finishes; ignored when not entering */
+  onRisen?: () => void;
 }
 
 const IN_PLACE = { initial: false } as const;
@@ -180,6 +184,8 @@ export function Tombstone({
   reduceMotion,
   action,
   ended = false,
+  note,
+  onRisen,
 }: TombstoneProps) {
   const titleId = useId();
   const focusRef = useFocusRequest(`tombstone:${record.id}`);
@@ -196,6 +202,7 @@ export function Tombstone({
           stage ? "w-[min(18.75rem,calc(100vw-3rem))]" : "w-[min(16rem,calc(100vw-4rem))]"
         }`}
         {...motionProps}
+        {...(entering && onRisen !== undefined ? { onAnimationComplete: onRisen } : {})}
       >
         {/* A slight lean: old stones never stand quite straight. Static, not motion. */}
         <div className="absolute inset-0 -rotate-[1.2deg]">
@@ -222,6 +229,13 @@ export function Tombstone({
                 </span>
               </span>
             </p>
+            {note === undefined ? null : (
+              <p
+                className={`leading-snug text-bone/90 ${stage ? "mt-2 text-xs" : "mt-1 text-[0.6875rem]"}`}
+              >
+                {note}
+              </p>
+            )}
             <p
               className={`font-display italic leading-snug text-balance text-bone/90 ${
                 stage ? "mt-3 text-[1.0625rem]" : "mt-2 text-sm"

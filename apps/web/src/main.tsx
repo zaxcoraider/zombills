@@ -8,12 +8,16 @@ import "./index.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { graveyardStore } from "./slice/storage/graveyard-store";
+
+// The one read of the Store, at module load (Req 4.1).
+const initialStore = graveyardStore.load();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element in index.html");
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <App store={graveyardStore} initialStore={initialStore} />
   </StrictMode>,
 );

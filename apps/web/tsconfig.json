@@ -13,6 +13,8 @@
     "csp-plugin.ts",
     "csp-plugin.test.ts",
     "vite-config.test.ts",
-    "netlify-config.test.ts"
+    "netlify-config.test.ts",
+    "storage-lint.test.ts",
+    "vitest.setup.ts"
   ]
 }
