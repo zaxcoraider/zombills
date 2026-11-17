@@ -229,3 +229,34 @@ describe("deriveHaunt: earlierIds", () => {
     expect(deriveHaunt(resultsInput(EMPTY_GRAVEYARD)).earlierIds.size).toBe(0);
   });
 });
+
+describe("deriveHaunt: carriedOverIds", () => {
+  it("holds the Current records with carriedOver true, and no Earlier or plain record", () => {
+    const outcome = usResults();
+    const netflix = buriedNetflix(outcome);
+    const spotify = outcome.subscriptions.find((s) => s.id === "sub:USD:monthly:*:spotify");
+    if (!spotify) throw new Error("no Spotify");
+    const graveyard = recordAnswer(
+      netflix.map((record) => ({ ...record, carriedOver: true })),
+      spotify,
+      "still-using",
+    );
+    const earlier = {
+      ...(netflix[0] as Graveyard[number]),
+      id: "sub:USD:monthly:*:gone",
+      carriedOver: true,
+    };
+    const haunt = deriveHaunt(
+      resultsInput([...graveyard, earlier], { kind: "ask" }, outcome),
+      "en-US",
+    );
+    expect([...haunt.carriedOverIds]).toEqual([NETFLIX]);
+    expect(haunt.earlierIds.has("sub:USD:monthly:*:gone")).toBe(true);
+  });
+
+  it("is empty with no records and outside the results view", () => {
+    expect(deriveHaunt(resultsInput(EMPTY_GRAVEYARD), "en-US").carriedOverIds.size).toBe(0);
+    const idle = deriveHaunt({ view: { kind: "idle" }, graveyard: buriedNetflix(usResults()) });
+    expect(idle.carriedOverIds.size).toBe(0);
+  });
+});

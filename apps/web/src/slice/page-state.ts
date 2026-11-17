@@ -13,6 +13,7 @@ import {
 } from "./logic/graveyard";
 import type { Graveyard } from "./logic/graveyard";
 import type { ReadResult } from "./logic/graveyard-codec";
+import { carriedOverCount, reattach } from "./logic/reattach";
 import { errorFromOutcome } from "./logic/messages";
 import type { PageError } from "./logic/messages";
 import { answerNowInOrder, queueOf, risingOrder, skipInOrder } from "./logic/queue";
@@ -39,7 +40,14 @@ export interface RisingModel {
 export type PageView =
   | { kind: "idle" }
   | { kind: "working"; sourceName: string }
-  | { kind: "results"; sourceName: string; outcome: ResultsOutcome; rising: RisingModel }
+  | {
+      kind: "results";
+      sourceName: string;
+      outcome: ResultsOutcome;
+      rising: RisingModel;
+      /** Records moved onto this statement's subscriptions by re-attach (Req 6.8) */
+      carriedOver: number;
+    }
   | { kind: "no-subscriptions"; sourceName: string; outcome: NoSubscriptionsOutcome }
   | { kind: "error"; sourceName: string | null; error: PageError };
 
@@ -259,14 +267,16 @@ function finishedModel(model: PageModel, sourceName: string, outcome: AnalysisOu
   if (outcome.kind !== "results") {
     return replaceView(model, viewFromOutcome(sourceName, outcome));
   }
-  const graveyard = refreshGraveyard(model.graveyard, outcome.subscriptions);
+  const moved = reattach(model.graveyard, outcome.subscriptions);
+  const graveyard = refreshGraveyard(moved, outcome.subscriptions);
+  const carriedOver = carriedOverCount(model.graveyard, moved);
   const rising: RisingModel = {
     order: risingOrder(outcome.subscriptions, outcome.statement),
     stage: { kind: "ask" },
   };
   return {
     runId: model.runId,
-    view: { kind: "results", sourceName, outcome, rising },
+    view: { kind: "results", sourceName, outcome, rising, carriedOver },
     graveyard,
     memory: model.memory,
     screen: "main",
@@ -368,7 +378,7 @@ function forgotten(model: PageModel): PageModel {
     order: risingOrder(view.outcome.subscriptions, view.outcome.statement),
     stage: { kind: "ask" },
   };
-  return { ...next, view: { ...view, rising } };
+  return { ...next, view: { ...view, rising, carriedOver: 0 } };
 }
 
 const NEXT_PHASE: Record<BurialPhase, BurialPhase | null> = {

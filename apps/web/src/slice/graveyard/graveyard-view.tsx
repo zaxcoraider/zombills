@@ -6,7 +6,7 @@ import type { Dispatch } from "react";
 import { CADENCE_LABELS } from "../logic/display-date";
 import { CADENCE_FACTOR, type AnswerRecord } from "../logic/graveyard";
 import type { HauntView } from "../logic/haunt-view";
-import { EARLIER_NOTE } from "../logic/memory-text";
+import { CARRIED_OVER_NOTE, EARLIER_NOTE } from "../logic/memory-text";
 import type { MemoryModel, PageAction } from "../page-state";
 import { CancelHelper } from "./cancel-helper";
 import { MemoryPanel } from "./memory-panel";
@@ -217,7 +217,10 @@ export function GraveyardView({
     const timer = setTimeout(() => setRisenSeq(enteringSeq), BURIAL_FALLBACK_MS);
     return () => clearTimeout(timer);
   }, [enteringSeq]);
-  const noteOf = (id: string) => (haunt.earlierIds.has(id) ? EARLIER_NOTE : undefined);
+  const noteOf = (id: string) => {
+    if (haunt.earlierIds.has(id)) return EARLIER_NOTE;
+    return haunt.carriedOverIds.has(id) ? CARRIED_OVER_NOTE : undefined;
+  };
   const hasRecords = tombstones.length + kept.length > 0;
   const nameOf = (id: string, fallback: string) => names.get(id) ?? fallback;
   const queued = haunt.queue.flatMap((id) => {

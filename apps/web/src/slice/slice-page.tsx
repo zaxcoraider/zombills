@@ -92,6 +92,7 @@ function MainState({ model, haunt, reduceMotion, dispatch, onStartAgain }: MainS
             outcome={view.outcome}
             rising={view.rising}
             haunt={haunt}
+            carriedOver={view.carriedOver}
             reduceMotion={reduceMotion}
             memoryOn={model.memory.on}
             dispatch={dispatch}

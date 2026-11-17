@@ -9,6 +9,7 @@ import { App } from "../App";
 import { expectUniqueButtonNames } from "./graveyard/test-a11y";
 import { formatMoney } from "./logic/money";
 import {
+  CARRIED_OVER_NOTE,
   EARLIER_NOTE,
   FORGET_BUTTON,
   FORGET_CANCEL,
@@ -26,6 +27,7 @@ import {
   UNREADABLE_NOTE,
   WRITE_FAILED_NOTE,
   IDLE_SENTENCE,
+  carriedOverLine,
   droppedNote,
   restoredLine,
 } from "./logic/memory-text";
@@ -390,7 +392,10 @@ describe("graveyard memory flow: Req 5.7 storage rows", () => {
   });
 
   it("Req 5.7 row window.localStorage getter throws SecurityError: no note, then the write-failed note, then no call", async () => {
-    const { storage, target } = mount({ storage: { throwOn: { getter: true } }, throughLoad: true });
+    const { storage, target } = mount({
+      storage: { throwOn: { getter: true } },
+      throughLoad: true,
+    });
     expect(screen.queryByText(WRITE_FAILED_NOTE)).toBeNull();
     expect(screen.queryByText(UNREADABLE_NOTE)).toBeNull();
     await chooseSample();
@@ -601,5 +606,41 @@ describe("graveyard memory flow: reduced motion", () => {
         expect(Object.keys(call.result[key] as object)).toEqual(["opacity"]);
       }
     }
+  });
+});
+
+describe("graveyard memory flow: re-attach", () => {
+  const APPLE_STATEMENT = [
+    "Date,Description,Amount",
+    "01/05/2026,APPLE.COM/BILL 866-712-7753 CA,-10.99",
+    "02/05/2026,APPLE.COM/BILL 866-712-7753 CA,-10.99",
+    "03/05/2026,APPLE.COM/BILL 866-712-7753 CA,-10.99",
+    "04/05/2026,APPLE.COM/BILL 866-712-7753 CA,-11.99",
+    "02/09/2026,SPOTIFY USA NEW YORK NY,-10.99",
+    "03/09/2026,SPOTIFY USA NEW YORK NY,-10.99",
+    "04/09/2026,SPOTIFY USA NEW YORK NY,-10.99",
+  ].join("\n");
+
+  it("carries a buried Apple Music record onto its price-changed subscription", async () => {
+    mount({ text: storeText(APPLE) });
+    const file = new File([APPLE_STATEMENT], "statement.csv", { type: "text/csv" });
+    fireEvent.drop(
+      screen.getByRole("button", { name: "Drop area: choose or drop a CSV statement" }),
+      { dataTransfer: { files: [file], types: ["Files"] } },
+    );
+    await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+
+    // The record answers for the Apple subscription, so only Spotify rises.
+    cardHeading("Spotify");
+    expect(screen.queryByRole("heading", { level: 3, name: /Apple/ })).toBeNull();
+    const line = carriedOverLine(1);
+    expect(line).toBe("1 earlier answer was carried over to this statement.");
+    expect(screen.getAllByText(line)).toHaveLength(1);
+    expect(liveRegion().textContent).toContain(line);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
+    expect(screen.getByText(CARRIED_OVER_NOTE)).toBeTruthy();
+    expect(CARRIED_OVER_NOTE).toBe("Answer carried over from an earlier statement");
+    expect(screen.queryByText(EARLIER_NOTE)).toBeNull();
   });
 });

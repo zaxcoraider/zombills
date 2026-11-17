@@ -7,7 +7,7 @@ import { assumedValueNotes } from "../logic/assumed-values";
 import { formatDisplayDate } from "../logic/display-date";
 import type { HauntView } from "../logic/haunt-view";
 import type { PageAction, RisingModel } from "../page-state";
-import { MEMORY_ON_LINE, MEMORY_SETTINGS } from "../logic/memory-text";
+import { MEMORY_ON_LINE, MEMORY_SETTINGS, carriedOverLine } from "../logic/memory-text";
 import { BurialStage } from "./burial-stage";
 import { Money } from "./money-text";
 import { useFocusRequest } from "./use-focus-request";
@@ -17,6 +17,8 @@ export interface RisingViewProps {
   outcome: ResultsOutcome;
   rising: RisingModel;
   haunt: HauntView;
+  /** Records re-attached to this statement's subscriptions (Req 6.8) */
+  carriedOver: number;
   reduceMotion: boolean;
   /** true while Memory is on: shows the reminder and the Memory settings button */
   memoryOn: boolean;
@@ -122,6 +124,7 @@ export function RisingView({
   outcome,
   rising,
   haunt,
+  carriedOver,
   reduceMotion,
   memoryOn,
   dispatch,
@@ -168,6 +171,7 @@ export function RisingView({
             ) : null}
           </div>
         ))}
+        {carriedOver > 0 ? <p>{carriedOverLine(carriedOver)}</p> : null}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p>
             {haunt.answeredCount} of {haunt.risen.length} answered

@@ -6,7 +6,9 @@ import type {
   NoSubscriptionsOutcome,
   ResultsOutcome,
 } from "./logic/analyze-statement";
-import { recordAnswer } from "./logic/graveyard";
+import { answersMap, recordAnswer } from "./logic/graveyard";
+import { classifySubscriptions } from "@zombills/core";
+import type { ClassifiedSubscription } from "@zombills/core";
 import type { HauntInput } from "./logic/haunt-view";
 import type { PageError } from "./logic/messages";
 import { queueOf, risingOrder } from "./logic/queue";
@@ -59,7 +61,13 @@ const WORKING: PageModel = {
 const RESULTS_MODEL: PageModel = {
   ...INITIAL_PAGE_MODEL,
   runId: 7,
-  view: { kind: "results", sourceName: "a.csv", outcome: RESULTS, rising: RISING },
+  view: {
+    kind: "results",
+    sourceName: "a.csv",
+    outcome: RESULTS,
+    rising: RISING,
+    carriedOver: 0,
+  },
   event: { kind: "card", id: SUB.id, first: true },
   focus: { target: "card-heading", id: SUB.id, seq: 1 },
 };
@@ -1215,5 +1223,77 @@ describe("pageReducer: forget", () => {
   it("returns the same model off the Graveyard screen", () => {
     expect(pageReducer(RESULTS_MODEL, { type: "forget" })).toBe(RESULTS_MODEL);
     expect(pageReducer(IDLE, { type: "forget" })).toBe(IDLE);
+  });
+});
+
+describe("pageReducer: re-attach (Req 6.9 row 1)", () => {
+  const MUSIC_1099: ClassifiedSubscription = {
+    ...APPLE_99,
+    merchantKey: "apple",
+    id: "sub:USD:monthly:1099:apple",
+    currentAmountCents: 1099,
+    yearlyCostCents: 13188,
+  };
+  const MUSIC_1199: ClassifiedSubscription = {
+    ...APPLE_99,
+    merchantKey: "apple",
+    id: "sub:USD:monthly:*:apple",
+    currentAmountCents: 1199,
+    yearlyCostCents: 14388,
+    priceHistory: [
+      { date: "2026-01-02", amountCents: 1099 },
+      { date: "2026-02-02", amountCents: 1199 },
+      { date: "2026-03-02", amountCents: 1199 },
+    ],
+  };
+  const OUTCOME: ResultsOutcome = {
+    kind: "results",
+    ...FACTS,
+    subscriptions: [MUSIC_1199, GUESSED_AMAZON_PRIME],
+    totals: [{ currency: "USD", totalCents: 1000 }],
+  };
+  const STORED = recordAnswer([], MUSIC_1099, "not-using");
+
+  it("finish moves the record onto the new subscription and counts it", () => {
+    const model = risingModel(OUTCOME, STORED);
+    expect(model.graveyard).toEqual([
+      expect.objectContaining({
+        id: MUSIC_1199.id,
+        answer: "not-using",
+        carriedOver: true,
+        currentAmountCents: 1199,
+        yearlySavingCents: 14388,
+      }),
+    ]);
+    expect(resultsOf(model).carriedOver).toBe(1);
+  });
+
+  it("labels the re-attached record zombie through answersMap, and it does not rise", () => {
+    const model = risingModel(OUTCOME, STORED);
+    const answers = answersMap(model.graveyard, OUTCOME.subscriptions);
+    expect(answers.get(MUSIC_1199.id)).toBe("not-using");
+    const classified = classifySubscriptions(OUTCOME.subscriptions, answers);
+    expect(classified.find((s) => s.id === MUSIC_1199.id)?.labels).toContain("zombie");
+    expect(queueOf(resultsOf(model).rising.order, model.graveyard)).toEqual([
+      GUESSED_AMAZON_PRIME.id,
+    ]);
+  });
+
+  it("sets carriedOver 0 when nothing moves", () => {
+    expect(resultsOf(risingModel()).carriedOver).toBe(0);
+  });
+
+  it("forget resets carriedOver to 0", () => {
+    const open = onGraveyard(risingModel(OUTCOME, STORED));
+    expect(resultsOf(open).carriedOver).toBe(1);
+    expect(resultsOf(pageReducer(open, { type: "forget" })).carriedOver).toBe(0);
+  });
+
+  it("unbury on a carried-over record gives carriedOver false", () => {
+    const open = onGraveyard(risingModel(OUTCOME, STORED));
+    const next = pageReducer(open, { type: "unbury", id: MUSIC_1199.id });
+    expect(next.graveyard).toEqual([
+      expect.objectContaining({ id: MUSIC_1199.id, answer: "still-using", carriedOver: false }),
+    ]);
   });
 });

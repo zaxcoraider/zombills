@@ -661,3 +661,107 @@ export function memoryActionArb(
     fc.constant({ type: "store-removed-elsewhere" as const }),
   );
 }
+
+const SHARED_TRIPLES: readonly { currency: string; cadence: Cadence; merchantKey: string }[] = [
+  { currency: "USD", cadence: "monthly", merchantKey: "unidentified:apple:apple.com/bill" },
+  { currency: "USD", cadence: "yearly", merchantKey: "netflix" },
+  { currency: "GBP", cadence: "monthly", merchantKey: "unidentified:apple:apple.com/bill" },
+];
+
+const SHARED_AMOUNTS = [99, 999, 1_099, 1_199] as const;
+
+const sharedDiscriminatorArb = fc.constantFrom<"*" | (typeof SHARED_AMOUNTS)[number]>(
+  "*",
+  ...SHARED_AMOUNTS,
+);
+
+/**
+ * A Graveyard and a subscription list that share a few Triples with different amounts and
+ * discriminators, so Orphan records, Free subscriptions and ambiguous matches are common (P7, P8).
+ * Ids are unique inside each list; a record and a subscription may share an id (a Current record).
+ */
+export const sharedTripleOutcomeArb: fc.Arbitrary<{
+  graveyard: AnswerRecord[];
+  subscriptions: Subscription[];
+}> = fc
+  .record({
+    records: fc.uniqueArray(
+      fc.record({
+        triple: fc.constantFrom(...SHARED_TRIPLES),
+        discriminator: sharedDiscriminatorArb,
+        amount: fc.constantFrom(...SHARED_AMOUNTS),
+        answer: fc.constantFrom<UsageAnswer>("still-using", "not-using"),
+        cadenceAssumed: fc.boolean(),
+        carriedOver: fc.boolean(),
+      }),
+      { maxLength: 6, selector: (r) => `${r.triple.currency}${r.triple.cadence}${r.triple.merchantKey}${r.discriminator}` },
+    ),
+    subscriptions: fc.uniqueArray(
+      fc.record({
+        triple: fc.constantFrom(...SHARED_TRIPLES),
+        discriminator: sharedDiscriminatorArb,
+        amount: fc.constantFrom(...SHARED_AMOUNTS),
+        history: fc.subarray([...SHARED_AMOUNTS]),
+        cadenceAssumed: fc.boolean(),
+        status: fc.constantFrom<"active" | "ended">("active", "ended"),
+      }),
+      { maxLength: 6, selector: (s) => `${s.triple.currency}${s.triple.cadence}${s.triple.merchantKey}${s.discriminator}` },
+    ),
+  })
+  .map(({ records, subscriptions }) => {
+    const idOf = (
+      t: { currency: string; cadence: Cadence; merchantKey: string },
+      d: "*" | number,
+    ): string => `sub:${t.currency}:${t.cadence}:${d}:${t.merchantKey}`;
+    const graveyard = records.map((r): AnswerRecord => {
+      // An amount discriminator is the record's amount (the detector's id rule).
+      const amount = r.discriminator === "*" ? r.amount : r.discriminator;
+      return {
+        id: idOf(r.triple, r.discriminator),
+        merchant: r.triple.merchantKey,
+        serviceId: null,
+        currency: r.triple.currency,
+        cadence: r.triple.cadence,
+        currentAmountCents: amount,
+        answer: r.answer,
+        cadenceAssumed: r.cadenceAssumed,
+        carriedOver: r.carriedOver,
+        yearlySavingCents: r.cadenceAssumed ? null : amount * CADENCE_FACTOR[r.triple.cadence],
+      };
+    });
+    const list = subscriptions.map((s): Subscription => {
+      const amount = s.discriminator === "*" ? s.amount : s.discriminator;
+      const date = "2026-01-12";
+      const history = [...new Set([...s.history, amount])].sort((a, b) => a - b);
+      return {
+        id: idOf(s.triple, s.discriminator),
+        merchant: s.triple.merchantKey,
+        merchantKey: s.triple.merchantKey,
+        serviceId: null,
+        source: "unidentified",
+        currency: s.triple.currency,
+        cadence: s.triple.cadence,
+        charges: [],
+        currentAmountCents: amount,
+        yearlyCostCents: amount * CADENCE_FACTOR[s.triple.cadence],
+        labels: [],
+        priceHistory: history.map((amountCents) => ({ date, amountCents })),
+        status: s.status,
+        confidence: "medium",
+        evidence: {
+          regularChargeCount: 3,
+          firstChargeDate: date,
+          lastChargeDate: date,
+          nextExpectedDate: date,
+          missedPeriods: 0,
+          lateChargeDates: [],
+          cadenceAssumed: s.cadenceAssumed,
+          introCharge: null,
+          freeTrialDate: null,
+          startedInStatement: false,
+          partialRefunds: [],
+        },
+      };
+    });
+    return { graveyard, subscriptions: list };
+  });

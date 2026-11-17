@@ -7,7 +7,7 @@ import usSigned from "../../../../../samples/us-signed.csv?raw";
 import { analyzeStatement } from "../logic/analyze-statement";
 import type { AnalysisOutcome, ResultsOutcome } from "../logic/analyze-statement";
 import { deriveHaunt } from "../logic/haunt-view";
-import { MEMORY_ON_LINE, MEMORY_SETTINGS } from "../logic/memory-text";
+import { MEMORY_ON_LINE, MEMORY_SETTINGS, carriedOverLine } from "../logic/memory-text";
 import { formatMoney } from "../logic/money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageAction, PageModel } from "../page-state";
@@ -33,7 +33,15 @@ function resultsOf(csv: string): ResultsOutcome {
 }
 
 /** Renders the Rising from a real `pageReducer` model and records every dispatched action. */
-function Harness({ initial, actions }: { initial: PageModel; actions: PageAction[] }) {
+function Harness({
+  initial,
+  actions,
+  carriedOver = 0,
+}: {
+  initial: PageModel;
+  actions: PageAction[];
+  carriedOver?: number;
+}) {
   const [model, dispatch] = useReducer((m: PageModel, a: PageAction) => {
     actions.push(a);
     return pageReducer(m, a);
@@ -46,6 +54,7 @@ function Harness({ initial, actions }: { initial: PageModel; actions: PageAction
       outcome={model.view.outcome}
       rising={model.view.rising}
       haunt={haunt}
+      carriedOver={carriedOver}
       reduceMotion={false}
       memoryOn={model.memory.on}
       dispatch={dispatch}
@@ -53,11 +62,11 @@ function Harness({ initial, actions }: { initial: PageModel; actions: PageAction
   );
 }
 
-function renderRising(csv: string, memoryOn = false) {
+function renderRising(csv: string, memoryOn = false, carriedOver = 0) {
   const actions: PageAction[] = [];
   const model = modelFor(resultsOf(csv));
   const initial = memoryOn ? { ...model, memory: { ...model.memory, on: true } } : model;
-  render(<Harness initial={initial} actions={actions} />);
+  render(<Harness initial={initial} actions={actions} carriedOver={carriedOver} />);
   return actions;
 }
 
@@ -76,6 +85,22 @@ const ENDED_CSV = [
   "2026-03-05,RIVERSIDE GYM,-30.00",
   "2026-06-20,CORNER BAKERY,-4.50",
 ].join("\n");
+
+describe("RisingView: carried over (Req 6.8)", () => {
+  it("shows no line with carriedOver 0", () => {
+    renderRising(usSigned);
+    expect(screen.queryByText(/carried over/)).toBeNull();
+  });
+
+  it.each([1, 2])("shows the line directly after the Still-draining lines with %i", (n) => {
+    renderRising(usSigned, false, n);
+    const line = screen.getByText(carriedOverLine(n));
+    expect(line.tagName).toBe("P");
+    const draining = screen.getByText(/Still draining/);
+    const lastDraining = draining.closest("div");
+    expect(lastDraining?.nextElementSibling).toBe(line);
+  });
+});
 
 describe("RisingView", () => {
   it("shows the first card and the progress line for the US sample", () => {

@@ -6,7 +6,7 @@ import { deriveHaunt } from "./haunt-view";
 import type { HauntView } from "./haunt-view";
 import { partsToText, priceRiseParts, trialParts } from "./label-text";
 import { errorMessage } from "./messages";
-import { memoryAnnouncement } from "./memory-text";
+import { carriedOverLine, memoryAnnouncement } from "./memory-text";
 import { formatMoney } from "./money";
 
 /** "Still draining <amount> a year." per currency with a figure (Req 1.6a). */
@@ -16,6 +16,11 @@ function stillDrainingSentences(haunt: HauntView, locale?: string): string[] {
       ? []
       : [`Still draining ${formatMoney(entry.remainingCents, entry.currency, locale)} a year.`],
   );
+}
+
+/** The carried-over sentence, or none (Req 6.8). */
+function carriedOverSentences(view: PageModel["view"]): string[] {
+  return view.kind === "results" && view.carriedOver > 0 ? [carriedOverLine(view.carriedOver)] : [];
 }
 
 /**
@@ -62,6 +67,7 @@ function eventSentence(
   haunt: HauntView,
   memory: MemoryModel,
   foundSentence: string,
+  carried: readonly string[],
   locale?: string,
 ): string {
   const name = (id: string): string => haunt.names.get(id) ?? "This subscription";
@@ -70,7 +76,7 @@ function eventSentence(
     case "card": {
       const subscription = haunt.byId.get(event.id);
       const card = subscription ? cardSentence(subscription, name(event.id), locale) : "";
-      const parts = event.first ? [foundSentence, ...draining, card] : [card];
+      const parts = event.first ? [foundSentence, ...draining, ...carried, card] : [card];
       return parts.filter((part) => part !== "").join(" ");
     }
     case "all-answered":
@@ -94,7 +100,8 @@ export function announcement(model: PageModel, locale?: string): string {
     view.kind === "results"
       ? `Found ${view.outcome.subscriptions.length} recurring ${view.outcome.subscriptions.length === 1 ? "charge" : "charges"}.`
       : "";
-  if (event !== null) return eventSentence(event, haunt, model.memory, found, locale);
+  if (event !== null)
+    return eventSentence(event, haunt, model.memory, found, carriedOverSentences(view), locale);
   if (model.screen === "graveyard") return "Your graveyard.";
   switch (view.kind) {
     case "idle":
@@ -102,7 +109,12 @@ export function announcement(model: PageModel, locale?: string): string {
     case "working":
       return `Reading ${view.sourceName}…`;
     case "results":
-      return [found, ...stillDrainingSentences(haunt, locale), "No undead here."].join(" ");
+      return [
+        found,
+        ...stillDrainingSentences(haunt, locale),
+        ...carriedOverSentences(view),
+        "No undead here.",
+      ].join(" ");
     case "no-subscriptions":
       return "No recurring charges found.";
     case "error":

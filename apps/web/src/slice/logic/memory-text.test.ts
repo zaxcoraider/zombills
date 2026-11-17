@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as text from "./memory-text";
 import {
+  CARRIED_OVER_NOTE,
   EARLIER_NOTE,
   FORGET_BUTTON,
   FORGET_CANCEL,
@@ -21,6 +22,7 @@ import {
   REMOVE_FAILED_NOTE,
   UNREADABLE_NOTE,
   WRITE_FAILED_NOTE,
+  carriedOverLine,
   droppedNote,
   leftOutNote,
   restoredLine,
@@ -51,6 +53,7 @@ describe("memory text constants", () => {
     expect(MEMORY_ON_LINE).toBe("Your answers are kept on this device.");
     expect(MEMORY_SETTINGS).toBe("Memory settings");
     expect(EARLIER_NOTE).toBe("From an earlier statement");
+    expect(CARRIED_OVER_NOTE).toBe("Answer carried over from an earlier statement");
     expect(FORGET_BUTTON).toBe("Forget everything");
     expect(FORGET_QUESTION).toBe("Forget every answer and tombstone? This cannot be undone.");
     expect(FORGET_CONFIRM).toBe("Forget");
@@ -67,6 +70,8 @@ describe("memory text constants", () => {
     );
     expect(droppedNote(1)).toBe("1 saved answer could not be read and was left out.");
     expect(droppedNote(3)).toBe("3 saved answers could not be read and were left out.");
+    expect(carriedOverLine(1)).toBe("1 earlier answer was carried over to this statement.");
+    expect(carriedOverLine(2)).toBe("2 earlier answers were carried over to this statement.");
     expect(restoredLine(1, 0)).toBe(
       "Your graveyard from this device is back: 1 buried, 0 resting.",
     );
@@ -97,6 +102,8 @@ describe("memory text constants", () => {
       leftOutNote(2),
       droppedNote(1),
       droppedNote(2),
+      carriedOverLine(1),
+      carriedOverLine(2),
       restoredLine(0, 0),
       restoredLine(2, 5),
     );

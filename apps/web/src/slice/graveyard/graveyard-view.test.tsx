@@ -8,7 +8,7 @@ import { analyzeStatement } from "../logic/analyze-statement";
 import type { AnalysisOutcome, ResultsOutcome } from "../logic/analyze-statement";
 import { answerRecordFor } from "../logic/graveyard";
 import { deriveHaunt } from "../logic/haunt-view";
-import { EARLIER_NOTE } from "../logic/memory-text";
+import { CARRIED_OVER_NOTE, EARLIER_NOTE } from "../logic/memory-text";
 import { formatMoney } from "../logic/money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageAction, PageModel } from "../page-state";
@@ -479,6 +479,28 @@ describe("GraveyardView: Memory and Earlier records", () => {
   it("shows no note on a Current record", () => {
     renderView(usGraveyardModel());
     expect(screen.queryByText(EARLIER_NOTE, { exact: false })).toBeNull();
+  });
+
+  it("marks carried-over Current records with the carried-over note, in the Earlier note's place", () => {
+    const model = usGraveyardModel();
+    const marked: PageModel = {
+      ...model,
+      graveyard: model.graveyard.map((record) =>
+        record.id === "sub:USD:monthly:*:netflix" || record.answer === "still-using"
+          ? { ...record, carriedOver: true }
+          : record,
+      ),
+    };
+    renderView(marked);
+    const stone = screen.getByRole("region", { name: "Here lies Netflix." });
+    expect(stone.textContent).toContain(CARRIED_OVER_NOTE);
+    expect(stone.textContent).not.toContain(EARLIER_NOTE);
+    const resting = screen.getByRole("heading", { level: 3, name: /resting/i }).closest("section");
+    expect(resting?.textContent).toContain(CARRIED_OVER_NOTE);
+    expect(screen.getAllByText(CARRIED_OVER_NOTE, { exact: false })).toHaveLength(2);
+    expect(screen.getByRole("region", { name: "Here lies Spotify." }).textContent).not.toContain(
+      CARRIED_OVER_NOTE,
+    );
   });
 
   it("keeps button names unique with Earlier records and the panel", () => {

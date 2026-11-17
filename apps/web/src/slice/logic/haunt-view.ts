@@ -47,6 +47,8 @@ export interface HauntView {
   currentIds: ReadonlySet<string>;
   /** Records that are not Current records; every record outside the results view */
   earlierIds: ReadonlySet<string>;
+  /** Current records re-attached from an earlier statement (Req 7.2) */
+  carriedOverIds: ReadonlySet<string>;
   tombstones: readonly AnswerRecord[]; // Graveyard order
   kept: readonly AnswerRecord[]; // Graveyard order
   /** From the settled Graveyard */
@@ -107,6 +109,11 @@ export function deriveHaunt(input: HauntInput, locale?: string): HauntView {
     currentIds,
     earlierIds: new Set(
       graveyard.filter((record) => !currentIds.has(record.id)).map((record) => record.id),
+    ),
+    carriedOverIds: new Set(
+      graveyard
+        .filter((record) => record.carriedOver && currentIds.has(record.id))
+        .map((record) => record.id),
     ),
     tombstones,
     kept,

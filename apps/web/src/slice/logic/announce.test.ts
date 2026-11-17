@@ -11,6 +11,7 @@ import {
   MEMORY_NOT_KEPT,
   MEMORY_NOT_KEPT_REMOVE_FAILED,
   WRITE_FAILED_NOTE,
+  carriedOverLine,
   leftOutNote,
 } from "./memory-text";
 import { recordAnswer } from "./graveyard";
@@ -147,6 +148,44 @@ describe("announcement: results", () => {
     };
     const text = announcement(resultsModel(outcome), "en-US");
     expect(text).toContain("Still draining €215.88 a year. Still draining $1,139.76 a year.");
+  });
+});
+
+describe("announcement: carried over (Req 6.8)", () => {
+  function carried(model: PageModel, carriedOver: number): PageModel {
+    if (model.view.kind !== "results") throw new Error("expected results");
+    return { ...model, view: { ...model.view, carriedOver } };
+  }
+
+  it.each([
+    [1, "1 earlier answer was carried over to this statement."],
+    [2, "2 earlier answers were carried over to this statement."],
+  ])("adds the line after Still draining in the first card sentence with %i", (n, line) => {
+    expect(carriedOverLine(n)).toBe(line);
+    expect(announcement(carried(resultsModel(), n), "en-US")).toBe(
+      `Found 4 recurring charges. Still draining $1,355.64 a year. ${line} Adobe Creative Cloud. Monthly, $54.99. $659.88 a year. Still using this?`,
+    );
+  });
+
+  it("adds the line to the default results sentence before No undead here", () => {
+    const base = usResults();
+    const none = resultsModel({
+      ...base,
+      subscriptions: base.subscriptions.map((s) => ({ ...s, status: "ended" as const })),
+    });
+    const text = announcement(carried(none, 2), "en-US");
+    expect(
+      text.endsWith(
+        " a year. 2 earlier answers were carried over to this statement. No undead here.",
+      ),
+    ).toBe(true);
+  });
+
+  it("adds nothing with carriedOver 0 or to a card that is not the first", () => {
+    expect(announcement(resultsModel(), "en-US")).not.toContain("carried over");
+    const model = carried(resultsModel(), 1);
+    const skipped = pageReducer(model, { type: "skip", id: headId(model) });
+    expect(announcement(skipped, "en-US")).not.toContain("carried over");
   });
 });
 

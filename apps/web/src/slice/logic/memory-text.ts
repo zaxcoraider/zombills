@@ -40,6 +40,13 @@ export const REMOVE_FAILED_NOTE =
 export const MEMORY_ON_LINE = "Your answers are kept on this device.";
 export const MEMORY_SETTINGS = "Memory settings";
 export const EARLIER_NOTE = "From an earlier statement";
+export const CARRIED_OVER_NOTE = "Answer carried over from an earlier statement";
+
+export function carriedOverLine(n: number): string {
+  return n === 1
+    ? "1 earlier answer was carried over to this statement."
+    : `${n} earlier answers were carried over to this statement.`;
+}
 
 export const FORGET_BUTTON = "Forget everything";
 export const FORGET_QUESTION = "Forget every answer and tombstone? This cannot be undone.";
