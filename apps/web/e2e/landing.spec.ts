@@ -294,7 +294,8 @@ async function checkLandingMoon(page: Page, width: number, height: number, state
     }
   }
   const art = boxes.filter((box) => box.kind === "art");
-  expect(art.length, `${where}: one Hero art box`).toBe(1);
+  expect(art.filter((box) => box.label === "hero art").length, `${where}: one Hero art box`).toBe(1);
+  expect(art.filter((box) => box.label === "brand mark").length, `${where}: one brand mark`).toBe(1);
   for (const a of art) {
     for (const t of boxes.filter((box) => box.kind === "text")) {
       const overlap = a.x0 < t.x1 && t.x0 < a.x1 && a.y0 < t.y1 && t.y0 < a.y1;

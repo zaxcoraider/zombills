@@ -24,7 +24,7 @@ export interface MoonGeometry {
 
 /**
  * Every Content box of `header`, `main` and `footer`: text line fragments, Cards (background
- * alpha of 0.5 or more), controls and the Hero art. Excluded: anything inside an
+ * alpha of 0.5 or more), controls, the Hero art and the brand mark. Excluded: anything inside an
  * `aria-hidden="true"` ancestor or a visually-hidden (`sr-only`) one, and zero-area boxes.
  * A page with no `footer` yields no footer boxes.
  */
@@ -92,9 +92,12 @@ export function collectContentBoxes(page: Page): Promise<DocRect[]> {
         if (seen.has(el)) continue;
         seen.add(el);
         if (excluded(el)) {
-          // The Hero art is a Content box although it is aria-hidden.
+          // The Hero art and the brand mark are Content boxes although they are aria-hidden.
           if (el.hasAttribute("data-hero-art")) {
             push("art", "hero art", el.getBoundingClientRect());
+          }
+          if (el.hasAttribute("data-brand-mark")) {
+            push("art", "brand mark", el.getBoundingClientRect());
           }
           continue;
         }

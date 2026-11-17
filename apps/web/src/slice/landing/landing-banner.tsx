@@ -1,6 +1,7 @@
 import { Moon } from "../graveyard/graveyard-backdrop";
 import { SavingsCounter } from "../graveyard/savings-counter";
 import type { HauntView } from "../logic/haunt-view";
+import { BrandMark } from "./brand-mark";
 import { useLandingMotion } from "./use-landing-motion";
 
 export interface LandingBannerProps {
@@ -15,12 +16,15 @@ export function LandingBanner({ haunt, reduceMotion }: LandingBannerProps) {
     <div className="mx-auto w-full max-w-[1184px] px-4 pt-4 sm:px-8 sm:pt-8">
       <header className="relative flex min-h-[calc(var(--moon-d)*1.75+16px)] flex-col items-start gap-2 pr-[calc(var(--moon-d)*1.75+4px)] [--moon-d:48px] sm:[--moon-d:64px] lg:[--moon-d:96px] 2xl:[--moon-d:112px]">
         <Moon placement="landing" dataMotion={motion} />
-        <h1
-          data-motion={motion}
-          className="zb-title min-w-0 pb-4 font-display text-[3rem] leading-[1.1] [overflow-wrap:anywhere] sm:text-[3.75rem] lg:text-[4.5rem] 2xl:text-[5rem]"
-        >
-          Zombills
-        </h1>
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-2">
+          <BrandMark />
+          <h1
+            data-motion={motion}
+            className="zb-title min-w-0 pb-4 font-display text-[3rem] leading-[1.1] [overflow-wrap:anywhere] sm:text-[3.75rem] lg:text-[4.5rem] 2xl:text-[5rem]"
+          >
+            Zombills
+          </h1>
+        </div>
         <p className="font-display text-[1.5rem] leading-tight sm:text-[1.75rem] 2xl:text-[2rem]">
           Your bank statement is haunted.
         </p>
