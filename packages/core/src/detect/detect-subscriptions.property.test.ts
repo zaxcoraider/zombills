@@ -20,12 +20,18 @@ function run(rows: readonly unknown[], options?: unknown): DetectionResult {
   return detectSubscriptions(rows as readonly NormalizedTransaction[], options as undefined);
 }
 
+// Series start dates stay within 2020-2030 so that every shifted, month-added or refund date remains
+// a valid four-digit ISO date (isoDateArb's wide branch reaches year 9999 and can roll into year 10000).
+const seriesStartArb: fc.Arbitrary<string> = fc
+  .tuple(fc.integer({ min: 2020, max: 2030 }), fc.integer({ min: 1, max: 12 }), fc.integer({ min: 1, max: 28 }))
+  .map(([y, m, d]) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+
 // A monthly run of one merchant, optionally with a full refund of one charge, so that results
 // contain Subscriptions, refunds and ids instead of only random one-off rows.
 const seriesRowsArb: fc.Arbitrary<NormalizedTransaction[]> = fc
   .record({
     merchant: fc.oneof(merchantArb("known"), merchantArb("generic"), merchantArb("unidentified")),
-    start: isoDateArb,
+    start: seriesStartArb,
     shifts: fc.array(fc.integer({ min: 0, max: 2 }), { minLength: 2, maxLength: 8 }),
     amountCents: fc.integer({ min: 100, max: 5000 }),
     currency: fc.constantFrom("USD", "EUR"),
