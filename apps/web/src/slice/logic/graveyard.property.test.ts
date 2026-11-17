@@ -299,6 +299,7 @@ describe("Savings totals properties", () => {
       answer: "not-using",
       cadenceAssumed: false,
       yearlySavingCents: Number.MAX_SAFE_INTEGER,
+      carriedOver: false,
     });
     expect(() => savingsTotals([big("a"), big("b")])).toThrow(RangeError);
   });

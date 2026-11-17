@@ -24,6 +24,7 @@ const NETFLIX: AnswerRecord = {
   answer: "not-using",
   cadenceAssumed: false,
   yearlySavingCents: 21588,
+  carriedOver: false,
 };
 
 const GUESSED: AnswerRecord = {
@@ -33,6 +34,7 @@ const GUESSED: AnswerRecord = {
   serviceId: "amazon-prime",
   cadenceAssumed: true,
   yearlySavingCents: null,
+  carriedOver: false,
 };
 
 function renderStone(

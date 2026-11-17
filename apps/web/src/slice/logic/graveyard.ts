@@ -15,6 +15,21 @@ export interface AnswerRecord {
   readonly cadenceAssumed: boolean;
   /** yearlyCostCents; null when cadenceAssumed (saving unknown, Req 5.6) */
   readonly yearlySavingCents: number | null;
+  /** true after a Re-attach until the answer changes (Glossary "Answer record", amended) */
+  readonly carriedOver: boolean;
+}
+
+export const CADENCE_FACTOR: Readonly<Record<Cadence, number>> = {
+  weekly: 52,
+  monthly: 12,
+  yearly: 1,
+};
+
+/** Req 2.4: null when cadenceAssumed, else currentAmountCents × Cadence factor. */
+export function yearlySavingFor(
+  record: Pick<AnswerRecord, "cadence" | "currentAmountCents" | "cadenceAssumed">,
+): number | null {
+  return record.cadenceAssumed ? null : record.currentAmountCents * CADENCE_FACTOR[record.cadence];
 }
 
 /** At most one record per id, in the order the answers were first given (Req 9.2). */
@@ -38,6 +53,7 @@ export function answerRecordFor(subscription: Subscription, answer: UsageAnswer)
     answer,
     cadenceAssumed,
     yearlySavingCents: cadenceAssumed ? null : subscription.yearlyCostCents,
+    carriedOver: false,
   };
 }
 
@@ -52,6 +68,25 @@ export function recordAnswer(
     return graveyard.map((existing) => (existing.id === record.id ? record : existing));
   }
   return [...graveyard, record];
+}
+
+/**
+ * Req 7.3, 7.4: the Earlier record with this id gets `answer`, carriedOver false and
+ * yearlySavingFor(record); same position, every other field and record unchanged.
+ * Returns the same Graveyard object when no record has the id or the answer is already `answer`.
+ */
+export function changeEarlierAnswer(
+  graveyard: Graveyard,
+  id: string,
+  answer: UsageAnswer,
+): Graveyard {
+  const found = graveyard.find((record) => record.id === id);
+  if (found === undefined || found.answer === answer) return graveyard;
+  return graveyard.map((record) =>
+    record.id === id
+      ? { ...record, answer, carriedOver: false, yearlySavingCents: yearlySavingFor(record) }
+      : record,
+  );
 }
 
 /** The id is the id of a subscription in `subscriptions` (Glossary "Current record"). */
@@ -93,7 +128,10 @@ export function refreshGraveyard(
     } else if (subscription.evidence.cadenceAssumed && !record.cadenceAssumed) {
       continue;
     } else {
-      refreshed.push(answerRecordFor(subscription, record.answer));
+      refreshed.push({
+        ...answerRecordFor(subscription, record.answer),
+        carriedOver: record.carriedOver,
+      });
     }
   }
   return refreshed;

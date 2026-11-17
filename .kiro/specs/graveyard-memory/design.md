@@ -709,6 +709,7 @@ Tools are unchanged (`tech.md`): Vitest and fast-check in the `node` environment
 | `slice/logic/graveyard.test.ts` | Key list at line 81 gains `carriedOver` | Glossary "Answer record" |
 | `slice/logic/test-arbitraries.ts` | `answerRecordArb` gains `carriedOver` | Type change |
 | `slice/logic/share-card.test.ts` | The throwing-getter key list at line 172 gains `carriedOver` | Type change; the share card still reads only `yearlySavingCents` |
+| `slice/graveyard/share-panel.test.tsx` | The sorted Tombstone record key list (lines 325-334) gains `carriedOver`; added at task 1 (option a) | Type change; the share panel still passes the records through unchanged |
 | `slice/graveyard-flow.test.tsx` | "graveyard flow: no storage" keeps its assertions; its name and comment say it renders `<App />` with the default `empty` load (Req 11.3 replaces graveyard-ui Req 16.2's check) | Req 11.3 |
 | `e2e/demo-path.spec.ts` | Memory path added (below) | Req 11.4 |
 | `e2e/layout.spec.ts` | At 320 px, the Memory panel and the open Forget confirmation group cause no horizontal scrolling | Req 9.5 |

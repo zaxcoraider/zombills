@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Subscription } from "@zombills/core";
 import usSigned from "../../../../../samples/us-signed.csv?raw";
 import { analyzeStatement } from "./analyze-statement";
+import { deepFreeze } from "./test-arbitraries";
 import {
+  CADENCE_FACTOR,
   EMPTY_GRAVEYARD,
   answerRecordFor,
   answersMap,
+  changeEarlierAnswer,
   displayNames,
   isCurrentRecord,
   recordAnswer,
@@ -13,7 +16,9 @@ import {
   savingsTotals,
   settledGraveyard,
   stillDraining,
+  yearlySavingFor,
   type AnswerRecord,
+  type Graveyard,
 } from "./graveyard";
 
 function usResults() {
@@ -83,6 +88,7 @@ describe("Answer records (Req 5.8 table)", () => {
         "answer",
         "cadence",
         "cadenceAssumed",
+        "carriedOver",
         "currency",
         "currentAmountCents",
         "id",
@@ -202,6 +208,97 @@ describe("settledGraveyard", () => {
   });
 });
 
+describe("CADENCE_FACTOR and yearlySavingFor (Req 2.4)", () => {
+  it("has the three factors", () => {
+    expect(CADENCE_FACTOR).toEqual({ weekly: 52, monthly: 12, yearly: 1 });
+  });
+
+  it("multiplies the amount by the factor of each cadence", () => {
+    const base = { currentAmountCents: 1_799, cadenceAssumed: false };
+    expect(yearlySavingFor({ ...base, cadence: "weekly" })).toBe(1_799 * 52);
+    expect(yearlySavingFor({ ...base, cadence: "monthly" })).toBe(21_588);
+    expect(yearlySavingFor({ ...base, cadence: "yearly" })).toBe(1_799);
+  });
+
+  it("is null for a guessed cadence", () => {
+    for (const cadence of ["weekly", "monthly", "yearly"] as const) {
+      expect(yearlySavingFor({ currentAmountCents: 1_799, cadence, cadenceAssumed: true })).toBeNull();
+    }
+  });
+});
+
+describe("carriedOver (Req 6.6)", () => {
+  it("is false on a new record", () => {
+    const netflix = byMerchant(usSubscriptions(), "Netflix");
+    expect(answerRecordFor(netflix, "not-using").carriedOver).toBe(false);
+  });
+
+  it("refreshGraveyard keeps carriedOver: true", () => {
+    const netflix = byMerchant(usSubscriptions(), "Netflix");
+    const carried: AnswerRecord = { ...answerRecordFor(netflix, "not-using"), carriedOver: true };
+    const [refreshed] = refreshGraveyard([carried], [netflix]);
+    expect(refreshed?.carriedOver).toBe(true);
+  });
+
+  it("recordAnswer on a carried-over record gives carriedOver: false", () => {
+    const netflix = byMerchant(usSubscriptions(), "Netflix");
+    const carried: AnswerRecord = { ...answerRecordFor(netflix, "not-using"), carriedOver: true };
+    const [changed] = recordAnswer([carried], netflix, "still-using");
+    expect(changed).toMatchObject({ answer: "still-using", carriedOver: false });
+  });
+});
+
+describe("changeEarlierAnswer (Req 7.3, 7.4, 7.8)", () => {
+  function twoBuried(): Graveyard {
+    const subs = usSubscriptions();
+    const netflix = byMerchant(subs, "Netflix");
+    const spotify = byMerchant(subs, "Spotify");
+    return recordAnswer(recordAnswer(EMPTY_GRAVEYARD, netflix, "not-using"), spotify, "not-using");
+  }
+
+  it("moves the totals 34776 -> 13188 -> 34776 and keeps position", () => {
+    const start = twoBuried();
+    expect(savingsTotals(start)).toEqual([{ currency: "USD", totalCents: 34_776 }]);
+    const netflixId = "sub:USD:monthly:*:netflix";
+    const kept = changeEarlierAnswer(start, netflixId, "still-using");
+    expect(kept.map((r) => r.id)).toEqual(start.map((r) => r.id));
+    expect(kept[0]).toMatchObject({ answer: "still-using", carriedOver: false });
+    expect(kept[1]).toBe(start[1]);
+    expect(savingsTotals(kept)).toEqual([{ currency: "USD", totalCents: 13_188 }]);
+    const back = changeEarlierAnswer(kept, netflixId, "not-using");
+    expect(savingsTotals(back)).toEqual([{ currency: "USD", totalCents: 34_776 }]);
+    expect(back[0]?.yearlySavingCents).toBe(21_588);
+  });
+
+  it("clears carriedOver on the changed record only", () => {
+    const [a, b] = twoBuried();
+    if (a === undefined || b === undefined) throw new Error("two records expected");
+    const graveyard = [{ ...a, carriedOver: true }, { ...b, carriedOver: true }];
+    const changed = changeEarlierAnswer(graveyard, a.id, "still-using");
+    expect(changed[0]?.carriedOver).toBe(false);
+    expect(changed[1]).toBe(graveyard[1]);
+  });
+
+  it("gives a guessed record buried after all a null saving", () => {
+    const netflix = byMerchant(usSubscriptions(), "Netflix");
+    const prime = guessed(netflix);
+    const kept = recordAnswer(EMPTY_GRAVEYARD, prime, "still-using");
+    const buried = changeEarlierAnswer(kept, prime.id, "not-using");
+    expect(buried[0]).toMatchObject({ answer: "not-using", yearlySavingCents: null });
+  });
+
+  it("returns the same Graveyard for an unknown id or an unchanged answer", () => {
+    const start = twoBuried();
+    expect(changeEarlierAnswer(start, "sub:USD:monthly:*:nothing", "still-using")).toBe(start);
+    expect(changeEarlierAnswer(start, "sub:USD:monthly:*:netflix", "not-using")).toBe(start);
+  });
+
+  it("does not mutate deep-frozen inputs", () => {
+    const start = deepFreeze(twoBuried());
+    expect(() => changeEarlierAnswer(start, "sub:USD:monthly:*:netflix", "still-using")).not.toThrow();
+  });
+});
+
 function record(
   currency: string,
   yearlySavingCents: number | null,
@@ -217,6 +314,7 @@ function record(
     answer: answer === "not-using" ? "not-using" : "still-using",
     cadenceAssumed: yearlySavingCents === null,
     yearlySavingCents,
+    carriedOver: false,
   };
 }
 

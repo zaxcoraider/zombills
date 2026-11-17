@@ -104,6 +104,7 @@ const NETFLIX: AnswerRecord = {
   answer: "not-using",
   cadenceAssumed: false,
   yearlySavingCents: 21588,
+  carriedOver: false,
 };
 const SPOTIFY: AnswerRecord = {
   ...NETFLIX,
@@ -112,6 +113,7 @@ const SPOTIFY: AnswerRecord = {
   serviceId: "spotify",
   currentAmountCents: 1199,
   yearlySavingCents: 14388,
+  carriedOver: false,
 };
 const GYM: AnswerRecord = {
   ...NETFLIX,
@@ -120,6 +122,7 @@ const GYM: AnswerRecord = {
   serviceId: null,
   currentAmountCents: 2900,
   yearlySavingCents: 34800,
+  carriedOver: false,
 };
 
 function ui(record: AnswerRecord, displayName = record.merchant): ReactElement {

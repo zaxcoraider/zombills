@@ -23,6 +23,7 @@ function record(overrides: Partial<AnswerRecord>): AnswerRecord {
     answer: "not-using",
     cadenceAssumed: false,
     yearlySavingCents: 21588,
+    carriedOver: false,
     ...overrides,
   };
 }

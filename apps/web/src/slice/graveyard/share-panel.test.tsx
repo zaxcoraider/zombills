@@ -325,6 +325,7 @@ describe("share panel: content, props and motion", () => {
           "answer",
           "cadence",
           "cadenceAssumed",
+          "carriedOver",
           "currency",
           "currentAmountCents",
           "id",

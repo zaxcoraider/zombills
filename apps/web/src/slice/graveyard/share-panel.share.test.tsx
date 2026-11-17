@@ -252,6 +252,7 @@ describe("share panel: downloadFile prop", () => {
       answer: "not-using",
       cadenceAssumed: false,
       yearlySavingCents: 21588,
+      carriedOver: false,
     };
     render(
       <AnnounceContext.Provider value={{ announce }}>

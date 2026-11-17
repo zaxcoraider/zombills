@@ -43,6 +43,7 @@ function record(
     answer: "not-using",
     cadenceAssumed: yearlySavingCents === null,
     yearlySavingCents,
+    carriedOver: false,
   };
 }
 
@@ -177,6 +178,7 @@ describe("shareCardContent: reads only the allowed fields (Req 1.5)", () => {
       "currentAmountCents",
       "answer",
       "cadenceAssumed",
+      "carriedOver",
     ]) {
       Object.defineProperty(target, key, {
         enumerable: true,

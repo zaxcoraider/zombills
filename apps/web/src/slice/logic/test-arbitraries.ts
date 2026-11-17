@@ -6,11 +6,14 @@ import {
   DATE_HEADERS,
   DEBIT_HEADERS,
   DESCRIPTION_HEADERS,
+  KNOWN_SERVICES,
+  type Cadence,
   type ClassifiedSubscription,
   type Subscription,
   type UsageAnswer,
 } from "@zombills/core";
-import type { AnswerRecord } from "./graveyard";
+import { yearlySavingFor, type AnswerRecord } from "./graveyard";
+import type { StoredRecord } from "./graveyard-codec";
 
 export const MAX_YEARLY_COST_CENTS = 999_999_9900 * 52;
 
@@ -347,6 +350,7 @@ export const answerRecordArb: fc.Arbitrary<AnswerRecord> = fc
     currentAmountCents: fc.integer({ min: 0, max: MAX_AMOUNT_CENTS }),
     answer: fc.constantFrom("still-using", "not-using"),
     cadenceAssumed: fc.boolean(),
+    carriedOver: fc.boolean(),
     yearlySavingCents: fc.oneof(
       fc.constant(null),
       fc.constantFrom(0, 100, 1_000, 15_000),
@@ -390,3 +394,185 @@ export function deepFreeze<T>(value: T): T {
   }
   return value;
 }
+
+const KNOWN_SERVICE_IDS: readonly string[] = KNOWN_SERVICES.map((entry) => entry.serviceId);
+
+/** The units unidentified and generic merchant keys are drawn from (design "Generators"). */
+const keyTextArb = fc.string({ unit: fc.constantFrom("a", "Z", "0", ":", " ", "/", "é", "\n") });
+
+type KeyKind = "known" | "generic" | "unidentified";
+
+interface RecordParts {
+  currency: string;
+  cadence: Cadence;
+  currentAmountCents: number;
+  discriminator: string;
+  merchantKey: string;
+  keyKind: KeyKind;
+  merchant: string;
+  serviceId: string | null;
+  answer: UsageAnswer;
+  cadenceAssumed: boolean;
+  carriedOver: boolean;
+}
+
+const amountCentsArb = fc.oneof(
+  fc.constantFrom(1, 99, 1_599, 21_588),
+  fc.integer({ min: 1, max: MAX_AMOUNT_CENTS }),
+);
+
+const merchantKeyArb: fc.Arbitrary<{ merchantKey: string; keyKind: KeyKind }> = fc.oneof(
+  fc
+    .constantFrom(...KNOWN_SERVICE_IDS)
+    .map((merchantKey) => ({ merchantKey, keyKind: "known" as const })),
+  keyTextArb.map((text) => ({ merchantKey: `merchant:${text}`, keyKind: "generic" as const })),
+  keyTextArb.map((text) => ({
+    merchantKey: `unidentified:${text}`,
+    keyKind: "unidentified" as const,
+  })),
+);
+
+const recordPartsArb: fc.Arbitrary<RecordParts> = fc
+  .record({
+    currency: fc.constantFrom(...SAVING_CURRENCIES),
+    cadence: fc.constantFrom<Cadence>("weekly", "monthly", "yearly"),
+    currentAmountCents: amountCentsArb,
+    discriminatorKind: fc.constantFrom("star", "amount", "amount-r"),
+    r: fc.nat(),
+    key: merchantKeyArb,
+    merchant: fc.oneof(
+      fc.constantFrom("Netflix", "Z", "a"),
+      fc.string({ minLength: 1 }),
+      fc.string({ minLength: 1, unit: "binary" }),
+    ),
+    serviceId: fc.option(fc.constantFrom(...KNOWN_SERVICE_IDS), { nil: null }),
+    answer: fc.constantFrom<UsageAnswer>("still-using", "not-using"),
+    cadenceAssumed: fc.boolean(),
+    carriedOver: fc.boolean(),
+  })
+  .map((v): RecordParts => {
+    const amount = String(v.currentAmountCents);
+    const discriminator =
+      v.discriminatorKind === "star"
+        ? "*"
+        : v.discriminatorKind === "amount"
+          ? amount
+          : `${amount}-${v.r}`;
+    return {
+      currency: v.currency,
+      cadence: v.cadence,
+      currentAmountCents: v.currentAmountCents,
+      discriminator,
+      merchantKey: v.key.merchantKey,
+      keyKind: v.key.keyKind,
+      merchant: v.merchant,
+      serviceId: v.serviceId,
+      answer: v.answer,
+      cadenceAssumed: v.cadenceAssumed,
+      carriedOver: v.carriedOver,
+    };
+  });
+
+function idFromParts(p: RecordParts): string {
+  return `sub:${p.currency}:${p.cadence}:${p.discriminator}:${p.merchantKey}`;
+}
+
+function recordFromParts(p: RecordParts): AnswerRecord {
+  return {
+    id: idFromParts(p),
+    merchant: p.merchant,
+    serviceId: p.serviceId,
+    currency: p.currency,
+    cadence: p.cadence,
+    currentAmountCents: p.currentAmountCents,
+    answer: p.answer,
+    cadenceAssumed: p.cadenceAssumed,
+    carriedOver: p.carriedOver,
+    yearlySavingCents: yearlySavingFor(p),
+  };
+}
+
+/** A Valid record whose id is assembled from its parts, so nothing is filtered (design "Generators"). */
+export const pageRecordArb: fc.Arbitrary<AnswerRecord> = recordPartsArb.map(recordFromParts);
+
+/** A stored record together with the parts its id was assembled from (P3). */
+export interface DrawnStoredRecord {
+  stored: StoredRecord;
+  currency: string;
+  cadence: Cadence;
+}
+
+export const storedRecordArb: fc.Arbitrary<DrawnStoredRecord> = recordPartsArb.map((p) => ({
+  stored: {
+    id: idFromParts(p),
+    merchant: p.merchant,
+    serviceId: p.serviceId,
+    currentAmountCents: p.currentAmountCents,
+    answer: p.answer,
+    cadenceAssumed: p.cadenceAssumed,
+    carriedOver: p.carriedOver,
+  },
+  currency: p.currency,
+  cadence: p.cadence,
+}));
+
+const LONG_UNITS = 4_096;
+
+/** A record whose `id` and `merchant` are exactly 4,096 code units (the encode limit, Req 2.2). */
+export const longRecordArb: fc.Arbitrary<AnswerRecord> = recordPartsArb.map((p) => {
+  const shortId = idFromParts(p);
+  const merchantKey = p.merchantKey + "k".repeat(LONG_UNITS - shortId.length);
+  return recordFromParts({ ...p, merchantKey, merchant: p.merchant.padEnd(LONG_UNITS, "m") });
+});
+
+/** Up to 30 records with unique ids, a few of them at the 4,096-unit limit. */
+export const pageGraveyardArb: fc.Arbitrary<AnswerRecord[]> = fc.uniqueArray(
+  fc.oneof(pageRecordArb, longRecordArb),
+  { selector: (r) => r.id, maxLength: 30 },
+);
+
+/** A Subscription whose id, merchantKey, currency, cadence and discriminator agree (design "Generators"). */
+export const pageSubscriptionArb: fc.Arbitrary<Subscription> = fc
+  .tuple(
+    recordPartsArb,
+    fc.constantFrom("active", "ended"),
+    fc.constantFrom("high", "medium", "low"),
+  )
+  .map(([p, status, confidence]): Subscription => {
+    const date = "2026-01-12";
+    return {
+      id: idFromParts(p),
+      merchant: p.merchant,
+      merchantKey: p.merchantKey,
+      serviceId: p.keyKind === "known" ? p.merchantKey : null,
+      source: p.keyKind,
+      currency: p.currency,
+      cadence: p.cadence,
+      charges: [],
+      currentAmountCents: p.currentAmountCents,
+      yearlyCostCents: p.currentAmountCents * CADENCE_FACTOR[p.cadence],
+      labels: [],
+      priceHistory: [],
+      status,
+      confidence,
+      evidence: {
+        regularChargeCount: 3,
+        firstChargeDate: date,
+        lastChargeDate: date,
+        nextExpectedDate: date,
+        missedPeriods: 0,
+        lateChargeDates: [],
+        cadenceAssumed: p.cadenceAssumed,
+        introCharge: null,
+        freeTrialDate: null,
+        startedInStatement: false,
+        partialRefunds: [],
+      },
+    };
+  });
+
+/** A list of `pageSubscriptionArb` values with unique ids. */
+export const pageOutcomeArb: fc.Arbitrary<Subscription[]> = fc.uniqueArray(pageSubscriptionArb, {
+  selector: (s) => s.id,
+  maxLength: 12,
+});
