@@ -3,11 +3,13 @@ import { HERO_LINE, US_SAMPLE_FILE_NAME } from "../logic/landing-text";
 import { SAMPLES } from "../samples";
 import type { Sample } from "../samples";
 import { HeroArt } from "./hero-art";
+import "./landing-motion.css";
 import { PrimaryAction } from "./primary-action";
 import { PrivacyBadge } from "./privacy-badge";
 import { ReturnNotes } from "./return-notes";
 import type { ReturnNotesProps } from "./return-notes";
 import { SecondarySamples } from "./secondary-samples";
+import { useLandingMotion } from "./use-landing-motion";
 
 function findUsSample(): Sample {
   const found = SAMPLES.find((s) => s.fileName === US_SAMPLE_FILE_NAME);
@@ -34,12 +36,13 @@ export function Hero({
   onReadNote,
   returnNotes,
 }: HeroProps) {
+  const motion = useLandingMotion();
   return (
-    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-6 2xl:grid-cols-[minmax(0,1fr)_26rem]">
+    <div className="zb-hero flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-6 2xl:grid-cols-[minmax(0,1fr)_26rem]">
       <p className="max-w-[40rem] text-base leading-6 sm:text-lg sm:leading-7 lg:col-start-1 lg:row-start-1">
         {HERO_LINE}
       </p>
-      <HeroArt />
+      <HeroArt motion={motion} />
       <div className="flex flex-col items-start gap-4 lg:col-start-1 lg:row-start-2">
         <PrimaryAction disabled={working} onActivate={() => onChooseSample(usSample)} />
         {working && workingSourceName !== null ? (

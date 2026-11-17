@@ -10,7 +10,7 @@ export interface OwnStatementProps {
 /** The drop area for the user's own statement, with the Tip. */
 export function OwnStatement({ disabled, onFiles }: OwnStatementProps) {
   return (
-    <section className="flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+    <section className="flex flex-col gap-4 rounded-2xl bg-fog/95 p-4 sm:p-6">
       <h2 className="text-xl font-bold">{OWN_STATEMENT_HEADING}</h2>
       <p>{STATEMENT_TIP}</p>
       <DropZone disabled={disabled} onFiles={onFiles} />

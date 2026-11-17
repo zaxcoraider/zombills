@@ -95,7 +95,7 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
         type="button"
         aria-disabled={disabled ? true : undefined}
         onClick={openPicker}
-        className="rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:opacity-60"
+        className="min-h-11 rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:opacity-60"
       >
         Choose a file
       </button>

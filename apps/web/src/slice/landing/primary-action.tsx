@@ -7,10 +7,8 @@ export interface PrimaryActionProps {
 
 // Class strings are written out in full so Tailwind's scanner finds each utility.
 const BUTTON_CLASS = [
-  "group flex min-h-14 w-full min-w-11 flex-col items-center justify-center rounded-2xl bg-moss px-6 py-3 text-center text-night",
+  "zb-primary group flex min-h-14 w-full min-w-11 flex-col items-center justify-center rounded-2xl bg-moss px-6 py-3 text-center text-night",
   "shadow-[0_4px_0_0_color-mix(in_oklab,var(--moss)_40%,var(--night))]",
-  "hover:shadow-[0_4px_0_0_color-mix(in_oklab,var(--moss)_40%,var(--night)),0_0_0_5px_color-mix(in_srgb,var(--night)_70%,transparent),0_0_14px_4px_color-mix(in_srgb,var(--moss)_35%,transparent)]",
-  "focus-visible:shadow-[0_4px_0_0_color-mix(in_oklab,var(--moss)_40%,var(--night)),0_0_0_5px_color-mix(in_srgb,var(--night)_70%,transparent),0_0_14px_4px_color-mix(in_srgb,var(--moss)_35%,transparent)]",
   "aria-disabled:opacity-60 sm:w-auto",
 ].join(" ");
 

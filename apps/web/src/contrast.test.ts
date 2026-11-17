@@ -3,6 +3,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { shareCardLayout, type DrawOp, type MeasureFn, type PathCommand, type ShareCardContent } from "./slice/logic/share-card";
 import { GROUND_ALPHA, STONE_WASH_ALPHA } from "./slice/logic/share-card-art";
+import {
+  CANDLE_BAND_ALPHA,
+  CANDLE_GLOW_ALPHA,
+  FOCUS_BAND_ALPHA,
+  FOCUS_GLOW_ALPHA,
+  FOG_DENSITIES,
+  SKY_GLOW_ALPHA,
+  TITLE_GLOW_ALPHA,
+} from "./slice/logic/scene-alphas";
 import { BLOCK_SHAPES, textBoxes, type Point } from "./slice/logic/test-share-card-geometry";
 
 const CSS = readFileSync(new URL("./index.css", import.meta.url), "utf8");
@@ -328,5 +337,99 @@ describe("index.css rules", () => {
     const body = ruleBody(".money");
     expect(body).toMatch(/font-family:\s*var\(--font-sans\)\s*;/);
     expect(body).toMatch(/font-variant-numeric:\s*tabular-nums\s*;/);
+  });
+});
+
+describe("landing contrast (landing-polish R10.2)", () => {
+  const night = () => tokenHex("night");
+  const fog = () => tokenHex("fog");
+  const bone = () => tokenHex("bone");
+  const moss = () => tokenHex("moss");
+
+  /** The lightest bare scene: fog, plus the sky glow, plus all three fog bands at full density. */
+  const scene = () =>
+    FOG_DENSITIES.reduce(
+      (colour, density) => over(colour, bone(), density),
+      over(fog(), bone(), SKY_GLOW_ALPHA),
+    );
+  const card = () => over(scene(), fog(), 0.95);
+  const footer = () => over(scene(), night(), 0.8);
+
+  it("the lightest bare scene is #646567", () => {
+    expect(scene()).toBe("#646567");
+  });
+
+  it("bone text on the bare scene is at least 4.5:1", () => {
+    expect(contrast(bone(), scene())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("bone text on a fog card over the scene is at least 4.5:1", () => {
+    expect(card()).toBe("#1e232e");
+    expect(contrast(bone(), card())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("moss step numbers and counter figure on a fog card are at least 4.5:1", () => {
+    expect(contrast(moss(), card())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the counter label (bone at 70 %) on a fog card is at least 4.5:1", () => {
+    expect(contrast(over(card(), bone(), 0.7), card())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("Footer text on night at 80 % over the scene is at least 4.5:1", () => {
+    expect(footer()).toBe("#1d1f23");
+    expect(contrast(bone(), footer())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("Primary action text, night on moss, is at least 4.5:1", () => {
+    expect(contrast(night(), moss())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the Primary action fill against the scene is at least 3:1", () => {
+    expect(contrast(moss(), scene())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the focus ring on the bare scene is at least 3:1", () => {
+    const band = over(over(scene(), moss(), FOCUS_GLOW_ALPHA), night(), FOCUS_BAND_ALPHA);
+    expect(band).toBe("#2a3330");
+    expect(contrast(moss(), band)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("text next to a focused bare-scene control is at least 4.5:1", () => {
+    expect(contrast(bone(), scene())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the focus ring on a card is at least 3:1", () => {
+    expect(contrast(moss(), fog())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the drop area dashed border is at least 3:1", () => {
+    expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("effect contrast (landing-polish R9.7)", () => {
+  const night = () => tokenHex("night");
+  const fog = () => tokenHex("fog");
+  const bone = () => tokenHex("bone");
+  const moss = () => tokenHex("moss");
+  const ember = () => tokenHex("ember");
+
+  const scene = () =>
+    FOG_DENSITIES.reduce(
+      (colour, density) => over(colour, bone(), density),
+      over(fog(), bone(), SKY_GLOW_ALPHA),
+    );
+
+  it("title glyphs in their glow are at least 4.5:1, with no credit for the night rims", () => {
+    const glow = over(scene(), bone(), TITLE_GLOW_ALPHA);
+    expect(glow).toBe("#666769");
+    expect(contrast(bone(), glow)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the focus ring and the fill boundary over the candle glow are at least 3:1", () => {
+    const band = over(over(scene(), ember(), CANDLE_GLOW_ALPHA), night(), CANDLE_BAND_ALPHA);
+    expect(band).toBe("#352d29");
+    expect(contrast(moss(), band)).toBeGreaterThanOrEqual(3);
   });
 });

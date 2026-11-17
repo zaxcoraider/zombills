@@ -66,6 +66,7 @@ Out of scope for this spec:
 
 1. THE Page SHALL show a drop area that accepts one file dropped on it, and a button inside or next to it that opens the browser's file picker for one file. The file input SHALL have `accept=".csv,text/csv"`.
 2. THE Page SHALL show one button per Sample, each labelled with a short human description of its layout (for example "US bank, signed amounts", "UK bank, debit and credit columns", "EU bank, semicolons", "Statement with a header block").
+(Changed by landing-polish: On the Landing view the US Sample is offered by the Primary action "Summon the undead with a sample US bank statement" and the other three Samples as Secondary samples; the Non-landing gate keeps four Sample buttons.)
 3. THE Samples SHALL be bundled into the site at build time from the files in `samples/`. Choosing a Sample SHALL NOT make a network request.
 4. WHEN the user drops a file on the drop area, picks a file, or chooses a Sample, THE Page SHALL start the analysis of that Statement source (Requirement 3) and enter the `working` state (Requirement 4).
 5. WHEN a file is dragged over the drop area, THE Page SHALL show that the drop area will accept it, with a text change as well as a colour change.
@@ -107,6 +108,7 @@ Out of scope for this spec:
 #### Acceptance Criteria
 
 1. THE Page SHALL be in exactly one Page state at a time. It SHALL start in `idle`, showing the drop area, the file button, the Sample buttons and one sentence saying the statement stays on the device and that 2 to 3 months of history give the best results.
+(Changed by landing-polish: On the Landing view, `idle` shows the Primary action, three Secondary samples, the Tip in the Own-statement section and the Privacy note in the Footer, not four Sample buttons and one sentence.)
 2. WHILE the Page is in the `working` state, THE Page SHALL show the status text `Reading <name>…`, where `<name>` is the file name or the Sample's label.
 3. IF more than one file is dropped at once, THEN THE Page SHALL enter the `error` state with the message that only one statement can be read at a time, and SHALL NOT read any of the files.
 4. IF the chosen file is larger than the Size limit, THEN THE Page SHALL enter the `error` state with a message that states the limit as "1 MB", and SHALL NOT read the file.

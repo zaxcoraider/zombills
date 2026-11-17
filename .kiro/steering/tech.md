@@ -7,7 +7,7 @@
 | Bundler | Vite | |
 | UI framework | React 18 + TypeScript | |
 | Styling | Tailwind CSS | Utility classes; custom CSS tokens for the design system |
-| Animation | Framer Motion | All motion goes through Framer Motion; no raw CSS keyframe hacks |
+| Animation | Framer Motion | All motion goes through Framer Motion; no raw CSS keyframe hacks. Exception: the Landing effects of landing-polish Requirement 9.6 use CSS `@keyframes` and transitions in `apps/web/src/slice/landing/landing-motion.css` only. |
 | CSV parsing | Papa Parse | Browser-native; no server needed |
 | PDF parsing | pdf.js | Should-have; text-based PDFs only |
 | Unit / property tests | Vitest + fast-check | fast-check for property-based tests in `packages/core` |
@@ -21,7 +21,7 @@
 Before adding any new library, check whether something in the list above already does the job. New dependencies need a clear reason: they add weight, maintenance risk, and drift from what the project has already proven out.
 
 Specifically:
-- Animation → Framer Motion, not React Spring, GSAP, or CSS-only keyframes.
+- Animation → Framer Motion, not React Spring, GSAP, or CSS-only keyframes. Exception: the Landing effects of landing-polish Requirement 9.6 use CSS `@keyframes` and transitions in `apps/web/src/slice/landing/landing-motion.css` only.
 - State management → React built-ins (`useState`, `useReducer`, `useContext`); do not add Redux, Zustand, Jotai etc. unless a concrete problem demands it.
 - Styling → Tailwind; do not add a component library (MUI, Chakra, shadcn) on top of it.
 - HTTP → there is no backend; if a fetch call appears in `packages/core` or touches statement data anywhere, that is a privacy violation (see `privacy.md`).

@@ -31,6 +31,8 @@ Every text/background pair must meet **WCAG AA** (4.5:1 for body, 3:1 for large 
 
 All animation uses **Framer Motion**. No raw CSS `@keyframes` for interactive or state-driven motion.
 
+Exception: the Landing effects of landing-polish Requirement 9.6 use CSS `@keyframes` and transitions in `apps/web/src/slice/landing/landing-motion.css` only.
+
 | Animation | Style | Notes |
 | --- | --- | --- |
 | Zombie rise | Spring (`stiffness: 120, damping: 14`) | Cards rise from below on mount |

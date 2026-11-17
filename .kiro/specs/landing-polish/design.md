@@ -386,7 +386,7 @@ At 320 × 568 the Primary action ends 54 px above the Fold. At 390 × 844 the wh
 | "Other samples:" | `span` with `py-3` |
 | Secondary list `ul` | `flex flex-wrap gap-x-1` (with each button's `px-2`, text sits 12 px from a neighbour's border box) with `aria-label={OTHER_SAMPLES_LIST_NAME}` |
 | Secondary button | `inline-flex min-h-11 min-w-11 items-center px-2 text-sm text-bone underline underline-offset-4 aria-disabled:opacity-60` plus `BARE_FOCUS` |
-| Privacy badge `p` | `flex flex-wrap items-center gap-x-3 rounded-2xl border border-moss/60 py-0 pl-4 pr-1 text-sm` |
+| Privacy badge `p` | `flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-moss/60 py-0 pl-3 pr-0 text-sm sm:pl-4 sm:pr-1` |
 | "Read the privacy note" | `inline-flex min-h-11 min-w-11 items-center px-2 text-sm text-bone underline underline-offset-4` plus `BARE_FOCUS` |
 | Return notes card | `flex flex-col items-start gap-3 rounded-2xl bg-fog/95 p-4`; "Open the graveyard" keeps today's `rounded border border-bone bg-fog px-4 py-2 text-bone` |
 | How it works `section` | `flex flex-col gap-6` with `aria-labelledby` on its `h2` |
@@ -395,7 +395,7 @@ At 320 × 568 the Primary action ends 54 px above the Fold. At 390 × 844 the wh
 | Step `li` | `flex flex-col gap-2 rounded-2xl bg-fog/95 p-6` |
 | Step number | `flex size-8 items-center justify-center rounded-full border border-moss font-semibold text-moss` |
 | Step `h3` | `text-lg font-bold` |
-| Own-statement `section` | `flex flex-col gap-4 rounded-2xl bg-fog/95 p-6` |
+| Own-statement `section` | `flex flex-col gap-4 rounded-2xl bg-fog/95 p-4 sm:p-6` |
 | Its `h2` | `text-xl font-bold` |
 | Footer outer | column classes (Landing) or `mx-auto max-w-[640px] px-4` (Non-landing), plus `pb-8` |
 | Footer card | `flex flex-col gap-3 rounded-2xl bg-night/80 p-6 text-sm` |
@@ -769,7 +769,7 @@ All times from load. "End" is delay + duration × count. The fill mode is `backw
 | `zb-hero-glow` | `.zb-hero-glow` | `opacity` 0 → 1 | 1.2 s | 0.2 s | 1 | `ease-out` | 1.4 s |
 | `zb-fog-a` | `.zb-fog-a` | `translateX(-28px)` → `0` | 4.5 s | 0 s | 1 | `ease-out` | 4.5 s |
 | `zb-fog-b` | `.zb-fog-b` | `translateX(24px)` → `0` | 4.2 s | 0.3 s | 1 | `ease-out` | 4.5 s |
-| `zb-title-glow` | `h1.zb-title` | `text-shadow` glow alpha 0 → 2 % (50 %) → 1 % (62 %) → 2 % (74 %, 100 %): one dip. Every stop lists all three shadows of the base style, the two `--night` rims unchanged; only the bone alpha differs (design review 1 #15) | 3 s | 0.3 s | 1 | `ease-in-out` | 3.3 s |
+| `zb-title-glow` | `h1.zb-title` | `text-shadow` glow alpha 0 → 1.5 % (50 %) → 1 % (62 %) → 1.5 % (74 %, 100 %): one dip. Every stop lists all three shadows of the base style, the two `--night` rims unchanged; only the bone alpha differs (design review 1 #15) | 3 s | 0.3 s | 1 | `ease-in-out` | 3.3 s |
 | `zb-bat-cross` | `.zb-bat` | `translate(-90px, -30px)` opacity 1 → `translate(0, -8px)` (50 %) → `translate(70px, 4px)` opacity 1 (85 %) → `translate(90px, 8px)` opacity 0 (100 %) | 2.4 s | 0.6 s | 1 | `linear`, fill `both` | 3.0 s |
 | `zb-bat-flap` | `.zb-bat-wings` | `scaleY(1)` → `scaleY(0.4)` → `scaleY(1)` | 0.3 s | 0.6 s | 8 | `ease-in-out` | 3.0 s |
 | `zb-candle` | `.zb-primary` while hovered or `:focus-visible` | ember glow alpha 35 % → 24 % (50 %) → 35 % | 0.8 s | 0 s | 2 | `ease-in-out`, fill `none` | 1.6 s after hover or focus starts |
@@ -784,11 +784,11 @@ The flash rule (Req 9.3) applies to `zb-hero-glow`, `zb-title-glow`, `zb-bat-cro
 | --- | --- |
 | `.zb-ghost-rise`, `.zb-ghost-lean`, fog wisps | no transform |
 | `.zb-hero-glow` | opacity 1 (the gradient's 0.18 rest stop) |
-| `h1.zb-title` | `text-shadow: 0 0 2px var(--night), 0 0 2px var(--night), 0 0 10px color-mix(in srgb, var(--bone) 2%, transparent)`, and `pb-4` |
+| `h1.zb-title` | `text-shadow: 0 0 2px var(--night), 0 0 2px var(--night), 0 0 10px color-mix(in srgb, var(--bone) 1.5%, transparent)`, and `pb-4` |
 | `.zb-bat` | `opacity: 0` (gone) |
 | `.zb-primary:is(:hover, :focus-visible):not([aria-disabled="true"])` | `box-shadow:` the Phase A drop shadow, then `0 0 0 5px color-mix(in srgb, var(--night) 70%, transparent)`, then `0 0 14px 4px color-mix(in srgb, var(--ember) 35%, transparent)`. This is the still candle glow; it applies with or without reduced motion |
 
-The title's two `--night` shadows are listed first, so they paint over the bone glow next to each glyph. The contrast check gives them no credit (see below), which is why the glow is only 2 %: a faint halo, the price of keeping the `h1` at 4.5:1 on the lightest scene. The `pb-4` on the `h1` keeps its 10 px glow off the tagline's glyphs (checked below). It adds 16 px to the Banner, so at 320 × 568 the Primary action now ends 38 px above the Fold instead of 54 px.
+The title's two `--night` shadows are listed first, so they paint over the bone glow next to each glyph. The contrast check gives them no credit (see below), which is why the glow is only 1.5 %: a faint halo, the price of keeping the `h1` at 4.5:1 on the lightest scene. The `pb-4` on the `h1` keeps its 10 px glow off the tagline's glyphs (checked below). It adds 16 px to the Banner, so at 320 × 568 the Primary action now ends 38 px above the Fold instead of 54 px.
 
 The candle's `--night` band covers the 2 px offset and 2 px width of the focus ring and sits right against the `--moss` fill, so both the ring and the fill boundary meet `--night`, not the warm glow. The ember part reaches at most 4 + 14 = 18 px past the button.
 
@@ -817,15 +817,15 @@ The candle's `--night` band covers the 2 px offset and 2 px width of the focus r
 
 ### Contrast of the effects (Req 9.7)
 
-The effect alphas live in `logic/scene-alphas.ts` next to the scene alphas: `TITLE_GLOW_ALPHA = 0.02`, `CANDLE_GLOW_ALPHA = 0.35`, `CANDLE_BAND_ALPHA = 0.7`. A static check asserts that `landing-motion.css` contains the matching `var(--bone) 2%`, `var(--ember) 35%` and `var(--night) 70%`, so the CSS and the test cannot drift apart.
+The effect alphas live in `logic/scene-alphas.ts` next to the scene alphas: `TITLE_GLOW_ALPHA = 0.015`, `CANDLE_GLOW_ALPHA = 0.35`, `CANDLE_BAND_ALPHA = 0.7`. A static check asserts that `landing-motion.css` contains the matching `var(--bone) 1.5%`, `var(--ember) 35%` and `var(--night) 70%`, so the CSS and the test cannot drift apart.
 
 | Pair | Foreground | Background (brightest value) | Ratio | Needs |
 | --- | --- | --- | --- | --- |
-| `h1` glyph, anywhere in its glow (counters included) | `--bone` | S, then bone at the full 0.02, no rim credit (`#676869`) | 4.51 | 4.5 |
+| `h1` glyph, anywhere in its glow (counters included) | `--bone` | S, then bone at the full 0.015, no rim credit (`#666769`) | 4.54 | 4.5 |
 | Focus ring over the candle | `--moss` | S, then ember at 0.35, then night at 0.7 (`#352d29`) | 7.84 | 3 |
 | Primary action fill boundary over the candle | `--moss` | the same | 7.84 | 3 |
 
-The `h1` pair gives the `--night` rims no credit, because from about 3 px off a glyph, and inside letter counters, there is glow and almost no rim (design review 1 #3). At 0.03 the pair is 4.42 and fails, so 0.02 is the ceiling. For comparison, without the dark band the ring over the ember glow would be 2.40:1, which is why the band exists.
+The `h1` pair gives the `--night` rims no credit, because from about 3 px off a glyph, and inside letter counters, there is glow and almost no rim (design review 1 #3). Colours are computed with 8-bit rounding per layer, as a browser composites them, which the `over` helper in `contrast.test.ts` does. With that rounding 0.02 gives `#676869` at 4.48 and fails, 0.03 gives 4.42, and 0.015 gives 4.54, so 0.015 is the largest of these that meets 4.5 (task 10 decision, below the 0.02 of design review 1 #3). For comparison, without the dark band the ring over the ember glow would be 2.40:1, which is why the band exists.
 
 Other text is kept out of the glows by geometry, checked in the layout test at every size in the Viewport set with reduced motion emulated:
 

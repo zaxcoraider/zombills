@@ -1,0 +1,429 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "../App";
+import { NEW_TAB_TEXT } from "./logic/cancel-text";
+import {
+  HERO_LINE,
+  HOW_IT_WORKS_HEADING,
+  HOW_IT_WORKS_STEPS,
+  OWN_STATEMENT_HEADING,
+  PRIMARY_ACTION_NAME,
+  PRIVACY_BADGE_TEXT,
+  READ_PRIVACY_NOTE,
+  REAPER_DESCRIPTION,
+  REAPER_LINK,
+  REPO_LINK,
+} from "./logic/landing-text";
+import { PRIVACY_NOTE, STATEMENT_TIP, droppedNote, restoredLine } from "./logic/memory-text";
+import { SAMPLES } from "./samples";
+import { createGraveyardStore } from "./storage/graveyard-store";
+import { fakeStorage, fakeStoreTarget, storeLoadOf } from "./storage/test-store";
+
+const US_LABEL = "US bank, signed amounts";
+const UK_LABEL = "UK bank, debit and credit columns";
+const EU_LABEL = "EU bank, semicolons";
+const PREAMBLE_LABEL = "Statement with a header block";
+const SECONDARY_LABELS = [UK_LABEL, EU_LABEL, PREAMBLE_LABEL];
+const DROP_AREA_NAME = "Drop area: choose or drop a CSV statement";
+const THREE_ROW_FILE =
+  "Date,Description,Amount\n2026-01-03,CORNER BAKERY,-4.50\n2026-01-09,HARDWARE DEPOT,-23.10\n2026-01-20,BOOK NOOK,-12.00\n";
+
+const NETFLIX_BURIED = {
+  id: "sub:USD:monthly:*:netflix",
+  merchant: "Netflix",
+  serviceId: "netflix",
+  currentAmountCents: 1799,
+  answer: "not-using",
+  cadenceAssumed: false,
+  carriedOver: false,
+};
+
+const RESTORED_TEXT = JSON.stringify({ version: 1, records: [NETFLIX_BURIED] });
+const RESTORED_WITH_BAD_RECORD = JSON.stringify({
+  version: 1,
+  records: [NETFLIX_BURIED, { id: "bad" }],
+});
+
+function renderFirstVisit() {
+  return render(<App />);
+}
+
+function renderRestored(text: string) {
+  const store = createGraveyardStore(fakeStoreTarget(fakeStorage()));
+  return render(<App store={store} initialStore={storeLoadOf(text)} />);
+}
+
+function csvFile(text: string, name = "statement.csv", type = "text/csv"): File {
+  return new File([text], name, { type });
+}
+
+function dropArea(): HTMLElement {
+  return screen.getByRole("button", { name: DROP_AREA_NAME });
+}
+
+function dropFiles(files: File[]) {
+  fireEvent.drop(dropArea(), { dataTransfer: { files, types: ["Files"] } });
+}
+
+function liveRegion(): HTMLElement {
+  return screen.getByRole("status");
+}
+
+function mainElement(): HTMLElement {
+  return screen.getByRole("main");
+}
+
+function primaryAction(): HTMLElement {
+  return screen.getByRole("button", { name: PRIMARY_ACTION_NAME });
+}
+
+/** The accessible name of a control in these tests: its `aria-label`, else its text. */
+function nameOf(element: HTMLElement): string {
+  return element.getAttribute("aria-label") ?? element.textContent?.trim() ?? "";
+}
+
+/** Asserts that every node comes before the next one in document order. */
+function expectInOrder(...nodes: Node[]) {
+  for (let i = 1; i < nodes.length; i += 1) {
+    const before = nodes[i - 1] as Node;
+    const after = nodes[i] as Node;
+    expect(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  }
+}
+
+/** Holds every `requestAnimationFrame` callback so a run stays in `working` until released. */
+function holdFrames(): FrameRequestCallback[] {
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    vi.fn((callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    }),
+  );
+  return frames;
+}
+
+async function summon() {
+  fireEvent.click(primaryAction());
+  await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+}
+
+beforeEach(() => {
+  window.location.hash = "";
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe("Landing view: structure", () => {
+  it("has the outline h1, How it works, three steps and Own statement", () => {
+    renderFirstVisit();
+    const outline = screen
+      .getAllByRole("heading")
+      .map((h) => [Number(h.tagName.slice(1)), h.textContent]);
+    expect(outline).toEqual([
+      [1, "Zombills"],
+      [2, "How it works"],
+      [3, "Find the undead"],
+      [3, "Count what they cost"],
+      [3, "Bury them"],
+      [2, "Or read your own statement"],
+    ]);
+    expect(screen.queryByRole("heading", { name: "Or try a sample statement" })).toBeNull();
+  });
+
+  it("has one banner, main and contentinfo, with the Live region outside all three", () => {
+    renderFirstVisit();
+    const banner = screen.getAllByRole("banner");
+    const main = screen.getAllByRole("main");
+    const footer = screen.getAllByRole("contentinfo");
+    expect([banner.length, main.length, footer.length]).toEqual([1, 1, 1]);
+    const live = liveRegion();
+    for (const landmark of [...banner, ...main, ...footer]) {
+      expect(landmark.contains(live)).toBe(false);
+    }
+  });
+
+  it("keeps the DOM order of the Landing view", () => {
+    const { container } = renderRestored(RESTORED_TEXT);
+    const art = container.querySelector("[data-hero-art]");
+    if (art === null) throw new Error("expected the Hero art");
+    expectInOrder(
+      screen.getByRole("heading", { level: 1, name: "Zombills" }),
+      screen.getByText("Your bank statement is haunted."),
+      screen.getByRole("group", { name: "Saved per year" }),
+      screen.getByText(HERO_LINE),
+      art,
+      primaryAction(),
+      screen.getByRole("list", { name: "Other sample statements" }),
+      screen.getByText(PRIVACY_BADGE_TEXT),
+      screen.getByRole("heading", { level: 2, name: HOW_IT_WORKS_HEADING }),
+      screen.getByRole("heading", { level: 2, name: OWN_STATEMENT_HEADING }),
+      dropArea(),
+      screen.getByRole("contentinfo"),
+    );
+  });
+
+  it("has no card behind the banner on a first visit", () => {
+    renderFirstVisit();
+    expect(screen.getByRole("banner").querySelector(".bg-fog\\/95")).toBeNull();
+  });
+});
+
+describe("Landing view: Primary action and Secondary samples", () => {
+  it("is found by name, has no aria-label and starts the US Sample", async () => {
+    const frames = holdFrames();
+    renderFirstVisit();
+    const button = primaryAction();
+    expect(button.hasAttribute("aria-label")).toBe(false);
+    expect(screen.queryByRole("button", { name: US_LABEL })).toBeNull();
+
+    fireEvent.click(button);
+    await waitFor(() => expect(frames).toHaveLength(1));
+    const reading = `Reading ${US_LABEL}…`;
+    expect(within(mainElement()).getByText(reading)).toBeTruthy();
+    expect(liveRegion().textContent).toBe(reading);
+
+    const inputs = [
+      primaryAction(),
+      ...SECONDARY_LABELS.map((label) => screen.getByRole("button", { name: label })),
+      dropArea(),
+      screen.getByRole("button", { name: "Choose a file" }),
+    ];
+    for (const input of inputs) expect(input.getAttribute("aria-disabled")).toBe("true");
+
+    fireEvent.click(primaryAction());
+    await Promise.resolve();
+    expect(frames).toHaveLength(1);
+
+    frames[0]?.(0);
+    await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+    expect(screen.getByText(/transactions read/).textContent).toContain(US_LABEL);
+  });
+
+  it("lists exactly the three Secondary samples, in order", () => {
+    renderFirstVisit();
+    const list = screen.getByRole("list", { name: "Other sample statements" });
+    expect(within(list).getAllByRole("button").map(nameOf)).toEqual(SECONDARY_LABELS);
+    expect(SECONDARY_LABELS).toEqual(SAMPLES.slice(1).map((sample) => sample.label));
+  });
+
+  it.each(SECONDARY_LABELS)("starts a run from the Secondary sample %s", async (label) => {
+    holdFrames();
+    renderFirstVisit();
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    expect(await screen.findByText(`Reading ${label}…`, { selector: "main p" })).toBeTruthy();
+  });
+});
+
+describe("Landing view: badge, steps and own statement", () => {
+  it("moves focus to the Privacy note without changing the URL", async () => {
+    renderFirstVisit();
+    expect(within(mainElement()).getByText(PRIVACY_BADGE_TEXT)).toBeTruthy();
+    const before = window.location.href;
+
+    fireEvent.click(screen.getByRole("button", { name: READ_PRIVACY_NOTE }));
+
+    const note = document.activeElement as HTMLElement;
+    expect(note.tagName).toBe("P");
+    expect(note.textContent).toBe(PRIVACY_NOTE);
+    expect(note.getAttribute("tabindex")).toBe("-1");
+    expect(screen.getByRole("contentinfo").contains(note)).toBe(true);
+    expect(window.location.href).toBe(before);
+    expect(liveRegion().textContent).toBe("");
+  });
+
+  it("shows three steps with number, heading and text, and no control", () => {
+    renderFirstVisit();
+    const section = screen
+      .getByRole("heading", { level: 2, name: HOW_IT_WORKS_HEADING })
+      .closest("section") as HTMLElement;
+    const items = within(section).getAllByRole("listitem");
+    expect(items.map((li) => li.textContent)).toEqual(
+      HOW_IT_WORKS_STEPS.map((step, i) => `${i + 1}${step.heading}${step.text}`),
+    );
+    expect(section.querySelector("button, a, [tabindex]")).toBeNull();
+  });
+
+  it("orders the Own statement section as heading, Tip, drop area", () => {
+    const { container } = renderFirstVisit();
+    const heading = screen.getByRole("heading", { level: 2, name: OWN_STATEMENT_HEADING });
+    const section = heading.closest("section") as HTMLElement;
+    const children = Array.from(section.children);
+    expect(children).toHaveLength(3);
+    expect(children[0]).toBe(heading);
+    expect(children[1]?.tagName).toBe("P");
+    expect(children[1]?.textContent).toBe(STATEMENT_TIP);
+    expect(children[2]?.querySelector('[data-focus="drop-zone"]')).toBe(dropArea());
+    expect(container.querySelector('input[type="file"]')?.getAttribute("accept")).toBe(
+      ".csv,text/csv",
+    );
+  });
+});
+
+describe("Landing view: Footer", () => {
+  it("shows the note, credit, links and Reaper description, in order", () => {
+    renderFirstVisit();
+    const footer = screen.getByRole("contentinfo");
+    const note = within(footer).getByText(PRIVACY_NOTE);
+    const credit = within(footer).getByText("Built with Kiro.");
+    const repo = within(footer).getByRole("link", { name: REPO_LINK.text });
+    const reaper = within(footer).getByRole("link", { name: REAPER_LINK.text });
+    const description = within(footer).getByText(REAPER_DESCRIPTION);
+    expectInOrder(note, credit, repo, reaper, description);
+    expect(repo.getAttribute("href")).toBe("https://github.com/zaxcoraider/zombills");
+    expect(reaper.getAttribute("href")).toBe("https://github.com/zaxcoraider/zombills-reaper");
+    for (const link of [repo, reaper]) {
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+      expect(link.hasAttribute("aria-label")).toBe(false);
+      const describedBy = link.getAttribute("aria-describedby");
+      expect(describedBy).not.toBeNull();
+      expect(document.getElementById(describedBy ?? "")?.textContent).toBe(NEW_TAB_TEXT);
+    }
+    expect(within(footer).queryByText(STATEMENT_TIP)).toBeNull();
+  });
+});
+
+describe("Landing view: Tab order", () => {
+  const BASE = [
+    PRIMARY_ACTION_NAME,
+    ...SECONDARY_LABELS,
+    READ_PRIVACY_NOTE,
+    DROP_AREA_NAME,
+    "Choose a file",
+    REPO_LINK.text,
+    REAPER_LINK.text,
+  ];
+
+  async function tabNames(count: number): Promise<string[]> {
+    const user = userEvent.setup();
+    document.body.focus();
+    const names: string[] = [];
+    for (let i = 0; i < count; i += 1) {
+      await user.tab();
+      names.push(nameOf(document.activeElement as HTMLElement));
+    }
+    return names;
+  }
+
+  it("visits the controls in the design order", async () => {
+    renderFirstVisit();
+    expect(await tabNames(BASE.length)).toEqual(BASE);
+  });
+
+  it("puts Open the graveyard right after Read the privacy note", async () => {
+    renderRestored(RESTORED_TEXT);
+    const expected = [...BASE];
+    expected.splice(expected.indexOf(READ_PRIVACY_NOTE) + 1, 0, "Open the graveyard");
+    expect(await tabNames(expected.length)).toEqual(expected);
+  });
+});
+
+describe("Landing view: Return notes and working", () => {
+  it("shows the restored line, the dropped note and Open the graveyard after the badge", () => {
+    renderRestored(RESTORED_WITH_BAD_RECORD);
+    const main = within(mainElement());
+    const open = main.getByRole("button", { name: "Open the graveyard" });
+    expectInOrder(
+      main.getByText(PRIVACY_BADGE_TEXT),
+      main.getByText(restoredLine(1, 0)),
+      main.getByText(droppedNote(1)),
+      open,
+    );
+    fireEvent.click(open);
+    expect(screen.getByRole("heading", { name: "Your graveyard" })).toBeTruthy();
+  });
+
+  it("keeps the Hero while working and puts the working line in a card after the Primary action", async () => {
+    holdFrames();
+    renderFirstVisit();
+    fireEvent.click(primaryAction());
+    const line = await screen.findByText(`Reading ${US_LABEL}…`, { selector: "main p" });
+    expectInOrder(primaryAction(), line);
+    expect(line.closest(".bg-fog\\/95")).not.toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Zombills" })).toBeTruthy();
+    expect(screen.getByText(HERO_LINE)).toBeTruthy();
+    expect(primaryAction()).toBeTruthy();
+  });
+});
+
+describe("Non-landing views keep today's layout", () => {
+  function expectNonLanding(container: HTMLElement, readAnother: boolean) {
+    expect(within(screen.getByRole("contentinfo")).getByText(PRIVACY_NOTE)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: PRIMARY_ACTION_NAME })).toBeNull();
+    expect(screen.queryByText(HERO_LINE)).toBeNull();
+    expect(container.querySelector("[data-hero-art]")).toBeNull();
+    expect(screen.queryByText(PRIVACY_BADGE_TEXT)).toBeNull();
+    expect(screen.queryByRole("heading", { name: HOW_IT_WORKS_HEADING })).toBeNull();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Or try a sample statement" }),
+    ).toBeTruthy();
+    const gate = screen
+      .getByRole("heading", { level: 2, name: "Or try a sample statement" })
+      .closest("section") as HTMLElement;
+    expect(within(gate).getAllByRole("button").map(nameOf)).toEqual(
+      SAMPLES.map((sample) => sample.label),
+    );
+    const another = screen.queryByRole("heading", { level: 2, name: "Read another statement" });
+    expect(another !== null).toBe(readAnother);
+    expect(mainElement().className).toContain("max-w-[640px]");
+  }
+
+  it("results", async () => {
+    const { container } = renderFirstVisit();
+    await summon();
+    expectNonLanding(container, true);
+  });
+
+  it("no-subscriptions", async () => {
+    const { container } = renderFirstVisit();
+    dropFiles([csvFile(THREE_ROW_FILE)]);
+    await screen.findByRole("heading", { level: 2, name: "No undead here." });
+    expectNonLanding(container, false);
+  });
+
+  it("error", async () => {
+    const { container } = renderFirstVisit();
+    dropFiles([csvFile("a", "notes.txt", "text/plain")]);
+    await screen.findByRole("heading", { level: 2, name: "This file is not a CSV statement." });
+    expectNonLanding(container, false);
+  });
+
+  it("the Graveyard view", () => {
+    const { container } = renderRestored(RESTORED_TEXT);
+    fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
+    expect(screen.getByRole("heading", { name: "Your graveyard" })).toBeTruthy();
+    expectNonLanding(container, true);
+  });
+
+  it("working with origin other", async () => {
+    const { container } = renderFirstVisit();
+    await summon();
+    const frames = holdFrames();
+    fireEvent.click(screen.getByRole("button", { name: UK_LABEL }));
+    await waitFor(() => expect(frames).toHaveLength(1));
+    expect(within(mainElement()).getByText(`Reading ${UK_LABEL}…`)).toBeTruthy();
+    expectNonLanding(container, false);
+    frames[0]?.(0);
+    await waitFor(() =>
+      expect(screen.getByText(/transactions read/).textContent).toContain(UK_LABEL),
+    );
+  });
+});
+
+describe("Start again", () => {
+  it("returns to the Landing view and focuses the drop area", async () => {
+    renderFirstVisit();
+    await summon();
+    fireEvent.click(screen.getByRole("button", { name: "Start again" }));
+    await waitFor(() => expect(document.activeElement).toBe(dropArea()));
+    expect(primaryAction()).toBeTruthy();
+  });
+});

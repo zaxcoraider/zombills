@@ -4,6 +4,7 @@
 import { motion } from "framer-motion";
 import { useId, type CSSProperties } from "react";
 import { FOG_DENSITIES, SKY_GLOW_ALPHA } from "../logic/scene-alphas";
+import type { LandingMotion } from "../landing/use-landing-motion";
 import { fogFade } from "./motion";
 
 /** Shorthand for a token mixed toward another token (or transparent). */
@@ -92,11 +93,22 @@ const MOON_PLACEMENT: Record<MoonPlacement, { className: string; style: CSSPrope
   },
 };
 
-export function Moon({ placement }: { placement: MoonPlacement }) {
+export interface MoonProps {
+  placement: MoonPlacement;
+  /** Landing placement only: the once-per-load state of the bat's crossing. */
+  dataMotion?: LandingMotion;
+}
+
+export function Moon({ placement, dataMotion }: MoonProps) {
   const id = useId();
   const { className, style } = MOON_PLACEMENT[placement];
   return (
-    <div className={className} style={style} aria-hidden="true">
+    <div
+      className={className}
+      style={style}
+      aria-hidden="true"
+      data-motion={placement === "landing" ? dataMotion : undefined}
+    >
       <div
         data-moon-glow
         className="absolute left-1/2 top-1/2 h-[56rem] w-[72rem] -translate-x-1/2 -translate-y-1/2"
@@ -143,6 +155,15 @@ export function Moon({ placement }: { placement: MoonPlacement }) {
             <circle cx="-25" cy="3" r="1.4" opacity="0.1" />
           </g>
         </g>
+        {placement === "landing" ? (
+          <g className="zb-bat">
+            <path
+              className="zb-bat-wings"
+              d="M-12 0Q-6-8 0-2Q6-8 12 0Q6-3 0 5Q-6-3-12 0Z"
+              style={{ fill: "var(--night)" }}
+            />
+          </g>
+        ) : null}
       </svg>
     </div>
   );

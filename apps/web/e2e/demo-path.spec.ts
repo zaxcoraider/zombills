@@ -33,7 +33,16 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
     delete (Navigator.prototype as Partial<Navigator>).canShare;
   });
 
-  // Step 2: load the page, then record requests.
+  // Step 2: load the page, then record requests. `landingRequests` is attached before the
+  // navigation, so it also holds everything the Landing view asks for while it loads.
+  const landingRequests: { url: string; method: string; postData: string | null }[] = [];
+  page.on("request", (request) =>
+    landingRequests.push({
+      url: request.url(),
+      method: request.method(),
+      postData: request.postData(),
+    }),
+  );
   const response = await page.goto("/");
   if (response === null) throw new Error("page.goto returned no response");
   await page.waitForLoadState("load");
@@ -66,6 +75,27 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
     await expect(button).toBeFocused();
     await page.keyboard.press("Enter");
   };
+
+  // Landing load request check (landing-polish Req 11.1, 13.8): the same predicate as step 10,
+  // and a path that is `/` or a file of dist with an allowed extension. No request to github.com.
+  expect(landingRequests.length).toBeGreaterThan(0);
+  const distFiles = new Set(
+    listFiles(DIST)
+      .filter((file) => ALLOWED_EXTENSIONS.has(path.extname(file).slice(1).toLowerCase()))
+      .map((file) => path.resolve(file)),
+  );
+  const landingOrigin = new URL(urlAfterLoad).origin;
+  for (const request of landingRequests) {
+    const url = new URL(request.url);
+    expect(url.origin, `landing request ${request.url}`).toBe(landingOrigin);
+    expect(request.method).toBe("GET");
+    expect(url.search).toBe("");
+    expect(request.postData).toBeNull();
+    if (url.pathname !== "/") {
+      const file = path.resolve(DIST, `.${decodeURIComponent(url.pathname)}`);
+      expect(distFiles.has(file), `landing request ${request.url} is a file of dist`).toBe(true);
+    }
+  }
 
   // Step 4: choose a sample; the Rising summary shows the whole yearly cost.
   await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
