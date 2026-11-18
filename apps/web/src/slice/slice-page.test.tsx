@@ -20,13 +20,14 @@ import {
 import {
   PRIMARY_ACTION_NAME,
   READ_PRIVACY_NOTE,
+  KIRO_LINK,
   REAPER_LINK,
   REPO_LINK,
 } from "./logic/landing-text";
 import { SAMPLES } from "./samples";
 
-const US_LABEL = "US bank, signed amounts";
-const UK_LABEL = "UK bank, debit and credit columns";
+const US_LABEL = "US bank statement";
+const UK_LABEL = "UK bank statement";
 const DROP_AREA_NAME = "Drop area: choose or drop a CSV statement";
 
 function csvFile(text: string, name = "statement.csv", type = "text/csv"): File {
@@ -91,12 +92,17 @@ describe("SlicePage: Idle", () => {
     expect(screen.queryByRole("button", { name: usSample.label })).toBeNull();
     expect(screen.getByText("Your bank statement is haunted.")).toBeTruthy();
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(3);
     for (const link of links) expect(link.closest("footer")).not.toBeNull();
-    expect(links.map((link) => link.textContent)).toEqual([REPO_LINK.text, REAPER_LINK.text]);
+    expect(links.map((link) => link.textContent)).toEqual([
+      REPO_LINK.text,
+      REAPER_LINK.text,
+      KIRO_LINK.text,
+    ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       REPO_LINK.href,
       REAPER_LINK.href,
+      KIRO_LINK.href,
     ]);
     expect(liveRegion().textContent).toBe("");
   });
@@ -358,7 +364,7 @@ describe("SlicePage: Replace result", () => {
 });
 
 describe("SlicePage: Keyboard", () => {
-  it("tabs through the Primary action, the three Secondary samples, the privacy note, drop area, Choose a file and the two Footer links", async () => {
+  it("tabs through the Primary action, the three Secondary samples, the privacy note, drop area, Choose a file and the four Footer tombstones", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -369,7 +375,9 @@ describe("SlicePage: Keyboard", () => {
       DROP_AREA_NAME,
       "Choose a file",
       "Zombills on GitHub",
-      "The Reaper on GitHub",
+      "The Reaper",
+      "Privacy note",
+      "Built with Kiro",
     ];
     for (const name of expected) {
       await user.tab();

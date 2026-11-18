@@ -101,6 +101,37 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
   await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
   await expect(stillDraining("$1,355.64")).toBeVisible();
 
+  // Step 4b (pro-polish Req 12.1): the Home control asks before leaving `results`; "Leave" shows
+  // the Landing view, and the Primary action reaches `results` again.
+  const home = page.getByRole("button", { name: "Zombills, back to the start" });
+  await home.click();
+  const leaveQuestion = page.getByRole("group", { name: /^Go back to the start\?/ });
+  await expect(leaveQuestion).toBeVisible();
+  await expect(leaveQuestion.getByRole("button", { name: "Stay", exact: true })).toBeFocused();
+  await leaveQuestion.getByRole("button", { name: "Leave", exact: true }).click();
+  const primary = page.getByRole("button", {
+    name: "Summon the undead with a sample US bank statement",
+  });
+  await expect(primary).toBeFocused();
+  await primary.click();
+  await expect(stillDraining("$1,355.64")).toBeVisible();
+
+  // Step 4c: hover and focus each Footer tombstone without following a link.
+  const footerStones = page
+    .getByRole("contentinfo")
+    .getByRole("list", { name: "Site links" })
+    .locator(':scope > li > [data-exempt="footer-tombstone"]');
+  await expect(footerStones).toHaveCount(4);
+  for (let i = 0; i < 4; i += 1) {
+    const footerStone = footerStones.nth(i);
+    await footerStone.hover();
+    await footerStone.focus();
+    await expect(footerStone).toBeFocused();
+  }
+  await page.mouse.move(0, 0);
+  expect(page.url()).toBe(urlAfterLoad);
+  expect(context.pages()).toHaveLength(1);
+
   // Step 5: keep Adobe Creative Cloud and Riverside Gym Membership.
   for (const name of ["Adobe Creative Cloud", "Riverside Gym Membership"]) {
     await expect(page.getByRole("region", { name })).toBeVisible();

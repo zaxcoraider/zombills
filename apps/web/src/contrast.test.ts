@@ -406,6 +406,10 @@ describe("landing contrast (landing-polish R10.2)", () => {
   it("the drop area dashed border is at least 3:1", () => {
     expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(3);
   });
+
+  it("FREE_LINE, bone on the bare scene S, is at least 4.5:1 (pro-polish R11.1)", () => {
+    expect(contrast(bone(), scene())).toBeGreaterThanOrEqual(4.5);
+  });
 });
 
 describe("effect contrast (landing-polish R9.7)", () => {
@@ -431,5 +435,29 @@ describe("effect contrast (landing-polish R9.7)", () => {
     const band = over(over(scene(), ember(), CANDLE_GLOW_ALPHA), night(), CANDLE_BAND_ALPHA);
     expect(band).toBe("#352d29");
     expect(contrast(moss(), band)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("footer graveyard contrast (pro-polish R2.11)", () => {
+  const night = () => tokenHex("night");
+  const fog = () => tokenHex("fog");
+  const bone = () => tokenHex("bone");
+  const moss = () => tokenHex("moss");
+  /** GROUND_TOP, `color-mix(in oklab, var(--fog) 58%, var(--night))`: the lightest earth. */
+  const groundTop = () => mixOklab(fog(), night(), 0.42);
+  /** The lightest stone face stop, `color-mix(in oklab, var(--fog) 82%, var(--bone))`; the grain only darkens it. */
+  const stoneFace = () => mixOklab(fog(), bone(), 0.18);
+
+  it("the Reaper description and the Privacy note, bone on the earth, are at least 4.5:1", () => {
+    expect(contrast(bone(), groundTop())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("an engraved stone label, bone on the lightest stone face, is at least 4.5:1", () => {
+    expect(contrast(bone(), stoneFace())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the moss hover and focus outline on the stone face and on the earth is at least 3:1", () => {
+    expect(contrast(moss(), stoneFace())).toBeGreaterThanOrEqual(3);
+    expect(contrast(moss(), groundTop())).toBeGreaterThanOrEqual(3);
   });
 });

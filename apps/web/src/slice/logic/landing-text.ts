@@ -28,19 +28,23 @@ export const HOW_IT_WORKS_STEPS: readonly { heading: string; text: string }[] = 
   },
 ];
 
-export const OWN_STATEMENT_HEADING = "Or read your own statement";
+export const OWN_STATEMENT_HEADING = "Or use your own statement";
 
-export const BUILT_WITH_KIRO = "Built with Kiro.";
+export const BUILT_WITH_KIRO = "Built with Kiro";
 export const REPO_LINK = {
   text: "Zombills on GitHub",
   href: "https://github.com/zaxcoraider/zombills",
 };
 export const REAPER_LINK = {
-  text: "The Reaper on GitHub",
+  text: "The Reaper",
   href: "https://github.com/zaxcoraider/zombills-reaper",
 };
 export const REAPER_DESCRIPTION =
-  "The Reaper is a Kiro Crew app that watches for new statements each month and drafts cancellation emails when you ask.";
+  "A Kiro Crew app that watches for new statements each month and drafts cancellation emails when you ask.";
+export const KIRO_LINK = {
+  text: "Built with Kiro",
+  href: "https://kiro.dev",
+};
 
 /** The file name of the US Sample, which the Primary action analyses. */
 export const US_SAMPLE_FILE_NAME = "us-signed.csv";

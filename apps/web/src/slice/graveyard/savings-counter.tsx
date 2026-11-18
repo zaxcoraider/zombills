@@ -12,6 +12,8 @@ export interface SavingsCounterProps {
   reduceMotion: boolean;
   /** Extra classes for the group, for the Landing view's counter card */
   className?: string;
+  /** "compact" is the Compact header's counter: a smaller figure, lines in a row from sm */
+  size?: "full" | "compact";
 }
 
 interface CounterLineProps {
@@ -19,13 +21,17 @@ interface CounterLineProps {
   initialCents: number;
   currency: string;
   reduceMotion: boolean;
+  compact: boolean;
 }
+
+const FULL_FIGURE = "text-[2rem] leading-none sm:text-[2.5rem]";
+const COMPACT_FIGURE = "text-title leading-none";
 
 /**
  * One currency's yearly savings, counted up in minor units. Right-aligned in a box with tabular
  * figures so the digits stay put as the number grows.
  */
-function CounterLine({ cents, initialCents, currency, reduceMotion }: CounterLineProps) {
+function CounterLine({ cents, initialCents, currency, reduceMotion, compact }: CounterLineProps) {
   const value = useMotionValue(initialCents);
   const text = useTransform(value, (v) => formatMoney(Math.round(v), currency));
 
@@ -46,7 +52,9 @@ function CounterLine({ cents, initialCents, currency, reduceMotion }: CounterLin
         // Under reduced motion the new figure fades in instead of counting.
         key={reduceMotion ? cents : "counting"}
         aria-hidden="true"
-        className="mt-2 inline-block min-w-[7ch] text-right [overflow-wrap:anywhere] text-[2rem] font-semibold leading-none text-moss tabular-nums sm:text-[2.5rem]"
+        className={`mt-2 inline-block min-w-[7ch] text-right [overflow-wrap:anywhere] ${
+          compact ? COMPACT_FIGURE : FULL_FIGURE
+        } font-semibold text-moss tabular-nums`}
         style={{
           textShadow:
             cents > 0 ? "0 0 1.5rem color-mix(in oklab, var(--moss) 45%, transparent)" : "none",
@@ -66,6 +74,7 @@ export function SavingsCounter({
   fallbackCurrency,
   reduceMotion,
   className,
+  size = "full",
 }: SavingsCounterProps) {
   // Lines present at the first mount start at their value; lines added later count up from 0.
   const firstMount = useRef<Map<string, number> | null>(null);
@@ -80,6 +89,18 @@ export function SavingsCounter({
         : [{ currency: fallbackCurrency, totalCents: 0 }];
   if (lines.length === 0) return null;
 
+  const compact = size === "compact";
+  const counterLines = lines.map((line) => (
+    <CounterLine
+      key={line.currency}
+      currency={line.currency}
+      cents={line.totalCents}
+      initialCents={initial.has(line.currency) ? line.totalCents : 0}
+      reduceMotion={reduceMotion}
+      compact={compact}
+    />
+  ));
+
   return (
     <div
       role="group"
@@ -91,15 +112,13 @@ export function SavingsCounter({
       <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-bone/70">
         Saved per year
       </span>
-      {lines.map((line) => (
-        <CounterLine
-          key={line.currency}
-          currency={line.currency}
-          cents={line.totalCents}
-          initialCents={initial.has(line.currency) ? line.totalCents : 0}
-          reduceMotion={reduceMotion}
-        />
-      ))}
+      {compact ? (
+        <div data-counter-lines="" className="flex flex-col items-end sm:flex-row sm:gap-4">
+          {counterLines}
+        </div>
+      ) : (
+        counterLines
+      )}
     </div>
   );
 }

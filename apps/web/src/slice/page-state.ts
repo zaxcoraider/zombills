@@ -102,7 +102,9 @@ export type FocusTarget =
   | "all-answered"
   | "graveyard-heading"
   | "resting-item"
-  | "memory-checkbox";
+  | "memory-checkbox"
+  /** The Landing view's Primary action, after going home */
+  | "primary-action";
 
 export interface FocusRequest {
   target: FocusTarget;
@@ -148,7 +150,8 @@ export type PageAction =
   | { type: "store-write-failed" }
   | { type: "store-remove-failed"; reason: RemovalRequest["reason"] }
   | { type: "store-removed-elsewhere" }
-  | { type: "open-memory-settings" };
+  | { type: "open-memory-settings" }
+  | { type: "go-home" };
 
 const MEMORY_OFF: MemoryModel = {
   on: false,
@@ -203,6 +206,11 @@ export function isLandingView(model: Pick<PageModel, "view" | "screen">): boolea
   return (
     model.view.kind === "idle" || (model.view.kind === "working" && model.view.origin === "landing")
   );
+}
+
+/** Req 1.10: the Home control asks first exactly when there are results to put away. */
+export function shouldAskBeforeLeaving(model: Pick<PageModel, "view">): boolean {
+  return model.view.kind === "results";
 }
 
 export const INITIAL_PAGE_MODEL: PageModel = initialPageModel({ kind: "empty" });
@@ -633,5 +641,13 @@ export function pageReducer(model: PageModel, action: PageAction): PageModel {
       return changeAnswerAfter(model, action.id, "still-using", "not-using");
     case "forget":
       return forgotten(model);
+    case "go-home": {
+      if (view.kind === "working" || isLandingView(model)) return model;
+      const home =
+        view.kind === "idle"
+          ? pageReducer(model, { type: "back-to-start" }) // Graveyard view while idle
+          : pageReducer(model, { type: "reset" }); // results (either screen), error, no-subscriptions
+      return { ...home, focus: focusRequest(model, "primary-action") };
+    }
   }
 }

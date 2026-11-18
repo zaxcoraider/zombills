@@ -205,25 +205,23 @@ function Hills() {
 }
 
 /* ------------------------------------------------------------------------------------------------
- * Fog: fractal noise rendered once per band, then translated in a seamless loop. The two tiles in
- * a band share one stitched filter, so the seam between them is invisible.
+ * Fog: fractal noise rendered once per band and held still at one point of its tile pair. The two
+ * tiles in a band share one stitched filter, so the seam between them is invisible.
  * ---------------------------------------------------------------------------------------------- */
 
 type FogBandProps = {
   seed: number;
   style: CSSProperties;
   density: number;
-  durationS: number;
+  /** Which tile pair offset the band rests at, so neighbouring bands do not line up. */
   direction: 1 | -1;
-  /** Drift is paused at the first point of the loop (reduced motion, or the Landing view). */
-  still: boolean;
 };
 
 const FOG_TILE = { width: 1600, height: 240 };
 
-function FogBand({ seed, style, density, durationS, direction, still }: FogBandProps) {
+function FogBand({ seed, style, density, direction }: FogBandProps) {
   const filterId = `${useId()}-fog`;
-  const loop: [string, string] = direction === 1 ? ["-50%", "0%"] : ["0%", "-50%"];
+  const offset = direction === 1 ? "-50%" : "0%";
   const tile = (
     <svg
       className="h-full w-1/2"
@@ -269,18 +267,14 @@ function FogBand({ seed, style, density, durationS, direction, still }: FogBandP
           <feComposite in="SourceGraphic" operator="in" />
         </filter>
       </svg>
-      <motion.div
+      <div
         className="flex h-full w-[200%]"
-        style={{ fill: "var(--bone)", willChange: "transform" }}
-        initial={{ x: loop[0] }}
-        animate={still ? { x: loop[0] } : { x: loop }}
-        transition={
-          still ? { duration: 0 } : { duration: durationS, ease: "linear", repeat: Infinity }
-        }
+        style={{ fill: "var(--bone)", transform: `translateX(${offset})` }}
+        data-fog-tiles
       >
         {tile}
         {tile}
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -368,19 +362,29 @@ function GrassTufts() {
   );
 }
 
+/** Height of the fade to transparent above the ground line and at each side of the earth band. */
+const GROUND_FADE = "24px";
+/** The earth under the Stage's ground line: GROUND_TOP at low strength, so it never reads as a box. */
+const EARTH_VEIL = `color-mix(in oklab, ${GROUND_TOP} 30%, transparent)`;
+
 export function Ground() {
   return (
     <>
+      {/* The box reaches 24 px above the ground line, so the earth's top edge fades in from
+          transparent, and its sides fade over 24 px: no hard edge against the scene. Behind the
+          card (-z-10 inside the Stage's isolated box) and never catches clicks. */}
       <div
-        className="absolute inset-x-0 bottom-0"
+        className="pointer-events-none absolute inset-x-0 bottom-0 -z-10"
         style={{
-          height: "var(--ground-h)",
+          height: `calc(var(--ground-h) + ${GROUND_FADE})`,
           background: [
             // Moonlight pooling where the card stands, to draw the eye there.
-            `radial-gradient(ellipse min(30rem, 70vw) 70% at 50% 0%, ${mix("bone", 7)}, transparent 70%)`,
-            `linear-gradient(to bottom, ${GROUND_TOP} 0%, ${mix("fog", 30, "night")} 35%, var(--night) 100%)`,
+            `radial-gradient(ellipse min(30rem, 70vw) 70% at 50% ${GROUND_FADE}, ${mix("bone", 7)}, transparent 70%)`,
+            // A thin veil of earth that fades back out: an opaque band ending in night showed as a
+            // dark box under the card on phones (visual review 2026-11-18).
+            `linear-gradient(to bottom, transparent 0, ${EARTH_VEIL} ${GROUND_FADE}, transparent 100%)`,
           ].join(", "),
-          boxShadow: `inset 0 1px 0 ${mix("bone", 14)}`,
+          maskImage: `linear-gradient(to right, transparent, var(--night) ${GROUND_FADE}, var(--night) calc(100% - ${GROUND_FADE}), transparent)`,
         }}
         aria-hidden="true"
       />
@@ -393,13 +397,12 @@ export function Ground() {
  * Composed layers. Fog thins as you bury (design.md: "fog clears as you bury more").
  * ---------------------------------------------------------------------------------------------- */
 
-type LayerProps = { reduceMotion: boolean; fogCleared: boolean; fogStill: boolean };
+type LayerProps = { reduceMotion: boolean; fogCleared: boolean };
 
 /** Everything behind the card: sky, stars, moon, hills, far fog, fence, low fog. */
 export function BackdropLayers({
   reduceMotion,
   fogCleared,
-  fogStill,
   moon,
   ridge = true,
 }: LayerProps & { moon: boolean; ridge?: boolean }) {
@@ -413,9 +416,7 @@ export function BackdropLayers({
           seed={7}
           style={{ bottom: "calc(var(--ground-h) + 1.5rem)", height: "15rem" }}
           density={FOG_DENSITIES[0]}
-          durationS={40}
           direction={-1}
-          still={fogStill}
         />
       </motion.div>
       {ridge && <Fence />}
@@ -424,9 +425,7 @@ export function BackdropLayers({
           seed={23}
           style={{ bottom: "calc(var(--ground-h) - 2.5rem)", height: "9rem" }}
           density={FOG_DENSITIES[1]}
-          durationS={28}
           direction={1}
-          still={fogStill}
         />
       </motion.div>
     </div>
@@ -464,7 +463,7 @@ export function RidgeBand() {
 }
 
 /** Fog in front of the earth. Stays below the ground line so it never covers the card. */
-export function ForegroundFog({ reduceMotion, fogCleared, fogStill }: LayerProps) {
+export function ForegroundFog({ reduceMotion, fogCleared }: LayerProps) {
   return (
     <motion.div
       className="pointer-events-none absolute inset-0"
@@ -475,9 +474,7 @@ export function ForegroundFog({ reduceMotion, fogCleared, fogStill }: LayerProps
         seed={61}
         style={{ bottom: "-2rem", height: "calc(var(--ground-h) + 2rem)" }}
         density={FOG_DENSITIES[2]}
-        durationS={22}
         direction={-1}
-        still={fogStill}
       />
     </motion.div>
   );

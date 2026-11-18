@@ -8,7 +8,7 @@ export const MEMORY_HINT =
   "Only merchant text as printed on your statement (it can include reference numbers), amounts and your answers are kept, in this browser on this device. Transactions, dates and file names are not. Nothing is sent anywhere.";
 export const PRIVACY_NOTE =
   "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard.";
-export const STATEMENT_TIP = "A statement covering 2 to 3 months gives the best results.";
+export const STATEMENT_TIP = "Tip: 2 to 3 months of transactions works best.";
 
 export function restoredLine(buried: number, resting: number): string {
   return `Your graveyard from this device is back: ${buried} buried, ${resting} resting.`;

@@ -119,3 +119,45 @@ export function helperPanelVariants(reduced: boolean): Variants {
         shown: { opacity: 1, transition: HELPER_PANEL_FADE },
       };
 }
+
+/* Footer graveyard peek (pro-polish "Signature moments: 4"). The longest leg is 0.3 s (Req 2.8). */
+/** The stone face, label and moss outline lift by this many px on hover or focus. */
+export const STONE_LIFT_Y = -4;
+/**
+ * The Peek ghost rises by this many px from behind the stone face: from 8 px under the stone top
+ * until its 34 px body clears the lifted stone top by 2 px, so it is seen whole (Req 2.8,
+ * amended 2026-11-18 after visual review: a 12 px peek left the ghost tiny and clipped).
+ */
+export const PEEK_GHOST_Y = -48;
+export const STONE_LIFT = { duration: 0.2, ease: "easeOut" } as const;
+export const PEEK_GHOST_RISE = { duration: 0.25, delay: 0.05, ease: "easeOut" } as const;
+export const STONE_REST = { duration: 0.2, ease: "easeIn" } as const;
+
+/** The stone face and label: lift on `peek`; under reduced motion they do not move. */
+export function stoneVariants(reduced: boolean): Variants {
+  return reduced
+    ? { rest: {}, peek: {} }
+    : {
+        rest: { y: 0, transition: STONE_REST },
+        peek: { y: STONE_LIFT_Y, transition: STONE_LIFT },
+      };
+}
+
+/** The moss outline: fades in over 0.15 s in both modes, and lifts with the face unless reduced. */
+export function stoneOutlineVariants(reduced: boolean): Variants {
+  return reduced
+    ? {
+        rest: { opacity: 0, transition: REDUCED_FADE },
+        peek: { opacity: 1, transition: REDUCED_FADE },
+      }
+    : {
+        rest: { y: 0, opacity: 0, transition: { ...STONE_REST, opacity: REDUCED_FADE } },
+        peek: { y: STONE_LIFT_Y, opacity: 1, transition: { ...STONE_LIFT, opacity: REDUCED_FADE } },
+      };
+}
+
+/** The Peek ghost. Not rendered under reduced motion. */
+export const PEEK_GHOST_VARIANTS: Variants = {
+  rest: { y: 0, transition: STONE_REST },
+  peek: { y: PEEK_GHOST_Y, transition: PEEK_GHOST_RISE },
+};

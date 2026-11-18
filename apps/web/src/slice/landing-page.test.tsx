@@ -4,10 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { NEW_TAB_TEXT } from "./logic/cancel-text";
+import { FREE_LINE, PRIVACY_TOMBSTONE, SITE_LINKS_NAME } from "./logic/chrome-text";
 import {
   HERO_LINE,
   HOW_IT_WORKS_HEADING,
   HOW_IT_WORKS_STEPS,
+  KIRO_LINK,
   OWN_STATEMENT_HEADING,
   PRIMARY_ACTION_NAME,
   PRIVACY_BADGE_TEXT,
@@ -22,16 +24,16 @@ import { SAMPLES } from "./samples";
 import { createGraveyardStore } from "./storage/graveyard-store";
 import { fakeStorage, fakeStoreTarget, storeLoadOf } from "./storage/test-store";
 
-const US_LABEL = "US bank, signed amounts";
-const UK_LABEL = "UK bank, debit and credit columns";
-const EU_LABEL = "EU bank, semicolons";
-const PREAMBLE_LABEL = "Statement with a header block";
+const US_LABEL = "US bank statement";
+const UK_LABEL = "UK bank statement";
+const EU_LABEL = "European bank statement";
+const PREAMBLE_LABEL = "Statement with extra top lines";
 const SECONDARY_LABELS = [UK_LABEL, EU_LABEL, PREAMBLE_LABEL];
 const DROP_AREA_NAME = "Drop area: choose or drop a CSV statement";
 const THREE_ROW_FILE =
   "Date,Description,Amount\n2026-01-03,CORNER BAKERY,-4.50\n2026-01-09,HARDWARE DEPOT,-23.10\n2026-01-20,BOOK NOOK,-12.00\n";
 
-const SVG_COUNT = 14;
+const SVG_COUNT = 11;
 
 /** The NightScene root (the element holding --ground-h) and its first fixed layer. */
 function sceneParts(container: HTMLElement) {
@@ -147,7 +149,7 @@ describe("Landing view: structure", () => {
       [3, "Find the undead"],
       [3, "Count what they cost"],
       [3, "Bury them"],
-      [2, "Or read your own statement"],
+      [2, "Or use your own statement"],
     ]);
     expect(screen.queryByRole("heading", { name: "Or try a sample statement" })).toBeNull();
   });
@@ -251,7 +253,11 @@ describe("Landing view: structure", () => {
     const art = container.querySelector("[data-hero-art]");
     if (art === null) throw new Error("expected the Hero art");
     const maskOf = (el: Element): Element => {
-      for (let node = el.parentElement; node !== null && node !== art.parentElement; node = node.parentElement) {
+      for (
+        let node = el.parentElement;
+        node !== null && node !== art.parentElement;
+        node = node.parentElement
+      ) {
         const value = node.getAttribute("mask");
         const match = value === null ? null : /^url\(#(.+)\)$/.exec(value);
         if (match !== null) {
@@ -306,6 +312,11 @@ describe("Landing view: structure", () => {
 });
 
 describe("Landing view: Primary action and Secondary samples", () => {
+  it("carries data-focus primary-action so a go-home focus request lands on it", () => {
+    renderFirstVisit();
+    expect(primaryAction().getAttribute("data-focus")).toBe("primary-action");
+  });
+
   it("is found by name, has no aria-label and starts the US Sample", async () => {
     const frames = holdFrames();
     renderFirstVisit();
@@ -341,6 +352,17 @@ describe("Landing view: Primary action and Secondary samples", () => {
     const list = screen.getByRole("list", { name: "Other sample statements" });
     expect(within(list).getAllByRole("button").map(nameOf)).toEqual(SECONDARY_LABELS);
     expect(SECONDARY_LABELS).toEqual(SAMPLES.slice(1).map((sample) => sample.label));
+  });
+
+  it("uses the plain Sample names: no US button, the three Secondary names exactly", () => {
+    renderFirstVisit();
+    expect(screen.queryAllByRole("button", { name: "US bank statement" })).toHaveLength(0);
+    const list = screen.getByRole("list", { name: "Other sample statements" });
+    expect(within(list).getAllByRole("button").map(nameOf)).toEqual([
+      "UK bank statement",
+      "European bank statement",
+      "Statement with extra top lines",
+    ]);
   });
 
   it.each(SECONDARY_LABELS)("starts a run from the Secondary sample %s", async (label) => {
@@ -412,40 +434,48 @@ describe("Landing view: badge, steps and own statement", () => {
 });
 
 describe("Landing view: Footer", () => {
-  it("shows the note, credit, links and Reaper description, in order", () => {
+  it("shows the four tombstones, the Reaper description and the note, in order", () => {
     renderFirstVisit();
     const footer = screen.getByRole("contentinfo");
-    const note = within(footer).getByText(PRIVACY_NOTE);
-    const credit = within(footer).getByText("Built with Kiro.");
-    const repo = within(footer).getByRole("link", { name: REPO_LINK.text });
-    const reaper = within(footer).getByRole("link", { name: REAPER_LINK.text });
+    expect(within(footer).queryByText("Built with Kiro.")).toBeNull();
+    const list = within(footer).getByRole("list", { name: SITE_LINKS_NAME });
+    const repo = within(list).getByRole("link", { name: REPO_LINK.text });
+    const reaper = within(list).getByRole("link", { name: REAPER_LINK.text });
+    const privacy = within(list).getByRole("button", { name: PRIVACY_TOMBSTONE });
+    const kiro = within(list).getByRole("link", { name: KIRO_LINK.text });
     const description = within(footer).getByText(REAPER_DESCRIPTION);
-    expectInOrder(note, credit, repo, reaper, description);
+    const note = within(footer).getByText(PRIVACY_NOTE);
+    expectInOrder(repo, reaper, privacy, kiro, description, note);
     expect(repo.getAttribute("href")).toBe("https://github.com/zaxcoraider/zombills");
     expect(reaper.getAttribute("href")).toBe("https://github.com/zaxcoraider/zombills-reaper");
-    for (const link of [repo, reaper]) {
+    expect(kiro.getAttribute("href")).toBe("https://kiro.dev");
+    const describedTexts = (el: HTMLElement) =>
+      (el.getAttribute("aria-describedby") ?? "")
+        .split(" ")
+        .map((id) => document.getElementById(id)?.textContent);
+    for (const link of [repo, reaper, kiro]) {
       expect(link.getAttribute("target")).toBe("_blank");
       expect(link.getAttribute("rel")).toBe("noopener noreferrer");
       expect(link.hasAttribute("aria-label")).toBe(false);
-      const describedBy = link.getAttribute("aria-describedby");
-      expect(describedBy).not.toBeNull();
-      expect(document.getElementById(describedBy ?? "")?.textContent).toBe(NEW_TAB_TEXT);
     }
+    expect(describedTexts(repo)).toEqual([NEW_TAB_TEXT]);
+    expect(describedTexts(reaper)).toEqual([REAPER_DESCRIPTION, NEW_TAB_TEXT]);
+    expect(describedTexts(kiro)).toEqual([NEW_TAB_TEXT]);
     expect(within(footer).queryByText(STATEMENT_TIP)).toBeNull();
   });
 
-  it("the Reaper description is a block outside the link", () => {
+  it("the Reaper description is a paragraph outside the link that the link describes", () => {
     renderFirstVisit();
     const footer = screen.getByRole("contentinfo");
-    const link = within(footer).getByRole("link", { name: "The Reaper on GitHub" });
+    const link = within(footer).getByRole("link", { name: "The Reaper" });
     const description = within(footer).getByText(
-      (_content, element) => element?.textContent === REAPER_DESCRIPTION && element.tagName === "SPAN",
+      (_content, element) => element?.textContent === REAPER_DESCRIPTION && element.tagName === "P",
     );
-    expect(description.classList.contains("block")).toBe(true);
-    expect(description.closest("li")).toBe(link.closest("li"));
+    expect(description.closest("ul")).toBeNull();
     expect(link.contains(description)).toBe(false);
+    expect(link.getAttribute("aria-describedby")?.split(" ")[0]).toBe(description.id);
     expect(link.getAttribute("aria-label")).toBeNull();
-    expect(link.textContent).toBe("The Reaper on GitHub");
+    expect(link.textContent).toBe("The Reaper");
   });
 });
 
@@ -458,6 +488,8 @@ describe("Landing view: Tab order", () => {
     "Choose a file",
     REPO_LINK.text,
     REAPER_LINK.text,
+    PRIVACY_TOMBSTONE,
+    KIRO_LINK.text,
   ];
 
   async function tabNames(count: number): Promise<string[]> {
@@ -510,6 +542,32 @@ describe("Landing view: Return notes and working", () => {
     expect(screen.getByText(HERO_LINE)).toBeTruthy();
     expect(primaryAction()).toBeTruthy();
   });
+
+  it("puts the free line after the Primary action and before the Other sample statements list", () => {
+    renderFirstVisit();
+    const free = screen.getByText(FREE_LINE);
+    expect(free.tagName).toBe("P");
+    expectInOrder(
+      primaryAction(),
+      free,
+      screen.getByRole("list", { name: "Other sample statements" }),
+    );
+  });
+
+  it("puts the working line after the free line", async () => {
+    holdFrames();
+    renderFirstVisit();
+    fireEvent.click(primaryAction());
+    const line = await screen.findByText(`Reading ${US_LABEL}…`, { selector: "main p" });
+    expectInOrder(primaryAction(), screen.getByText(FREE_LINE), line);
+  });
+
+  it("gives the free line no control", () => {
+    renderFirstVisit();
+    const free = screen.getByText(FREE_LINE);
+    expect(free.textContent).toBe(FREE_LINE);
+    expect(free.querySelector("a, button, input, select, textarea, [tabindex]")).toBeNull();
+  });
 });
 
 describe("Non-landing views keep today's layout", () => {
@@ -540,36 +598,45 @@ describe("Non-landing views keep today's layout", () => {
     expectNonLanding(container, true);
   });
 
-  it("keep the fixed Hills and Fence and have no ridge band", async () => {
+  it("have exactly one ridge band, in the flow before the footer", async () => {
     const { container } = renderFirstVisit();
     await summon();
-    expect(container.querySelector("[data-ridge-band]")).toBeNull();
-    // Fixed layers on a Non-landing view hold SVG_COUNT svg elements (Stars, Moon, Hills, Fence and
-    // the fog filters and tiles), as before the ridge change.
-    const fixed = Array.from(container.querySelectorAll(".fixed"));
-    const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
-    expect(count).toBe(SVG_COUNT);
+    const bands = container.querySelectorAll<HTMLElement>("[data-ridge-band]");
+    expect(bands).toHaveLength(1);
+    const band = bands[0] as HTMLElement;
+    expect(band.closest(".fixed")).toBeNull();
+    const footer = container.querySelector("footer");
+    if (footer === null) throw new Error("expected the footer");
+    // The band's full-bleed wrapper is the element directly before the footer, outside `main`.
+    expect(band.parentElement?.nextElementSibling).toBe(footer);
+    expect(band.closest("main")).toBeNull();
   });
 
-  it("keep the fixed Ground with its inset line", async () => {
+  it("draw no Hills, Fence or Ground in a fixed layer", async () => {
     const { container } = renderFirstVisit();
     await summon();
     const fixed = Array.from(container.querySelectorAll<HTMLElement>(".fixed"));
-    const ground = fixed
-      .flatMap((layer) => Array.from(layer.querySelectorAll<HTMLElement>("div")))
-      .find((el) => el.style.height === "var(--ground-h)");
-    if (ground === undefined) throw new Error("expected the Ground in a fixed layer");
-    expect(ground.style.boxShadow).toContain("inset");
+    for (const layer of fixed) {
+      // Hills draw on a 1600 × 200 view box; the Fence and the grass tufts fill with patterns.
+      expect(layer.querySelector('svg[viewBox="0 0 1600 200"]')).toBeNull();
+      expect(layer.querySelector("pattern")).toBeNull();
+      const heights = Array.from(layer.querySelectorAll<HTMLElement>("div")).map(
+        (el) => el.style.height,
+      );
+      expect(heights).not.toContain("var(--ground-h)");
+    }
+    // Fixed layers hold SVG_COUNT svg elements: Stars, the sky moon, and three fog bands of one
+    // filter svg and two tiles each.
     const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
     expect(count).toBe(SVG_COUNT);
   });
 
-  it("keep the root sky background and no fixed-layer background", async () => {
+  it("use the night root and the Landing sky on the fixed layer", async () => {
     const { container } = renderFirstVisit();
     await summon();
     const { root, layer } = sceneParts(container);
-    expect(root.style.background).toBe(SKY_BACKGROUND);
-    expect(layer.style.background).toBe("");
+    expect(root.style.background).toBe("var(--night)");
+    expect(layer.style.background).toBe(LANDING_SKY_BACKGROUND);
   });
 
   it("no-subscriptions", async () => {

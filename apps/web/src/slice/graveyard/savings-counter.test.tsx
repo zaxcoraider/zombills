@@ -102,4 +102,52 @@ describe("SavingsCounter", () => {
     expect(srValues(container)).toEqual([formatMoney(21588, "USD")]);
     await waitFor(() => expect(figures(container)).toEqual([formatMoney(21588, "USD")]));
   });
+
+  describe("size", () => {
+    const totals = [
+      { currency: "GBP", totalCents: 15588 },
+      { currency: "USD", totalCents: 21588 },
+    ];
+    const expected = [formatMoney(15588, "GBP"), formatMoney(21588, "USD")];
+    const figureEls = (container: HTMLElement) => [
+      ...container.querySelectorAll('[aria-hidden="true"]'),
+    ];
+
+    it("compact sets each figure to text-title and lays the lines in a row from sm", async () => {
+      const { container } = render(
+        <SavingsCounter
+          totals={totals}
+          fallbackCurrency={null}
+          reduceMotion={false}
+          size="compact"
+        />,
+      );
+      const figs = figureEls(container);
+      expect(figs).toHaveLength(2);
+      for (const fig of figs) {
+        expect(fig.classList.contains("text-title")).toBe(true);
+        expect(fig.classList.contains("leading-none")).toBe(true);
+        expect(fig.classList.contains("tabular-nums")).toBe(true);
+        expect(fig.classList.contains("min-w-[7ch]")).toBe(true);
+      }
+      const lines = figs[0]?.parentElement?.parentElement;
+      expect(lines?.classList.contains("sm:flex-row")).toBe(true);
+      expect(lines?.classList.contains("sm:gap-4")).toBe(true);
+      expect(lines?.contains(figs[1] ?? null)).toBe(true);
+      expect(screen.getByRole("group", { name: "Saved per year" })).toBeTruthy();
+      expect(srValues(container)).toEqual(expected);
+      await waitFor(() => expect(figures(container)).toEqual(expected));
+    });
+
+    it("full (the default) has no text-title and no sm:flex-row", async () => {
+      const { container } = render(
+        <SavingsCounter totals={totals} fallbackCurrency={null} reduceMotion={false} />,
+      );
+      expect(container.querySelector(".text-title")).toBeNull();
+      expect(container.querySelector('[class*="sm:flex-row"]')).toBeNull();
+      expect(screen.getByRole("group", { name: "Saved per year" })).toBeTruthy();
+      expect(srValues(container)).toEqual(expected);
+      await waitFor(() => expect(figures(container)).toEqual(expected));
+    });
+  });
 });

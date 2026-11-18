@@ -17,6 +17,7 @@ export function PrimaryAction({ disabled, onActivate }: PrimaryActionProps) {
   return (
     <button
       type="button"
+      data-focus="primary-action"
       aria-disabled={disabled ? true : undefined}
       onClick={() => {
         if (!disabled) onActivate();

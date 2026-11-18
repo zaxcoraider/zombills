@@ -15,11 +15,42 @@
   --blood: #e05a5a;
 
   color-scheme: dark;
+
+  /* Spacing scale (pro-polish design, Design tokens). */
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 2.5rem;
+  --space-6: 3rem;
+  --space-8: 4rem;
 }
 
 /* Drop Tailwind's default palette so only the tokens above exist as colour utilities. */
 @theme {
   --color-*: initial;
+}
+
+/* Type and radius scales (pro-polish design, Design tokens). */
+@theme {
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.25rem;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.25rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-lead: 1.25rem;
+  --text-lead--line-height: 1.75rem;
+  --text-title: 1.75rem;
+  --text-title--line-height: 2rem;
+  --text-display: 2.5rem;
+  --text-display--line-height: 1;
+
+  --radius-small: 0.5rem;
+  --radius-control: 0.75rem;
+  --radius-card: 1rem;
+  --radius-stone: 1.5rem;
+  --radius-pill: 9999px;
 }
 
 @theme inline {

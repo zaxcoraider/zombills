@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRIMARY_ACTION_NAME } from "../logic/landing-text";
 
-const US_LABEL = "US bank, signed amounts";
+const US_LABEL = "US bank statement";
 
 type AppComponent = typeof import("../../App").App;
 

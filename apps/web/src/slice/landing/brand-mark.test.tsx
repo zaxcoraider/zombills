@@ -27,6 +27,24 @@ describe("BrandMark", () => {
     expect(cls).toContain("sm:size-[4.5rem]");
   });
 
+  it("with a size is that many pixels square and has no size classes", () => {
+    const { container } = render(<BrandMark size={40} />);
+    const svg = container.querySelector("svg");
+    expect(svg?.getAttribute("width")).toBe("40");
+    expect(svg?.getAttribute("height")).toBe("40");
+    expect(svg?.getAttribute("aria-hidden")).toBe("true");
+    const cls = svg?.getAttribute("class") ?? "";
+    expect(cls).not.toContain("size-14");
+    expect(cls).not.toContain("sm:size-[4.5rem]");
+  });
+
+  it("with no size has no width or height attributes", () => {
+    const { container } = render(<BrandMark />);
+    const svg = container.querySelector("svg");
+    expect(svg?.hasAttribute("width")).toBe(false);
+    expect(svg?.hasAttribute("height")).toBe(false);
+  });
+
   it("keeps ids unique when two marks render", () => {
     const { container } = render(
       <>

@@ -1,3 +1,5 @@
+import { GHOST_H, GHOST_HEADROOM, GHOST_REST_INSET } from "../chrome/footer-tombstone";
+import type { Variants } from "framer-motion";
 import { describe, expect, it } from "vitest";
 import * as motionValues from "./motion";
 import {
@@ -12,6 +14,14 @@ import {
   SHUDDER,
   SINK,
   SINK_EASE,
+  PEEK_GHOST_RISE,
+  PEEK_GHOST_Y,
+  STONE_LIFT,
+  STONE_LIFT_Y,
+  STONE_REST,
+  PEEK_GHOST_VARIANTS,
+  stoneOutlineVariants,
+  stoneVariants,
   TOMBSTONE_RISE_SPRING,
   cardVariants,
   counterFade,
@@ -208,5 +218,69 @@ describe("helper panel", () => {
       expect(JSON.stringify(helperPanelVariants(reduced))).not.toContain("repeat");
     }
     expect(JSON.stringify(COPY_LABEL_FADE)).not.toContain("repeat");
+  });
+});
+
+describe("footer peek", () => {
+  it("lifts the stone 4 px and the ghost 48 px, until it clears the lifted stone top", () => {
+    expect(STONE_LIFT_Y).toBe(-4);
+    expect(PEEK_GHOST_Y).toBe(-48);
+    // Rest inset + body height, less the lift, is how far the ghost must rise to be seen whole.
+    expect(-PEEK_GHOST_Y).toBeGreaterThanOrEqual(GHOST_REST_INSET + GHOST_H - STONE_LIFT_Y);
+    // And it stays inside the control's headroom.
+    expect(-PEEK_GHOST_Y - GHOST_REST_INSET).toBeLessThanOrEqual(GHOST_HEADROOM);
+  });
+
+  it("ends every peek transition within 0.3 s (Req 2.8)", () => {
+    for (const [name, transition] of Object.entries({ STONE_LIFT, PEEK_GHOST_RISE, STONE_REST })) {
+      const delay = "delay" in transition ? transition.delay : 0;
+      expect(delay + transition.duration, name).toBeLessThanOrEqual(0.3);
+      expect(JSON.stringify(transition), name).not.toContain("repeat");
+    }
+  });
+});
+
+describe("footer peek variants", () => {
+  const legs = (variants: Variants) =>
+    Object.values(variants).flatMap((target) => {
+      const t = (target as Dict).transition as Dict | undefined;
+      if (!t) return [];
+      const inner = [t, ...Object.values(t).filter((v) => typeof v === "object")] as Dict[];
+      return inner.map(
+        (leg) => ((leg.delay as number | undefined) ?? 0) + (leg.duration as number),
+      );
+    });
+
+  it("moves the face, outline and ghost by the peek offsets", () => {
+    const face = stoneVariants(false) as Record<string, Dict>;
+    expect(face.rest?.y).toBe(0);
+    expect(face.peek?.y).toBe(STONE_LIFT_Y);
+    const outline = stoneOutlineVariants(false) as Record<string, Dict>;
+    expect(outline.rest).toMatchObject({ y: 0, opacity: 0 });
+    expect(outline.peek).toMatchObject({ y: STONE_LIFT_Y, opacity: 1 });
+    const ghost = PEEK_GHOST_VARIANTS as Record<string, Dict>;
+    expect(ghost.rest?.y).toBe(0);
+    expect(ghost.peek?.y).toBe(PEEK_GHOST_Y);
+  });
+
+  it("has no y under reduced motion and fades the outline in 0.15 s (Req 2.9)", () => {
+    for (const variants of [stoneVariants(true), stoneOutlineVariants(true)]) {
+      for (const target of Object.values(variants)) expect(target).not.toHaveProperty("y");
+    }
+    const outline = stoneOutlineVariants(true) as Record<string, Dict>;
+    expect(outline.peek?.opacity).toBe(1);
+    expect(legs(stoneOutlineVariants(true)).every((d) => d <= 0.15)).toBe(true);
+  });
+
+  it("ends every leg within 0.3 s (Req 2.8)", () => {
+    for (const variants of [
+      stoneVariants(false),
+      stoneOutlineVariants(false),
+      PEEK_GHOST_VARIANTS,
+    ]) {
+      const found = legs(variants);
+      expect(found.length).toBeGreaterThan(0);
+      for (const d of found) expect(d).toBeLessThanOrEqual(0.3);
+    }
   });
 });

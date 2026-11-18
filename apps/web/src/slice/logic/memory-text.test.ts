@@ -30,14 +30,11 @@ import {
 } from "./memory-text";
 
 describe("Landing privacy texts", () => {
-  it("PRIVACY_NOTE and STATEMENT_TIP equal their texts and join into the graveyard-memory Req 1.6 sentence", () => {
+  it("PRIVACY_NOTE and STATEMENT_TIP each equal their text exactly", () => {
     expect(PRIVACY_NOTE).toBe(
       "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard.",
     );
-    expect(STATEMENT_TIP).toBe("A statement covering 2 to 3 months gives the best results.");
-    expect(`${PRIVACY_NOTE} ${STATEMENT_TIP}`).toBe(
-      "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard. A statement covering 2 to 3 months gives the best results.",
-    );
+    expect(STATEMENT_TIP).toBe("Tip: 2 to 3 months of transactions works best.");
   });
 });
 

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { SHARE_TEXT_RIGHT_LIMIT, shareTextLayout } from "../scripts/og-font-paths";
 
 const SRC_DIR = dirname(fileURLToPath(import.meta.url));
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
@@ -17,9 +18,11 @@ function sourceFiles(dir: string): string[] {
 const URL_PATTERN = /\bhttps?:\/\/[^\s"'`)]+/g;
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const LANDING_TEXT_PATH = join(SRC_DIR, "slice", "logic", "landing-text.ts");
-const GITHUB_URLS = [
+/** The three Footer URLs (pro-polish Req 4.6): the two GitHub links and the Kiro link. */
+const FOOTER_URLS = [
   "https://github.com/zaxcoraider/zombills",
   "https://github.com/zaxcoraider/zombills-reaper",
+  "https://kiro.dev",
 ];
 
 function urlSourceFiles(dir: string): string[] {
@@ -35,6 +38,28 @@ function urlSourceFiles(dir: string): string[] {
 /** Every absolute URL in `text`, except the SVG namespace. */
 function absoluteUrls(text: string): string[] {
   return [...text.matchAll(URL_PATTERN)].map((m) => m[0]).filter((url) => url !== SVG_NAMESPACE);
+}
+
+const PUBLIC_DIR = join(SRC_DIR, "..", "public");
+const OG_SVG_PATH = join(PUBLIC_DIR, "og-image.svg");
+const OG_PNG_PATH = join(PUBLIC_DIR, "og-image.png");
+/** The seven colour tokens of `spooky-design.md`, upper case. */
+const TOKEN_HEX = ["#0B0D12", "#1A1F2B", "#ECE6D6", "#8FD694", "#F2994A", "#A99BF2", "#E05A5A"];
+
+/** Every Req 4.3 breach in a preview SVG source. */
+function previewSvgOffences(svg: string): string[] {
+  const found: string[] = [];
+  for (const m of svg.matchAll(/<(text|script|foreignObject|image)\b/g)) found.push(m[0]);
+  for (const m of svg.matchAll(/\b(?:xlink:)?href\s*=\s*["']([^"']*)["']/g)) {
+    if (!(m[1] ?? "").startsWith("#")) found.push(m[0]);
+  }
+  for (const m of svg.matchAll(/url\(\s*([^)]*)\)/g)) {
+    if (!(m[1] ?? "").startsWith("#")) found.push(m[0]);
+  }
+  for (const m of svg.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
+    if (!TOKEN_HEX.includes(m[0].toUpperCase())) found.push(m[0]);
+  }
+  return found;
 }
 
 const LANDING_DIR = join(SRC_DIR, "slice", "landing");
@@ -207,6 +232,37 @@ function scansForStorage(path: string): boolean {
   return !/(\.test\.tsx?|[\\/]test-store\.ts|[\\/]test-arbitraries\.ts)$/.test(path);
 }
 
+/** Art files of pro-polish Req 12.3. Task 17 adds its own. */
+const ART_FILES = [
+  join(SRC_DIR, "slice", "chrome", "footer-tombstone.tsx"),
+  join(SRC_DIR, "slice", "graveyard", "ground-line.tsx"),
+  join(SRC_DIR, "slice", "site-footer.tsx"),
+];
+
+/**
+ * Every Req 12.3 breach in `text`: a `<text`, `<image` or `<foreignObject` element, an `href`
+ * that is not a same-document `#` reference, a hex colour, or an `id=` not taken from `useId`.
+ * `href={href}` is allowed: it is a link's own target prop, not an art reference.
+ */
+function artOffences(text: string): string[] {
+  const found: string[] = [];
+  for (const m of text.matchAll(/<(text|image|foreignObject)\b/g)) found.push(m[0]);
+  for (const m of text.matchAll(/\b(?:xlinkH|h)ref=(\{[^}]*\}|"[^"]*"|'[^']*')/g)) {
+    const value = m[1] ?? "";
+    const local = /^["']#/.test(value) || /^\{`#/.test(value) || value === "{href}";
+    if (!local) found.push(m[0]);
+  }
+  for (const m of text.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) found.push(m[0]);
+  const idNames = new Set(
+    [...text.matchAll(/\bconst\s+(\w+)\s*=\s*useId\(\)/g)].map((m) => m[1] ?? ""),
+  );
+  for (const m of text.matchAll(/\bid=(\{[^}]*\}|"[^"]*"|'[^']*')/g)) {
+    const name = /^\{`?\$?\{?(\w+)/.exec(m[1] ?? "")?.[1];
+    if (!name || !idNames.has(name)) found.push(m[0]);
+  }
+  return found;
+}
+
 describe("static checks", () => {
   it("index.css has no @keyframes (Req 13.1)", () => {
     expect(readFileSync(join(SRC_DIR, "index.css"), "utf8")).not.toMatch(/@keyframes/);
@@ -247,7 +303,7 @@ describe("static checks", () => {
     expect(callers.map((file) => file.slice(SRC_DIR.length + 1))).toEqual(["main.tsx"]);
   });
 
-  it("the only absolute URLs in source are the two GitHub links (landing-polish R11.4)", () => {
+  it("the only absolute URLs in source are the three Footer URLs, in landing-text.ts (pro-polish Req 4.6)", () => {
     const files = urlSourceFiles(SRC_DIR);
     expect(files).toContain(LANDING_TEXT_PATH);
     const found = new Set<string>();
@@ -258,13 +314,13 @@ describe("static checks", () => {
         homes.set(url, [...(homes.get(url) ?? []), file]);
       }
     }
-    expect([...found].sort()).toEqual([...GITHUB_URLS].sort());
-    for (const url of GITHUB_URLS) expect(homes.get(url)).toEqual([LANDING_TEXT_PATH]);
+    expect([...found].sort()).toEqual([...FOOTER_URLS].sort());
+    for (const url of FOOTER_URLS) expect(homes.get(url)).toEqual([LANDING_TEXT_PATH]);
   });
 
-  it("the URL scan reports a third URL and ignores the SVG namespace", () => {
-    const fixture = `a "${GITHUB_URLS[0]}" b 'https://example.com/x' <svg xmlns="${SVG_NAMESPACE}">`;
-    expect(absoluteUrls(fixture)).toEqual([GITHUB_URLS[0], "https://example.com/x"]);
+  it("the URL scan reports an extra URL and ignores the SVG namespace", () => {
+    const fixture = `a "${FOOTER_URLS[0]}" b 'https://example.com/x' <svg xmlns="${SVG_NAMESPACE}">`;
+    expect(absoluteUrls(fixture)).toEqual([FOOTER_URLS[0], "https://example.com/x"]);
   });
 
   it("the focus-ring classes and the scene alphas agree (landing-polish R10.2)", () => {
@@ -355,5 +411,69 @@ describe("static checks", () => {
     for (const file of files) {
       expect(readFileSync(file, "utf8"), file).not.toMatch(/requestAnimationFrame|setInterval/);
     }
+  });
+
+  it("art files draw no text, image or external reference, no hex colour, and ids from useId (Req 12.3)", () => {
+    for (const file of ART_FILES) {
+      const text = readFileSync(file, "utf8");
+      expect(artOffences(text), file).toEqual([]);
+      expect(text, file).toMatch(/aria-hidden="true"/);
+    }
+  });
+
+  it("the art scan reports each kind of breach", () => {
+    const fixture = [
+      "<text>x</text>",
+      "<image />",
+      "<foreignObject />",
+      '<use href="https://example.com/a.svg" />',
+      "fill='#ECE6D6'",
+      'id="pit"',
+      "id={other}",
+    ].join("\n");
+    expect(artOffences(fixture)).toHaveLength(7);
+    const clean =
+      'const id = useId();\n<pattern id={id} />\n<rect fill={`url(#${id})`} />\n<use href="#a" />\n<a href={href} />';
+    expect(artOffences(clean)).toEqual([]);
+  });
+  it("Preview SVG (Req 4.3)", () => {
+    const svg = readFileSync(OG_SVG_PATH, "utf8");
+    expect(previewSvgOffences(svg)).toEqual([]);
+    expect(svg).toMatch(/<svg\b[^>]*\bwidth="1200" height="630"/);
+    expect(svg).toMatch(/<!-- text:start -->[\s\S]*<path[\s\S]*<!-- text:end -->/);
+  });
+
+  it("the preview SVG scan reports each kind of breach", () => {
+    const fixture = [
+      "<text>x</text>",
+      "<script />",
+      "<foreignObject />",
+      "<image />",
+      '<use href="https://example.com/a.svg" />',
+      'fill="url(https://example.com/a)"',
+      'fill="#123456"',
+    ].join("\n");
+    expect(previewSvgOffences(fixture)).toHaveLength(7);
+    expect(previewSvgOffences('<use href="#a" /><rect fill="url(#sky)" stroke="#ece6d6" />')).toEqual([]);
+  });
+
+  it("the preview wordmark and tagline lines end at or before x 1150 (task 10, amended 2026-11-18)", () => {
+    const { wordmark, tagline } = shareTextLayout();
+    expect(tagline).toHaveLength(2);
+    for (const line of [wordmark, ...tagline]) {
+      expect(line.right, line.text).toBeLessThanOrEqual(SHARE_TEXT_RIGHT_LIMIT);
+    }
+  });
+
+  it("Public files (Req 12.2)", () => {
+    expect(readdirSync(PUBLIC_DIR).sort()).toEqual(["favicon.svg", "og-image.png", "og-image.svg"]);
+  });
+
+  it("og-image.png is 1200 × 630 and at most 300 KB (Req 4.2)", () => {
+    const png = readFileSync(OG_PNG_PATH);
+    expect(png.subarray(12, 16).toString("latin1")).toBe("IHDR");
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+    expect(png.length).toBeLessThanOrEqual(300 * 1024);
   });
 });

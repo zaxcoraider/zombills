@@ -12,13 +12,36 @@ afterAll(() => {
 });
 afterEach(cleanup);
 
-function renderScene(fogCleared: boolean, reduceMotion = false, landing = false) {
+function renderScene(
+  fogCleared: boolean,
+  reduceMotion = false,
+  landing = false,
+  skyMoon = !landing,
+) {
   return render(
-    <NightScene fogCleared={fogCleared} reduceMotion={reduceMotion} landing={landing}>
+    <NightScene
+      fogCleared={fogCleared}
+      reduceMotion={reduceMotion}
+      landing={landing}
+      skyMoon={skyMoon}
+    >
       <p>page content</p>
     </NightScene>,
   );
 }
+
+/** The tile row of each fog band, in order: back band, low band, foreground band. */
+function fogTileStyles(container: HTMLElement): (string | null)[] {
+  return Array.from(container.querySelectorAll<HTMLElement>("[data-backdrop-fog]")).map(
+    (band) => band.querySelector<HTMLElement>("[data-fog-tiles]")?.getAttribute("style") ?? null,
+  );
+}
+
+const STILL_POSE = [
+  "fill: var(--bone); transform: translateX(0%);",
+  "fill: var(--bone); transform: translateX(-50%);",
+  "fill: var(--bone); transform: translateX(0%);",
+];
 
 /** Elements whose inline opacity is exactly the given fog target. */
 function withOpacity(container: HTMLElement, value: string): HTMLElement[] {
@@ -65,44 +88,60 @@ describe("NightScene", () => {
     expect(withOpacity(thin.container, "1")).toHaveLength(0);
   });
 
-  it("draws exactly one moon disc when landing is false", () => {
-    const { container } = renderScene(false, false, false);
+  it("draws exactly one moon disc when skyMoon is true", () => {
+    const { container } = renderScene(false, false, false, true);
     expect(container.querySelectorAll("[data-moon-disc]")).toHaveLength(1);
     expect(container.querySelectorAll("[data-moon-halo]")).toHaveLength(1);
     expect(container.querySelectorAll("[data-moon-glow]")).toHaveLength(1);
   });
 
-  it("draws no moon when landing is true", () => {
-    const { container } = renderScene(false, false, true);
+  it("draws no moon when skyMoon is false", () => {
+    const { container } = renderScene(false, false, true, false);
     expect(container.querySelectorAll("[data-moon-disc]")).toHaveLength(0);
+    expect(container.querySelectorAll("[data-moon-halo]")).toHaveLength(0);
+    expect(container.querySelectorAll("[data-moon-glow]")).toHaveLength(0);
   });
 
-  it("holds the fog in its still pose when landing, as reduced motion does", async () => {
-    // Real animation clock here: with skipAnimations the drift jumps to its end pose at once.
-    MotionGlobalConfig.skipAnimations = false;
-    onTestFinished(() => {
-      MotionGlobalConfig.skipAnimations = true;
-    });
-    const styles = (container: HTMLElement) =>
-      Array.from(container.querySelectorAll<HTMLElement>("[data-backdrop-fog]")).map((band) =>
-        band.querySelector<HTMLElement>("[style*='will-change']")?.getAttribute("style"),
+  it.each([true, false])(
+    "holds the fog in its still pose on every view (landing %s)",
+    async (landing) => {
+      // Real animation clock here, so a drift would show as a changed style after the wait. Every
+      // view and both motion settings must give the one STILL_POSE (it replaces the drift control).
+      MotionGlobalConfig.skipAnimations = false;
+      onTestFinished(() => {
+        MotionGlobalConfig.skipAnimations = true;
+      });
+      const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
+
+      const reduced = renderScene(false, true, landing, !landing);
+      await settle();
+      const reducedStyles = fogTileStyles(reduced.container);
+      expect(reducedStyles).toEqual(STILL_POSE);
+      reduced.unmount();
+
+      const full = renderScene(false, false, landing, !landing);
+      expect(fogTileStyles(full.container)).toEqual(STILL_POSE);
+      await settle();
+      expect(fogTileStyles(full.container)).toEqual(STILL_POSE);
+    },
+  );
+
+  it("draws no fixed fence, ridge or Ground with landing false", () => {
+    const { container } = renderScene(false, false, false, true);
+    const fixed = Array.from(container.querySelectorAll<HTMLElement>(".fixed"));
+    expect(fixed).toHaveLength(3);
+    for (const layer of fixed) {
+      // Hills draw on a 1600 × 200 view box; the Fence and the grass tufts fill with patterns.
+      expect(layer.querySelector('svg[viewBox="0 0 1600 200"]')).toBeNull();
+      expect(layer.querySelector("pattern")).toBeNull();
+      const heights = Array.from(layer.querySelectorAll<HTMLElement>("div")).map(
+        (el) => el.style.height,
       );
-    const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
-
-    const still = renderScene(false, true, false);
-    await settle();
-    const stillStyles = styles(still.container);
-    expect(stillStyles).toHaveLength(3);
-    still.unmount();
-
-    // Control: with neither flag the bands drift, so their style leaves the still pose.
-    const moving = renderScene(false, false, false);
-    await settle();
-    expect(styles(moving.container)).not.toEqual(stillStyles);
-    moving.unmount();
-
-    const landing = renderScene(false, false, true);
-    await settle();
-    expect(styles(landing.container)).toEqual(stillStyles);
+      expect(heights).not.toContain("var(--ground-h)");
+    }
+    // Stars, the sky moon, and three fog bands of one filter svg and two tiles each.
+    const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
+    expect(count).toBe(11);
+    expect(container.querySelector("[data-ridge-band]")).toBeNull();
   });
 });

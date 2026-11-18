@@ -1,4 +1,5 @@
 import { FadeIn } from "../fade-in";
+import { FREE_LINE } from "../logic/chrome-text";
 import { HERO_LINE, US_SAMPLE_FILE_NAME } from "../logic/landing-text";
 import { SAMPLES } from "../samples";
 import type { Sample } from "../samples";
@@ -45,14 +46,22 @@ export function Hero({
       <HeroArt motion={motion} />
       <div className="flex flex-col items-start gap-4 lg:col-start-1 lg:row-start-2">
         <PrimaryAction disabled={working} onActivate={() => onChooseSample(usSample)} />
-        {working && workingSourceName !== null ? (
-          <FadeIn key="working">
-            <div className="rounded-2xl bg-fog/95 px-4 py-3">
-              <p>Reading {workingSourceName}…</p>
+        {/* The free line is its own line at every width (Batch A review #2). It stays in the
+            Secondary samples' wrapper so the Hero keeps the height the scene tests measure; see
+            task 15's note. */}
+        <div className="mt-2 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
+          <p className="text-body text-bone sm:basis-full">{FREE_LINE}</p>
+          {working && workingSourceName !== null ? (
+            <div className="sm:basis-full">
+              <FadeIn key="working">
+                <div className="rounded-2xl bg-fog/95 px-4 py-3">
+                  <p>Reading {workingSourceName}…</p>
+                </div>
+              </FadeIn>
             </div>
-          </FadeIn>
-        ) : null}
-        <SecondarySamples disabled={working} onChoose={onChooseSample} />
+          ) : null}
+          <SecondarySamples disabled={working} onChoose={onChooseSample} />
+        </div>
         <PrivacyBadge onReadNote={onReadNote} />
         {returnNotes !== null ? <ReturnNotes {...returnNotes} /> : null}
       </div>

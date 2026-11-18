@@ -9,6 +9,7 @@ import { App } from "../App";
 import { expectUniqueButtonNames } from "./graveyard/test-a11y";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { COPY_FAILED_NOTICE, copiedNotice } from "./logic/cancel-text";
+import { HOME_CONTROL_NAME } from "./logic/chrome-text";
 import { PRIMARY_ACTION_NAME } from "./logic/landing-text";
 import { partsToText, priceRiseParts } from "./logic/label-text";
 import { formatMoney } from "./logic/money";
@@ -37,8 +38,8 @@ vi.mock("./graveyard/burial-earth", async (importOriginal) => {
   };
 });
 
-const US_LABEL = "US bank, signed amounts";
-const UK_LABEL = "UK bank, debit and credit columns";
+const US_LABEL = "US bank statement";
+const UK_LABEL = "UK bank statement";
 
 beforeAll(() => {
   MotionGlobalConfig.skipAnimations = true;
@@ -544,6 +545,7 @@ describe("graveyard flow: unique names and Tab order", () => {
     (document.activeElement as HTMLElement).blur();
 
     const expected = [
+      HOME_CONTROL_NAME,
       "Open the graveyard",
       "Yes, let it rest",
       "No, bury it",

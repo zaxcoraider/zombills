@@ -12,10 +12,12 @@ import {
   type Subscription,
   type UsageAnswer,
 } from "@zombills/core";
-import type { PageAction } from "../page-state";
-import type { ResultsOutcome } from "./analyze-statement";
+import { initialPageModel, pageReducer } from "../page-state";
+import type { PageAction, PageModel } from "../page-state";
+import type { AnalysisOutcome, ResultsOutcome } from "./analyze-statement";
 import { yearlySavingFor, type AnswerRecord } from "./graveyard";
-import type { StoredRecord } from "./graveyard-codec";
+import type { ReadResult, StoredRecord } from "./graveyard-codec";
+import type { PageError } from "./messages";
 
 export const MAX_YEARLY_COST_CENTS = 999_999_9900 * 52;
 
@@ -765,3 +767,104 @@ export const sharedTripleOutcomeArb: fc.Arbitrary<{
     });
     return { graveyard, subscriptions: list };
   });
+
+/** What the store read at load: every `ReadResult` kind, with Graveyards from `pageGraveyardArb`. */
+const pageReadResultArb: fc.Arbitrary<ReadResult> = fc.oneof(
+  fc.constant<ReadResult>({ kind: "empty" }),
+  fc.record({
+    kind: fc.constant("ok" as const),
+    graveyard: pageGraveyardArb,
+    dropped: fc.integer({ min: 0, max: 3 }),
+  }),
+  fc.constant<ReadResult>({ kind: "newer" }),
+  fc.constant<ReadResult>({ kind: "unreadable" }),
+);
+
+/** A no-subscriptions outcome with the same statement facts as `resultsOutcomeOf([])`. */
+const NO_SUBSCRIPTIONS_OUTCOME: AnalysisOutcome = (() => {
+  const empty = resultsOutcomeOf([]);
+  return {
+    kind: "no-subscriptions",
+    transactionCount: empty.transactionCount,
+    rowErrorCount: empty.rowErrorCount,
+    statement: empty.statement,
+    detectedCurrency: empty.detectedCurrency,
+    detectedDateFormat: empty.detectedDateFormat,
+    detectedSignConvention: empty.detectedSignConvention,
+  };
+})();
+
+const errorOutcomeArb: fc.Arbitrary<AnalysisOutcome> = fc.constantFrom<AnalysisOutcome>(
+  { kind: "empty" },
+  { kind: "parse-error", reason: "bad" },
+  {
+    kind: "columns-unreadable",
+    columns: ["A"],
+    found: { date: false, description: false, amount: false },
+  },
+  { kind: "no-transactions", rowErrorCount: 2 },
+);
+
+const pageErrorArb: fc.Arbitrary<PageError> = fc.constantFrom<PageError>(
+  { kind: "too-many-files" },
+  { kind: "too-large" },
+  { kind: "not-csv" },
+  { kind: "unreadable-file" },
+);
+
+/** The Page actions of `pageModelArb`, with ids from `outcome` (and "none", which matches nothing). */
+function pageModelActionArb(outcome: AnalysisOutcome): fc.Arbitrary<PageAction> {
+  const ids = outcome.kind === "results" ? outcome.subscriptions.map((s) => s.id) : [];
+  const idArb = fc.constantFrom("none", ...ids);
+  const runIdArb = fc.integer({ min: 1, max: 3 });
+  const sourceNameArb = fc.constantFrom("a.csv", "b.csv");
+  return fc.oneof(
+    fc.record({ type: fc.constant("start" as const), runId: runIdArb, sourceName: sourceNameArb }),
+    fc.record({ type: fc.constant("finish" as const), runId: runIdArb, outcome: fc.constant(outcome) }),
+    fc.record({ type: fc.constant("fail" as const), runId: runIdArb, error: pageErrorArb }),
+    fc.record({
+      type: fc.constant("reject" as const),
+      sourceName: fc.option(sourceNameArb, { nil: null }),
+      error: pageErrorArb,
+    }),
+    fc.record({ type: fc.constant("keep" as const), id: idArb }),
+    fc.record({ type: fc.constant("bury" as const), id: idArb, reducedMotion: fc.boolean() }),
+    fc.record({
+      type: fc.constant("burial-step" as const),
+      id: idArb,
+      from: fc.constantFrom<"condemned" | "sinking" | "closing">("condemned", "sinking", "closing"),
+    }),
+    fc.record({ type: fc.constant("burial-finish" as const), id: idArb }),
+    fc.record({ type: fc.constant("bury-after-all" as const), id: idArb }),
+    fc.constant({ type: "next" as const }),
+    fc.record({ type: fc.constant("skip" as const), id: idArb }),
+    fc.constant({ type: "open-graveyard" as const }),
+    fc.constant({ type: "back-to-rising" as const }),
+    fc.constant({ type: "back-to-start" as const }),
+    fc.constant({ type: "reset" as const }),
+    fc.record({ type: fc.constant("answer-now" as const), id: idArb }),
+    fc.record({ type: fc.constant("unbury" as const), id: idArb }),
+    fc.constant({ type: "forget" as const }),
+    fc.record({ type: fc.constant("set-memory" as const), on: fc.boolean() }),
+    fc.constant({ type: "go-home" as const }),
+  );
+}
+
+/**
+ * A Page model reached from `initialPageModel` by 0 to 30 actions over one outcome (results,
+ * no-subscriptions or an error), so every view kind and both screens occur (pro-polish P1, P2).
+ */
+export const pageModelArb: fc.Arbitrary<PageModel> = fc
+  .tuple(
+    pageReadResultArb,
+    fc.oneof(
+      pageResultsOutcomeArb.map((o): AnalysisOutcome => o),
+      fc.constant(NO_SUBSCRIPTIONS_OUTCOME),
+      errorOutcomeArb,
+    ),
+  )
+  .chain(([read, outcome]) =>
+    fc
+      .array(pageModelActionArb(outcome), { maxLength: 30 })
+      .map((actions) => actions.reduce(pageReducer, initialPageModel(read))),
+  );

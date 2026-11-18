@@ -23,19 +23,20 @@ describe("landing text", () => {
     expect(text.PRIVACY_BADGE_TEXT).toBe("Your statement never leaves your device.");
     expect(text.READ_PRIVACY_NOTE).toBe("Read the privacy note");
     expect(text.HOW_IT_WORKS_HEADING).toBe("How it works");
-    expect(text.OWN_STATEMENT_HEADING).toBe("Or read your own statement");
-    expect(text.BUILT_WITH_KIRO).toBe("Built with Kiro.");
+    expect(text.OWN_STATEMENT_HEADING).toBe("Or use your own statement");
+    expect(text.BUILT_WITH_KIRO).toBe("Built with Kiro");
     expect(text.REPO_LINK).toEqual({
       text: "Zombills on GitHub",
       href: "https://github.com/zaxcoraider/zombills",
     });
     expect(text.REAPER_LINK).toEqual({
-      text: "The Reaper on GitHub",
+      text: "The Reaper",
       href: "https://github.com/zaxcoraider/zombills-reaper",
     });
     expect(text.REAPER_DESCRIPTION).toBe(
-      "The Reaper is a Kiro Crew app that watches for new statements each month and drafts cancellation emails when you ask.",
+      "A Kiro Crew app that watches for new statements each month and drafts cancellation emails when you ask.",
     );
+    expect(text.KIRO_LINK).toEqual({ text: "Built with Kiro", href: "https://kiro.dev" });
     expect(text.US_SAMPLE_FILE_NAME).toBe("us-signed.csv");
   });
 

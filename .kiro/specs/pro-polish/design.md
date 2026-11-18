@@ -145,7 +145,7 @@ flowchart TD
 | `e2e/pro-polish.spec.ts` | Layout, motion and scene tests of Req 13.6 |
 | `e2e/share-preview.spec.ts` | Req 4.7 |
 | `e2e/og-image.export.spec.ts` | Hand-run export of `og-image.svg` text paths and `og-image.png`; skipped unless `ZB_EXPORT_OG=1` |
-| `e2e/og-font-paths.ts` | WOFF 1 → glyph outline `d` strings, used only by the export spec |
+| `scripts/og-font-paths.ts` | WOFF 1 → glyph outline `d` strings, used by the export spec and the layout static check *(Amended 2026-11-18, Batch A review #8: moved out of `e2e/`, so no `src` test imports from `e2e/`.)* |
 | `public/og-image.svg`, `public/og-image.png` | The Share preview image |
 
 ### Changed files
@@ -416,8 +416,8 @@ DOM, in order (Req 2.1):
 
 ```
 footer.relative.pt-8.pb-8 (column as today; wide → max-w-[1184px])
-├─ div[data-footer-ground] aria-hidden      full-bleed earth, absolute, top: 8px, bottom: 0
-├─ ul[aria-label="Site links"] .relative.grid.grid-cols-2.gap-4.sm:grid-cols-4
+├─ div[data-footer-ground] aria-hidden      full-bleed earth, absolute, top: 24 px above the first row's ground line (amended 2026-11-18), bottom: 0
+├─ ul[aria-label="Site links"] .relative.grid.grid-cols-2.items-end.gap-x-4.gap-y-2.sm:grid-cols-4   (amended 2026-11-18; each li also holds its ground strip, see "Signature moments: 4")
 │  ├─ li > FooterTombstone href=REPO_LINK          describedBy=newTabId
 │  ├─ li > FooterTombstone href=REAPER_LINK        describedBy=`${reaperDescId} ${newTabId}`
 │  ├─ li > FooterTombstone (button) PRIVACY_TOMBSTONE  onActivate=onReadNote
@@ -548,7 +548,7 @@ See "Signature moments: the rising". The answer block (`Yes, let it rest`, `No, 
 4. Ridge: a `#0B0D12` `path` across the bottom 160 px, then the same path in `#1A1F2B` at `fill-opacity="0.58"` (the `GROUND_TOP` mix, built from token hex values and opacity instead of a new hex).
 5. `ellipse` moss glow at (330, 430), rx 220, ry 150, `radialGradient` `#8FD694` 22 % → 0.
 6. The Hero ghost and tombstone, scaled 3.2× from the Hero art (`transform="translate(74 202) scale(3.2)"`), the ghost drawn before the stone, risen to its end pose, with two oval eyes and no mouth.
-7. Wordmark "Zombills" as glyph `path`s, `#ECE6D6`, cap height 120 px, left edge x 620, baseline y 380.
+7. Wordmark "Zombills" as glyph `path`s, `#ECE6D6`, cap height 96 px (font size from the font's cap height), left edge x 620, baseline y 380; if its measured right edge (by advance width) would exceed x 1150, the left edge moves left just enough. The wordmark right edge and each tagline line's right edge are at most x 1150 (export spec and static check, measured with `og-font-paths.ts`). *Amended 2026-11-18: wordmark cap height 96 px (120 px overflowed by about 80 px).*
 8. Tagline "Your bank statement is haunted." as glyph `path`s, `#ECE6D6` at 85 %, 44 px, left edge x 620, baseline y 450; it wraps to two lines if wider than 520 px.
 
 No `<text>`, `<image>`, `<script>`, `<foreignObject>`, `href` or `url()` other than `url(#…)`.
@@ -700,25 +700,36 @@ Every leg ends within 300 ms, inside the 400 ms of Req 3.6. Nothing moves withou
 
 ### 4. The footer graveyard peek
 
-**Work it does:** each stone is a link; the lift and the ghost peeking out from behind it confirm which stone the pointer or focus is on (Req 2.14).
+*Amended 2026-11-18 (visual review): the project owner's review of the built site found that the four stones read as rounded buttons, the 24 × 30 px ghost was tiny and clipped by the footer's top grass line, and "Privacy note" sat lower than the other labels (the `button` centred its content, the `a` did not). This section replaces the earlier structure: each stone is an SVG headstone in the style of `graveyard/tombstone.tsx`, the stones stand on one ground line per row, and the risen ghost is seen whole above the stone top.*
 
-**Structure** (`chrome/footer-tombstone.tsx`):
+**Work it does:** each stone is a link; the lift and the ghost rising from behind it confirm which stone the pointer or focus is on (Req 2.14).
+
+**Structure** (`chrome/footer-tombstone.tsx`, `site-footer.tsx`):
 
 ```
-li
-└─ motion.a | motion.button [data-exempt=footer-tombstone] .relative.isolate.block.w-full.min-w-24.min-h-[5.5rem].pt-[16px].text-center
-   │   initial="rest" whileHover="peek" whileFocus="peek"; BARE_FOCUS
-   ├─ motion.span[data-peek-ghost] aria-hidden .absolute.left-1/2.top-[16px].z-0.-ml-[12px].h-[30px].w-[24px]   (not rendered under reduced motion)
-   │  └─ svg viewBox "0 0 24 30" size-full: path "M0 30 L0 12 A12 12 0 0 1 24 12 L24 30 Z" fill var(--bone) 0.92;
-   │     eyes: ellipse cx 8 / 16, cy 6.5, rx 2, ry 3, fill var(--night)   (eyes set high, so a small peek shows them)
-   ├─ motion.span[data-stone-face] aria-hidden .absolute.inset-x-0.bottom-0.top-[16px].z-[1].rounded-t-stone.rounded-b-small.border.border-bone/50.bg-fog
-   ├─ motion.span[data-stone-outline] aria-hidden .absolute.inset-x-0.bottom-0.top-[16px].z-[3].rounded-t-stone.rounded-b-small.border-2.border-moss   opacity 0 | 1
-   └─ motion.span .relative.z-[2].block.px-2.pb-4.pt-6.text-small.font-semibold.text-bone.[overflow-wrap:anywhere]   the label (HTML text)
+ul.grid.grid-cols-2.items-end.gap-x-4.gap-y-2.sm:grid-cols-4
+└─ li.relative.flex.flex-col
+   ├─ motion.a | motion.button [data-exempt=footer-tombstone] .relative.isolate.mx-auto.block.w-full.min-w-[96px].max-w-[10rem].text-center.focus-visible:outline-none
+   │  │   style padding-top 44px (GHOST_HEADROOM); initial="rest" animate="rest" whileHover="peek" whileFocus="peek"
+   │  └─ span.relative.block   height FOOTER_STONE_HEIGHTS[place] rem: 7.5, 7, 7.25, 6.75
+   │     ├─ motion.span[data-peek-ghost] aria-hidden, absolute, left 50 %, top 8 px, 28 × 34 px, z-0   (not rendered under reduced motion)
+   │     │  └─ svg viewBox "0 0 28 34": domed body with a scalloped hem, fill var(--bone) 0.95; two --night oval eyes; no mouth
+   │     ├─ motion.span[data-stone-face] aria-hidden .absolute.inset-0.z-[1]
+   │     │  └─ svg viewBox "0 0 160 h" (h = height in px at 16 px root), preserveAspectRatio none:
+   │     │     flank (slab shifted −4, 2 in mix(fog 70 %, night)), slab "M8 hV76C8 30 40 4 80 4C120 4 152 30 152 76VhZ"
+   │     │     with the Tombstone face gradient (mix(fog, bone) 18 → 13 → 8 %), feTurbulence grain at 0.35,
+   │     │     an engraved rim 10 units inside (dark cut and moonlit lip), one hairline crack per place, a moonlit edge
+   │     ├─ motion.span[data-stone-outline] aria-hidden .absolute.inset-0.z-[3]   opacity 0 | 1
+   │     │  └─ svg: the same slab path, stroke var(--moss) 2 px non-scaling, drop-shadow glow of moss 55 %
+   │     └─ motion.span[data-stone-label] .engraved.absolute.inset-x-[10%].bottom-[1.75rem].z-[2].flex.min-h-[2.5rem].items-center.justify-center.font-display.text-base.leading-tight.text-bone.[overflow-wrap:anywhere]   the label (HTML text)
+   └─ div aria-hidden .pointer-events-none.relative.-mx-2.-mt-2   the row's ground under this stone
+      ├─ span[data-stone-mound] absolute, centred, h-4, w-[min(11.5rem,96%)], rounded-[50%], mix(fog 85 %, night) with a bone 14 % top rim
+      └─ GroundLine   (grass tufts in front of the stone's base, then the earth edge)
 ```
 
-The ghost band, the ghost and its offsets are in px, not rem, because the ghost moves by px values: at 200 % text a rem band would double and the 8 px peek would no longer show the eyes (design review 1 #18). The label uses `px-2` and `[overflow-wrap:anywhere]`: at 390 × 844 with 200 % text a stone is about 171 px wide, and "Zombills" at 28 px semibold (about 130 px) does not fit inside `px-4` (32 px a side at 200 %) (design review 1 #13). The 12.9 size test covers the Footer at that size.
+The stones are bottom-aligned (`items-end`) and differ in height, so a row reads as a small graveyard on one ground line; each cell's ground strip reaches 8 px into the gaps, so the strips of a row join. The label box has one height and one distance above the stone's bottom on every stone, with its text centred, so one- and two-line labels share a centre line in a row and the `a` and the `button` render it the same way. The label stays HTML text (Req 2.7) in IM Fell English with the `.engraved` text shadow.
 
-The control's own box has a 16 px band above the stone face (`pt-[16px]`, face at `top-[16px]`). The ghost rests at the face's top edge, behind the face, so it is hidden at rest; it peeks up into that band. Everything that moves stays inside the control's border box, so the focus ring, drawn outside that box, is never covered (Req 2.11), and the moving parts stay inside the footer (Req 2.8). The control itself never moves, so its hit area is steady.
+The control's box holds a 44 px band above the stone (`GHOST_HEADROOM`). The ghost rests 8 px below the stone top, behind the face, so it is hidden at rest; on `peek` it rises 48 px, so with the face lifted 4 px its bottom is 2 px above the stone top and the whole ghost is seen. Everything that moves stays inside the control's border box, and nothing above it is clipped: the footer's earth now starts at the first row's ground line, below the stones, so no grass line or border crosses the headroom. The control itself never moves, so its hit area is steady. There is no box ring: the focus ring is the moss outline and glow on the stone's own silhouette, shown by `whileFocus` on `:focus-visible` (Req 2.11).
 
 **Variants:**
 
@@ -726,13 +737,15 @@ The control's own box has a 16 px band above the stone face (`pt-[16px]`, face a
 | --- | --- | --- | --- | --- |
 | stone face, label, moss outline | `y: 0` | `y: −4` | `STONE_LIFT` 0.2 s easeOut | `STONE_REST` 0.2 s easeIn |
 | moss outline | `opacity: 0` | `opacity: 1` | 0.15 s | 0.15 s |
-| Peek ghost | `y: 0` | `y: −12` (it rises 12 px; with the face lifted 4 px, its top 8 px show: crown and both eyes) | `PEEK_GHOST_RISE` 0.25 s after 0.05 s | `STONE_REST` |
+| Peek ghost | `y: 0` | `y: −48` (`PEEK_GHOST_Y`: 8 px rest inset + 34 px body + 4 px lift + 2 px clearance) | `PEEK_GHOST_RISE` 0.25 s after 0.05 s | `STONE_REST` |
 
 The longest leg is 0.3 s (Req 2.8: at most 300 ms). The pose holds while hover or focus holds. Framer Motion's hover gesture ignores touch pointers and its focus gesture runs only on `:focus-visible`, so a tap leaves no lifted stone and a mouse click on a link does not show the focus pose.
 
-**Ground strip** (`div[data-footer-ground]`): full bleed (`left-1/2 w-screen -translate-x-1/2`), from 8 px below the footer's top to its bottom, `aria-hidden`. Its background is `linear-gradient(to bottom, transparent 0, ${GROUND_TOP} 24px, ${mix("fog", 30, "night")} 60%, var(--night) 100%)` with a `GroundLine` grass edge at 24 px. With the footer's `pt-8`, the earth is opaque from the list's top edge, so every stone and its outline stand on `GROUND_TOP`, and the Reaper description and Privacy note sit on earth no lighter than `GROUND_TOP`. The ridge band directly above fades into this strip, so the scene runs from the fence into the earth.
+**Ground strip** (`div[data-footer-ground]`): full bleed (`left-1/2 w-screen -translate-x-1/2`), `aria-hidden`, from 24 px above the first row's ground line (`calc(2rem + 44px + 7.5rem − 24px)`: the footer's `pt-8`, the ghost headroom and the tallest stone) to the footer's bottom. Its background is `linear-gradient(to bottom, transparent 0, ${GROUND_TOP} 24px, ${mix("fog", 30, "night")} 60%, var(--night) 100%)`, so the stones stand on the scene with the earth below them, and the Reaper description and Privacy note sit on earth no lighter than `GROUND_TOP`.
 
-**Reduced motion:** the variants for the face, label and outline have no `y`; the Peek ghost is not rendered; hover and focus fade in the moss outline in 150 ms (Req 2.9).
+**Reduced motion:** the variants for the face, label and outline have no `y`; the Peek ghost is not rendered; hover and focus fade in the moss outline and glow in 150 ms (Req 2.9).
+
+**Tests:** `pro-polish.spec.ts` checks, at 390, 320 and 1280 px, that each row shares its bottom edge, that the label centres of a row match, and that the heights vary; that each stone's face is an SVG path with curves and its label is IM Fell English with a text shadow, inside the face; and, on hover and on keyboard focus, that the ghost is at least 30 px tall, ends above the stone top, is the top element at five points of its box, and is clipped by no ancestor. The touch-tap test taps a link stone with navigation blocked and checks the stone keeps focus with face and ghost at rest. `motion.test.ts` checks that `PEEK_GHOST_Y` clears the lifted stone top and fits the headroom; `contrast.test.ts` has the Footer rows.
 
 ---
 ## Layout
@@ -876,6 +889,7 @@ Tab orders asserted in `pro-polish-page.test.tsx` (from `document.body`, Memory 
 | same | Scene scroll: `results` and the Graveyard view (restored Graveyard of 12 records so it scrolls) at 1280 × 800 and 390 × 844: scroll by `min(400, scrollHeight − innerHeight)` (asserted ≥ 100); `[data-ridge-band]` box moves by that amount ± 1 px; no fixed element with a ridge, fence or ground | 5.1, 5.2 |
 | same | Fog at rest, no reduced motion, `results` and the Graveyard view: each `[data-backdrop-fog]` computed `transform` equal at t and t + 10 s (`page.clock` fast-forward) | 5.3 |
 | same | Stage box: 1280 × 800 and 390 × 844, `ask` and `buried`: `[data-burial-stage] > div` has transparent `background-color`, `border-width` 0, `box-shadow` none; the Stage `Ground` has no `box-shadow` and its last gradient layer's first stop is `transparent` with the next stop ≥ 24 px further on | 5.4, 5.6 |
+| same | Stage ground *(amended 2026-11-18, visual review)*: 390 × 844, results, reduced motion: from 8 px under the ground line to 12 px past the Stage's bottom, no 16 × 8 px block across the Stage's width has a mean luma more than 6 levels (0 to 255) below the sky in the same column just under the Stage. The Stage `Ground`'s earth is a veil of `GROUND_TOP` at 30 % that fades back to transparent, not an opaque band ending in `--night` | 5.4, 5.6 |
 | same | Wide layout: 1280 × 800 and 1600 × 900, Stage box right edge < summary box left edge, no overlap; at 1280 × 800 a Graveyard of 3 buried records has 3 tombstones sharing the first row's `y` | 7.1, 7.2, 7.6 |
 | same | Sway ends: 1280 × 800, no reduced motion; record `t0` when the first card heading has focus; with the mouse away from the card, at `t0 + 2.5 s` the sway layer's computed `transform` is not identity (the sway ran); at `t0 + 5.5 s` and `t0 + 6.0 s` the sway layer's computed `transform` is `none` or identity, and `document.getAnimations()` holds no running animation targeting it | 10.4, 10.7 |
 | same | Sizes: 320 × 568 and 390 × 844 at 200 % root font, for the Landing view, `results`, the Graveyard view, `error` and `no-subscriptions`: `scrollWidth ≤ innerWidth`, and no text range outside its nearest clipping ancestor (the landing-polish helper in `content-boxes.ts`) | 12.9 |
@@ -927,7 +941,8 @@ Each row changes how a control is found (name, role, place), opens a disclosure 
 | `landing-page.test.tsx` lines 514–535 "Non-landing views keep today's layout" | Gate `h2` "Or try a sample statement" with four buttons; "Read another statement" on `results` and the Graveyard view; `main` has `max-w-[640px]` | Renamed "Non-landing views": the list "Sample statements" holds four buttons named by the new labels (after opening "Try another statement" where it is shown); no heading "Or try a sample statement"; the `h2` "Try another statement" on every Non-landing view; `main` has `max-w-[640px]`, and on `results` and the Graveyard view also `lg:max-w-[1184px]` | 3.1, 3.7, 3.11, 7.1 |
 | `logic/landing-text.test.ts` lines 26–33 | `OWN_STATEMENT_HEADING` "Or read your own statement"; `BUILT_WITH_KIRO` "Built with Kiro."; Reaper text "The Reaper on GitHub" | "Or use your own statement"; "Built with Kiro"; "The Reaper"; plus `KIRO_LINK` | 2.13, 11.5 |
 | `logic/memory-text.test.ts` lines 33–38 | `STATEMENT_TIP` old text, and the join equals the graveyard-memory Req 1.6 sentence | `STATEMENT_TIP` equals "Tip: 2 to 3 months of transactions works best."; `PRIVACY_NOTE` equals its text; the join assertion is replaced by those two exact assertions (the join is no longer true by design) | landing-polish 8.7 note, 13.1 |
-| `graveyard/night-scene.test.tsx` lines 68–90 | `landing={false}` draws one moon disc; `landing` holds the fog still | Renders gain `skyMoon`. "draws exactly one moon disc when `skyMoon` is true", "draws no moon when `skyMoon` is false"; "holds the fog in its still pose on every view", run with `landing` true and false | 5.1, 5.3 |
+| `graveyard/night-scene.test.tsx` lines 68–90 | `landing={false}` draws one moon disc; `landing` holds the fog still, against a control step in which `landing={false}` without reduced motion drifts | Renders gain `skyMoon`. "draws exactly one moon disc when `skyMoon` is true", "draws no moon when `skyMoon` is false"; "holds the fog in its still pose on every view", run with `landing` true and false. The drift control step is replaced by a check that every view, with and without reduced motion, gives the same exact still pose (each band's tile row at `translateX(0%)`, `translateX(-50%)`, `translateX(0%)`), before and after 150 ms of the real animation clock, since no view drifts any more (amended 2026-11-18) | 5.1, 5.3 |
+| `landing-page.test.tsx` lines 564–593, the three cases "keep the fixed Hills and Fence and have no ridge band", "keep the fixed Ground with its inset line", "keep the root sky background and no fixed-layer background" in "Non-landing views keep today's layout" | No `[data-ridge-band]`; fixed layers hold `SVG_COUNT` 14 svgs; a fixed `Ground` with `height: var(--ground-h)` and an inset line; root background `SKY_BACKGROUND`, no fixed-layer background | "have exactly one ridge band, in the flow before the footer": exactly one `[data-ridge-band]`, not inside a `.fixed` layer or `main`, its wrapper the element directly before the `footer`. "draw no Hills, Fence or Ground in a fixed layer": no fixed layer contains the Hills (`svg[viewBox="0 0 1600 200"]`), the Fence or grass tufts (`pattern`), or a `div` with `height: var(--ground-h)`; fixed layers hold exactly `SVG_COUNT` = 11 svgs (Stars, the sky moon, three fog bands of one filter svg and two tiles). "use the night root and the Landing sky on the fixed layer": root background `var(--night)`, first fixed layer background `LANDING_SKY_BACKGROUND` (amended 2026-11-18) | 5.1, 5.2 |
 | `graveyard/undead-card.test.tsx` cases that find "Yes, let it rest" / "No, bury it" during `condemned` or `sinking`, if any | Buttons present | Buttons absent; the same case checks they are present in `undead` | 6.3 |
 | `graveyard/rising-view.test.tsx` cases that find "Next" below the Stage while `buried` | "Next" after the Stage | "Next" is the last control inside the region "Seal the grave: <name>" | 8.4 |
 

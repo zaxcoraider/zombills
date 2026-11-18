@@ -83,7 +83,7 @@ export function BurialStage({
       className="scroll-mt-4"
       {...(burying ? { "aria-label": `Burying ${displayName}` } : {})}
     >
-      <div className="relative isolate overflow-clip rounded-2xl" style={STAGE_STYLE}>
+      <div className="relative isolate overflow-clip" style={STAGE_STYLE}>
         {/* Clipped at the ground line, so whatever is below it is underground. */}
         <div
           className="relative flex items-end justify-center overflow-clip px-3"

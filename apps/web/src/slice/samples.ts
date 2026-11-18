@@ -10,12 +10,12 @@ export interface Sample {
 }
 
 export const SAMPLES: readonly Sample[] = [
-  { fileName: "us-signed.csv", label: "US bank, signed amounts", text: usSigned },
+  { fileName: "us-signed.csv", label: "US bank statement", text: usSigned },
   {
     fileName: "uk-debit-credit.csv",
-    label: "UK bank, debit and credit columns",
+    label: "UK bank statement",
     text: ukDebitCredit,
   },
-  { fileName: "eu-semicolon.csv", label: "EU bank, semicolons", text: euSemicolon },
-  { fileName: "with-preamble.csv", label: "Statement with a header block", text: withPreamble },
+  { fileName: "eu-semicolon.csv", label: "European bank statement", text: euSemicolon },
+  { fileName: "with-preamble.csv", label: "Statement with extra top lines", text: withPreamble },
 ];

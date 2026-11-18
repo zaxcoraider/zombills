@@ -1,6 +1,8 @@
 import { useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Dispatch } from "react";
+import { CompactHeader } from "./chrome/compact-header";
+import { LeaveQuestion } from "./chrome/leave-question";
 import { DropZone } from "./drop-zone";
 import { ErrorView } from "./error-view";
 import { FadeIn } from "./fade-in";
@@ -9,7 +11,6 @@ import { GraveyardView } from "./graveyard/graveyard-view";
 import { RidgeBand } from "./graveyard/graveyard-backdrop";
 import { NightScene } from "./graveyard/night-scene";
 import { RisingView } from "./graveyard/rising-view";
-import { SavingsCounter } from "./graveyard/savings-counter";
 import { useBurialFallback } from "./graveyard/use-burial-fallback";
 import { AnnounceContext } from "./graveyard/use-announce";
 import { FocusRequestContext, focusAndReveal, focusKey } from "./graveyard/use-focus-request";
@@ -25,7 +26,7 @@ import { LandingBanner } from "./landing/landing-banner";
 import { OwnStatement } from "./landing/own-statement";
 import { NoSubscriptionsView } from "./no-subscriptions-view";
 import { restoredLine } from "./logic/memory-text";
-import { initialPageModel, isLandingView, pageReducer } from "./page-state";
+import { initialPageModel, isLandingView, pageReducer, shouldAskBeforeLeaving } from "./page-state";
 import type { PageAction, PageModel } from "./page-state";
 import { SampleButtons } from "./sample-buttons";
 import { SiteFooter } from "./site-footer";
@@ -122,6 +123,9 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
   const nextRunId = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
   const privacyNoteRef = useRef<HTMLParagraphElement>(null);
+  const homeRef = useRef<HTMLButtonElement>(null);
+  // The Leave question (Req 1.4 to 1.6); `seq` rises on every Home press while it is open.
+  const [leave, setLeave] = useState<{ open: boolean; seq: number }>({ open: false, seq: 0 });
   const handledSeq = useRef(0);
   const claim = useCallback((seq: number) => {
     if (seq <= handledSeq.current) return false;
@@ -222,6 +226,33 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
     dispatch({ type: "reset" });
   }
 
+  const homeDisabled = view.kind === "working";
+  function onHome() {
+    if (homeDisabled) return;
+    if (shouldAskBeforeLeaving(model)) setLeave((l) => ({ open: true, seq: l.seq + 1 }));
+    else dispatch({ type: "go-home" });
+  }
+
+  function onStay() {
+    setLeave((l) => ({ ...l, open: false }));
+    homeRef.current?.focus();
+  }
+
+  // A change of state kind or screen closes the Leave question, not a step within one kind
+  // (Req 1.4). Focus inside it moves to the Home control; the go-home focus request lands later.
+  useEffect(() => {
+    if (!leave.open) return;
+    // While open, the Leave question is `main`'s first child (it renders before the order-1 slot).
+    const question = mainRef.current?.firstElementChild ?? null;
+    const active = document.activeElement;
+    if (question !== null && active !== null && question.contains(active)) {
+      homeRef.current?.focus();
+    }
+    setLeave((l) => ({ ...l, open: false }));
+    // `leave.open` is left out of the dependencies on purpose: opening the question must not
+    // run this effect, or it would close the question at once.
+  }, [view.kind, model.screen]);
+
   const landing = isLandingView(model);
   const onReadNote = useCallback(() => {
     if (privacyNoteRef.current !== null) focusAndReveal(privacyNoteRef.current);
@@ -241,7 +272,12 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
   return (
     <FocusRequestContext.Provider value={focusValue}>
       <AnnounceContext.Provider value={announceValue}>
-        <NightScene fogCleared={haunt.fogCleared} reduceMotion={reduceMotion} landing={landing}>
+        <NightScene
+          fogCleared={haunt.fogCleared}
+          reduceMotion={reduceMotion}
+          landing={landing}
+          skyMoon={!landing}
+        >
           {landing ? (
             <>
               <LandingBanner haunt={haunt} reduceMotion={reduceMotion} />
@@ -270,24 +306,31 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
                 <HowItWorks />
                 <OwnStatement disabled={working} onFiles={onFiles} />
               </main>
-              <SiteFooter noteRef={privacyNoteRef} wide />
+              <SiteFooter
+                noteRef={privacyNoteRef}
+                wide
+                reduceMotion={reduceMotion}
+                onReadNote={onReadNote}
+              />
             </>
           ) : (
             <>
-              <div className="mx-auto max-w-[640px] px-4 pt-8">
-                <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-fog/95 p-6">
-                  <div className="flex flex-col gap-2">
-                    <h1 className="font-display text-4xl">Zombills</h1>
-                    <p>Your bank statement is haunted.</p>
-                  </div>
-                  <SavingsCounter
-                    totals={haunt.savings}
-                    fallbackCurrency={haunt.counterFallbackCurrency}
-                    reduceMotion={reduceMotion}
-                  />
-                </header>
-              </div>
+              <CompactHeader
+                haunt={haunt}
+                reduceMotion={reduceMotion}
+                wide={false}
+                homeDisabled={homeDisabled}
+                homeRef={homeRef}
+                onHome={onHome}
+              />
               <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
+                {leave.open ? (
+                  <LeaveQuestion
+                    seq={leave.seq}
+                    onStay={onStay}
+                    onLeave={() => dispatch({ type: "go-home" })}
+                  />
+                ) : null}
                 <div className="order-1">
                   {onGraveyard ? (
                     <GraveyardView
@@ -339,7 +382,15 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
                   ) : null}
                 </div>
               </main>
-              <SiteFooter noteRef={privacyNoteRef} wide={false} />
+              <div className="w-full">
+                <RidgeBand />
+              </div>
+              <SiteFooter
+                noteRef={privacyNoteRef}
+                wide={false}
+                reduceMotion={reduceMotion}
+                onReadNote={onReadNote}
+              />
             </>
           )}
           <p role="status" className="sr-only">

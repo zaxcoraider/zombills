@@ -5,8 +5,15 @@ import { useId } from "react";
  * h1 beside it carries the name, so the mark is hidden from assistive technology, is not
  * focusable and has no text. Its only `url()` values point at its own ids; it has no external
  * reference. The colours are the mark's own, drawn once and not themed.
+ *
+ * With no `size` the mark is 56 px on phones and 72 px from `sm` (the Landing title); with a
+ * `size` it is that many pixels square (the Home control passes 40, pro-polish Req 1.2).
  */
-export function BrandMark() {
+export interface BrandMarkProps {
+  size?: number;
+}
+
+export function BrandMark({ size }: BrandMarkProps = {}) {
   const id = useId();
   const clipId = `${id}-clip`;
   const glowId = `${id}-glow`;
@@ -16,7 +23,9 @@ export function BrandMark() {
       aria-hidden="true"
       focusable="false"
       data-brand-mark=""
-      className="size-14 shrink-0 sm:size-[4.5rem]"
+      width={size}
+      height={size}
+      className={size === undefined ? "size-14 shrink-0 sm:size-[4.5rem]" : "shrink-0"}
     >
       <defs>
         <clipPath id={clipId}>

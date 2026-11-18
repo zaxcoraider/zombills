@@ -96,10 +96,8 @@ async function setUpState(page: Page, state: State): Promise<void> {
       await page.evaluate(() => document.fonts.ready);
       // Relative to the current fake time, so a slow load cannot leave the pause in the past.
       await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
-      await page.getByRole("button", { name: "UK bank, debit and credit columns" }).click();
-      await expect(
-        page.getByRole("main").getByText("Reading UK bank, debit and credit columns…"),
-      ).toBeVisible();
+      await page.getByRole("button", { name: "UK bank statement" }).click();
+      await expect(page.getByRole("main").getByText("Reading UK bank statement…")).toBeVisible();
       return;
   }
 }
@@ -203,9 +201,9 @@ const FOLD_SIZES = new Set([
 
 const PRIMARY_NAME = "Summon the undead with a sample US bank statement";
 const OTHER_SAMPLES = [
-  "UK bank, debit and credit columns",
-  "EU bank, semicolons",
-  "Statement with a header block",
+  "UK bank statement",
+  "European bank statement",
+  "Statement with extra top lines",
 ] as const;
 
 async function seedStore(page: Page, records: readonly unknown[]): Promise<void> {
@@ -246,7 +244,7 @@ async function openLanding(page: Page, state: LandingState): Promise<void> {
   // paused clock holds requestAnimationFrame, so the run waits and the page stays `working`.
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
   await page.getByRole("button", { name: PRIMARY_NAME }).click();
-  await expect(page.getByRole("main").getByText("Reading US bank, signed amounts…")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Reading US bank statement…")).toBeVisible();
   await settle(page);
 }
 
@@ -712,7 +710,12 @@ test.describe("landing layout", () => {
       ]),
       ["Read the privacy note", page.getByRole("button", { name: "Read the privacy note" })],
       ["Zombills on GitHub", page.getByRole("link", { name: "Zombills on GitHub" })],
-      ["The Reaper on GitHub", page.getByRole("link", { name: "The Reaper on GitHub" })],
+      ["The Reaper", page.getByRole("link", { name: "The Reaper", exact: true })],
+      [
+        "Privacy note",
+        page.getByRole("contentinfo").getByRole("button", { name: "Privacy note", exact: true }),
+      ],
+      ["Built with Kiro", page.getByRole("link", { name: "Built with Kiro", exact: true })],
       ["Primary action", page.getByRole("button", { name: PRIMARY_NAME })],
       ["drop area", page.locator('[data-focus="drop-zone"]')],
       ["Choose a file", page.getByRole("button", { name: "Choose a file" })],
@@ -733,41 +736,38 @@ test.describe("footer layout", () => {
     { width: 390, height: 844 },
     { width: 1280, height: 720 },
   ]) {
-    test(`footer reaper description on its own line ${width}x${height}`, async ({ page }) => {
+    test(`footer reaper description spans the row under the stones ${width}x${height}`, async ({
+      page,
+    }) => {
       await page.setViewportSize({ width, height });
       await openLanding(page, "empty");
       const where = `${width}x${height}`;
       const footer = page.getByRole("contentinfo");
       await footer.scrollIntoViewIfNeeded();
-      const repoLink = footer.getByRole("link", { name: "Zombills on GitHub" });
-      const reaperLink = footer.getByRole("link", { name: "The Reaper on GitHub" });
-      const repoBox = await repoLink.boundingBox();
-      const linkBox = await reaperLink.boundingBox();
-      expect(repoBox, `${where}: Zombills link box`).not.toBeNull();
-      expect(linkBox, `${where}: Reaper link box`).not.toBeNull();
-      if (repoBox === null || linkBox === null) return;
-      const rect = await reaperLink.evaluate((link) => {
-        const span = link.parentElement?.querySelector("span");
-        const text = span?.firstChild;
-        if (!text) return null;
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        const first = range.getClientRects()[0];
-        return first ? { left: first.left, top: first.top } : null;
+      const list = footer.getByRole("list", { name: "Site links" });
+      await expect(footer.getByRole("link", { name: "The Reaper", exact: true })).toBeVisible();
+      const listBox = await list.boundingBox();
+      expect(listBox, `${where}: list box`).not.toBeNull();
+      if (listBox === null) return;
+      const stoneBottoms = await list
+        .locator(':scope > li > [data-exempt="footer-tombstone"]')
+        .evaluateAll((stones) => stones.map((stone) => stone.getBoundingClientRect().bottom));
+      expect(stoneBottoms, `${where}: four stones`).toHaveLength(4);
+      const description = footer.locator("p", {
+        hasText: "A Kiro Crew app that watches for new statements each month",
       });
-      expect(rect, `${where}: description first client rect`).not.toBeNull();
-      if (rect === null) return;
+      const descBox = await description.boundingBox();
+      expect(descBox, `${where}: description box`).not.toBeNull();
+      if (descBox === null) return;
+      for (const bottom of stoneBottoms) {
+        expect(
+          descBox.y,
+          `${where}: description top ${descBox.y} vs stone bottom ${bottom}`,
+        ).toBeGreaterThanOrEqual(bottom);
+      }
       expect(
-        rect.top,
-        `${where}: description top ${rect.top} vs link bottom ${linkBox.y + linkBox.height}`,
-      ).toBeGreaterThanOrEqual(linkBox.y + linkBox.height - 0.5);
-      expect(
-        Math.abs(rect.left - linkBox.x),
-        `${where}: description left ${rect.left} vs link left ${linkBox.x}`,
-      ).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs(repoBox.x - linkBox.x),
-        `${where}: Zombills link left ${repoBox.x} vs Reaper link left ${linkBox.x}`,
+        Math.abs(descBox.width - listBox.width),
+        `${where}: description width ${descBox.width} vs list width ${listBox.width}`,
       ).toBeLessThanOrEqual(1);
     });
   }
@@ -1210,36 +1210,34 @@ test.describe("ridge band", () => {
     { width: 390, height: 844 },
     { width: 1280, height: 720 },
   ]) {
-    test(`results view keeps the fixed fence and has no ridge band ${width}x${height}`, async ({ page }) => {
+    test(`results view has the ridge band in the flow and no fixed fence ${width}x${height}`, async ({ page }) => {
       await page.setViewportSize({ width, height });
       await openLanding(page, "empty");
       await startUsSample(page);
       await expect(page.getByRole("heading", { name: "Read another statement" })).toBeVisible();
       await settle(page);
       const where = `${width}x${height}`;
-      await expect(page.locator("[data-ridge-band]"), `${where}: no ridge band`).toHaveCount(0);
+      await expect(page.locator("[data-ridge-band]"), `${where}: one ridge band`).toHaveCount(1);
       const m = await page.evaluate(() => {
-        const layer = Array.from(document.querySelectorAll<HTMLElement>(".fixed")).find((el) =>
-          el.querySelector("svg path[d^='M16 6l']"),
-        );
-        const fence = layer?.querySelector("svg pattern")?.closest("svg") ?? null;
-        const ground = Array.from(document.querySelectorAll<HTMLElement>(".fixed div")).find(
-          (el) => el.style.height === "var(--ground-h)",
+        const band = document.querySelector<HTMLElement>("[data-ridge-band]");
+        const footer = document.querySelector("footer");
+        const fixed = Array.from(document.querySelectorAll<HTMLElement>("body *")).filter(
+          (el) => getComputedStyle(el).position === "fixed",
         );
         return {
-          fenceBottom: fence?.getBoundingClientRect().bottom ?? null,
-          groundHeight: ground?.getBoundingClientRect().height ?? null,
-          inner: window.innerHeight,
+          position: band === null ? null : getComputedStyle(band).position,
+          beforeFooter:
+            band !== null &&
+            footer !== null &&
+            (band.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+          fixedFences: fixed.filter((el) => el.querySelector("svg path[d^='M16 6l']") !== null)
+            .length,
         };
       });
-      expect(m.fenceBottom, `${where}: Fence SVG found in the fixed backdrop`).not.toBeNull();
-      expect(m.groundHeight, `${where}: Ground band found`).not.toBeNull();
-      if (m.fenceBottom === null || m.groundHeight === null) return;
-      const expected = m.inner - m.groundHeight;
-      expect(
-        Math.abs(m.fenceBottom - expected),
-        `${where}: Fence bottom ${m.fenceBottom} vs innerHeight - ground ${expected}`,
-      ).toBeLessThanOrEqual(2);
+      expect(m.position, `${where}: ridge band position`).not.toBeNull();
+      expect(m.position, `${where}: ridge band is not fixed`).not.toBe("fixed");
+      expect(m.beforeFooter, `${where}: ridge band before the footer`).toBe(true);
+      expect(m.fixedFences, `${where}: fixed elements containing the fence`).toBe(0);
     });
   }
 });

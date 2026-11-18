@@ -20,7 +20,13 @@ import {
   POSSESSED_TRIAL_TRAP,
   TRIAL_TRAP,
 } from "./graveyard/test-fixtures";
-import { INITIAL_PAGE_MODEL, initialPageModel, isLandingView, pageReducer } from "./page-state";
+import {
+  INITIAL_PAGE_MODEL,
+  initialPageModel,
+  isLandingView,
+  pageReducer,
+  shouldAskBeforeLeaving,
+} from "./page-state";
 import type { MemoryModel, PageAction, PageModel, RisingModel } from "./page-state";
 
 const FACTS = {
@@ -1345,4 +1351,77 @@ describe("pageReducer: re-attach (Req 6.9 row 1)", () => {
       expect.objectContaining({ id: MUSIC_1199.id, answer: "still-using", carriedOver: false }),
     ]);
   });
+});
+
+describe("pageReducer: go-home (pro-polish Req 1.3, 1.11)", () => {
+  const GO_HOME: PageAction = { type: "go-home" };
+  const KEPT = pageReducer(risingModel(), { type: "keep", id: headOf(risingModel()) });
+  const KEPT_GRAVEYARD = KEPT.graveyard;
+  const MEMORY = { ...MEMORY_ON, leftOut: 2 };
+  function filled(model: PageModel): PageModel {
+    return { ...model, graveyard: KEPT_GRAVEYARD, memory: MEMORY };
+  }
+
+  it("leaves the Landing view unchanged", () => {
+    expect(pageReducer(IDLE, GO_HOME)).toBe(IDLE);
+  });
+
+  it("leaves working unchanged in both origins", () => {
+    const other: PageModel = {
+      ...WORKING,
+      view: { kind: "working", sourceName: "a.csv", origin: "other" },
+    };
+    expect(pageReducer(WORKING, GO_HOME)).toBe(WORKING);
+    expect(pageReducer(other, GO_HOME)).toBe(other);
+  });
+
+  const leaving: [string, PageModel][] = [
+    ["idle on graveyard", onGraveyard(filled(IDLE))],
+    ["results on main", { ...KEPT, memory: MEMORY }],
+    ["results on graveyard", onGraveyard({ ...KEPT, memory: MEMORY })],
+    ["error on main", filled(ERROR_MODEL)],
+    ["error on graveyard", onGraveyard(filled(ERROR_MODEL))],
+    ["no-subscriptions on main", filled(NO_SUBS_MODEL)],
+    ["no-subscriptions on graveyard", onGraveyard(filled(NO_SUBS_MODEL))],
+  ];
+  for (const [name, model] of leaving) {
+    it(`goes home from ${name} and keeps the Graveyard and Memory`, () => {
+      const next = pageReducer(model, GO_HOME);
+      expect(next.view).toEqual({ kind: "idle" });
+      expect(next.screen).toBe("main");
+      expect(next.event).toBeNull();
+      expect(next.focus).toEqual({
+        target: "primary-action",
+        id: null,
+        seq: (model.focus?.seq ?? 0) + 1,
+      });
+      expect(next.graveyard).toEqual(model.graveyard);
+      expect(next.graveyard.length).toBeGreaterThan(0);
+      expect(next.memory).toEqual(model.memory);
+      expect(isLandingView(next)).toBe(true);
+    });
+  }
+});
+
+describe("shouldAskBeforeLeaving (pro-polish Req 1.10)", () => {
+  const OTHER_WORKING: PageModel = {
+    ...WORKING,
+    view: { kind: "working", sourceName: "a.csv", origin: "other" },
+  };
+  const views: [string, PageModel, boolean][] = [
+    ["idle", IDLE, false],
+    ["working", WORKING, false],
+    ["working (other)", OTHER_WORKING, false],
+    ["results", RESULTS_MODEL, true],
+    ["error", ERROR_MODEL, false],
+    ["no-subscriptions", NO_SUBS_MODEL, false],
+  ];
+  for (const [name, model, ask] of views) {
+    for (const screen of ["main", "graveyard"] as const) {
+      it(`is ${String(ask)} for ${name} on ${screen}`, () => {
+        const onScreen: PageModel = { ...model, screen };
+        expect(shouldAskBeforeLeaving(onScreen)).toBe(ask);
+      });
+    }
+  }
 });
