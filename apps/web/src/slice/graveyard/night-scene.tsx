@@ -31,6 +31,7 @@ export function NightScene({ fogCleared, reduceMotion, landing, children }: Nigh
           fogCleared={fogCleared}
           fogStill={fogStill}
           moon={!landing}
+          ridge={!landing}
         />
       </div>
       <div className="pointer-events-none fixed inset-0" aria-hidden="true">

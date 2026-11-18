@@ -6,6 +6,7 @@ import { ErrorView } from "./error-view";
 import { FadeIn } from "./fade-in";
 import { nextFrame, nextTask } from "./frame";
 import { GraveyardView } from "./graveyard/graveyard-view";
+import { RidgeBand } from "./graveyard/graveyard-backdrop";
 import { NightScene } from "./graveyard/night-scene";
 import { RisingView } from "./graveyard/rising-view";
 import { SavingsCounter } from "./graveyard/savings-counter";
@@ -263,6 +264,9 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
                     onOpen: () => dispatch({ type: "open-graveyard" }),
                   }}
                 />
+                <div className="relative left-1/2 -my-6 w-screen shrink-0 -translate-x-1/2">
+                  <RidgeBand />
+                </div>
                 <HowItWorks />
                 <OwnStatement disabled={working} onFiles={onFiles} />
               </main>

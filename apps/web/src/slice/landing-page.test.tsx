@@ -30,6 +30,8 @@ const DROP_AREA_NAME = "Drop area: choose or drop a CSV statement";
 const THREE_ROW_FILE =
   "Date,Description,Amount\n2026-01-03,CORNER BAKERY,-4.50\n2026-01-09,HARDWARE DEPOT,-23.10\n2026-01-20,BOOK NOOK,-12.00\n";
 
+const SVG_COUNT = 14;
+
 const NETFLIX_BURIED = {
   id: "sub:USD:monthly:*:netflix",
   merchant: "Netflix",
@@ -198,6 +200,48 @@ describe("Landing view: structure", () => {
     expect(classes).not.toContain("self-start");
   });
 
+  it("the Hero art ground fades out", () => {
+    const { container } = renderFirstVisit();
+    const art = container.querySelector("[data-hero-art]");
+    if (art === null) throw new Error("expected the Hero art");
+    const maskOf = (el: Element): Element => {
+      for (let node = el.parentElement; node !== null && node !== art.parentElement; node = node.parentElement) {
+        const value = node.getAttribute("mask");
+        const match = value === null ? null : /^url\(#(.+)\)$/.exec(value);
+        if (match !== null) {
+          const mask = Array.from(art.querySelectorAll("mask")).find((m) => m.id === match[1]);
+          if (mask === undefined) throw new Error(`no mask ${match[1]} inside the Hero art`);
+          return mask;
+        }
+      }
+      throw new Error("no masked ancestor");
+    };
+    const ground = Array.from(art.querySelectorAll("path")).find((p) =>
+      (p.getAttribute("d") ?? "").startsWith("M0 120"),
+    );
+    if (ground === undefined) throw new Error("expected the ground path");
+    const masks = new Set([
+      maskOf(ground),
+      maskOf(art.querySelector(".zb-fog-a") as Element),
+      maskOf(art.querySelector(".zb-fog-b") as Element),
+    ]);
+    expect(masks.size).toBe(1);
+    const mask = Array.from(masks)[0];
+    if (mask === undefined) throw new Error("expected a mask");
+    const stops = Array.from(mask.querySelectorAll("stop"));
+    expect(stops.length).toBeGreaterThan(0);
+    for (const stop of stops) {
+      expect(stop.getAttribute("stop-color") ?? "").toMatch(/^var\(--/);
+    }
+    expect(stops.some((stop) => Number(stop.getAttribute("stop-opacity")) === 0)).toBe(true);
+
+    cleanup();
+    const first = renderFirstVisit().container.querySelector("[data-hero-art] mask");
+    const second = render(<App />).container.querySelectorAll("[data-hero-art] mask");
+    const ids = [first?.id, ...Array.from(second).map((m) => m.id)];
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("the Banner drops its minimum height from lg up", () => {
     renderFirstVisit();
     const header = Array.from(screen.getByRole("banner").classList);
@@ -303,6 +347,21 @@ describe("Landing view: badge, steps and own statement", () => {
     expect(container.querySelector('input[type="file"]')?.getAttribute("accept")).toBe(
       ".csv,text/csv",
     );
+  });
+
+  it("the ridge band sits between the Hero and How it works on the Landing view", () => {
+    const { container } = renderFirstVisit();
+    const bands = container.querySelectorAll("[data-ridge-band]");
+    expect(bands).toHaveLength(1);
+    const band = bands[0] as HTMLElement;
+    expect(band.getAttribute("aria-hidden")).toBe("true");
+    expect(band.querySelector("a, button, input, select, textarea, [tabindex]")).toBeNull();
+    expect(band.textContent).toBe("");
+    expect(band.closest(".fixed")).toBeNull();
+    const hero = container.querySelector(".zb-hero") as HTMLElement;
+    const heading = screen.getByRole("heading", { level: 2, name: HOW_IT_WORKS_HEADING });
+    expectInOrder(hero, band, heading);
+    expect(hero.contains(band)).toBe(false);
   });
 });
 
@@ -433,6 +492,17 @@ describe("Non-landing views keep today's layout", () => {
     const { container } = renderFirstVisit();
     await summon();
     expectNonLanding(container, true);
+  });
+
+  it("keep the fixed Hills and Fence and have no ridge band", async () => {
+    const { container } = renderFirstVisit();
+    await summon();
+    expect(container.querySelector("[data-ridge-band]")).toBeNull();
+    // Fixed layers on a Non-landing view hold SVG_COUNT svg elements (Stars, Moon, Hills, Fence and
+    // the fog filters and tiles), as before the ridge change.
+    const fixed = Array.from(container.querySelectorAll(".fixed"));
+    const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
+    expect(count).toBe(SVG_COUNT);
   });
 
   it("no-subscriptions", async () => {

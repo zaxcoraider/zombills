@@ -20,6 +20,10 @@ export function HeroArt({ motion }: { motion: LandingMotion }) {
   const groundId = `${id}-ground`;
   const glowId = `${id}-glow`;
   const stoneId = `${id}-stone`;
+  const fadeId = `${id}-fade`;
+  const fadeUpId = `${id}-fade-up`;
+  const fadeSideId = `${id}-fade-side`;
+  const fadeDownId = `${id}-fade-down`;
   return (
     <svg
       viewBox="0 0 160 120"
@@ -41,28 +45,70 @@ export function HeroArt({ motion }: { motion: LandingMotion }) {
         <clipPath id={groundId}>
           <rect x="0" y="96" width="160" height="24" />
         </clipPath>
+        {/* Vertical fade: alpha 1 down to y 110, 0 from y 117 (so 0 at y 120 and in the last 2 px). */}
+        <mask
+          id={fadeDownId}
+          maskUnits="userSpaceOnUse"
+          x="0"
+          y="0"
+          width="160"
+          height="120"
+          style={{ maskType: "alpha" }}
+        >
+          <linearGradient id={fadeUpId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="var(--night)" stopOpacity="1" />
+            <stop offset={110 / 120} stopColor="var(--night)" stopOpacity="1" />
+            <stop offset={117 / 120} stopColor="var(--night)" stopOpacity="0" />
+            <stop offset="1" stopColor="var(--night)" stopOpacity="0" />
+          </linearGradient>
+          <rect x="0" y="0" width="160" height="120" fill={`url(#${fadeUpId})`} />
+        </mask>
+        {/* Product of the two fades: horizontal (0 up to x 3, 1 from x 28 to 132, 0 from x 157) times the vertical one. */}
+        <mask
+          id={fadeId}
+          maskUnits="userSpaceOnUse"
+          x="0"
+          y="0"
+          width="160"
+          height="120"
+          style={{ maskType: "alpha" }}
+        >
+          <linearGradient id={fadeSideId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="var(--night)" stopOpacity="0" />
+            <stop offset={3 / 160} stopColor="var(--night)" stopOpacity="0" />
+            <stop offset={28 / 160} stopColor="var(--night)" stopOpacity="1" />
+            <stop offset={132 / 160} stopColor="var(--night)" stopOpacity="1" />
+            <stop offset={157 / 160} stopColor="var(--night)" stopOpacity="0" />
+            <stop offset="1" stopColor="var(--night)" stopOpacity="0" />
+          </linearGradient>
+          <g mask={`url(#${fadeDownId})`}>
+            <rect x="0" y="0" width="160" height="120" fill={`url(#${fadeSideId})`} />
+          </g>
+        </mask>
       </defs>
       <ellipse className="zb-hero-glow" cx="80" cy="62" rx="74" ry="56" fill={`url(#${glowId})`} />
-      <path d="M0 120 L0 112 Q40 102 80 106 Q120 102 160 112 L160 120 Z" fill={GROUND} />
-      <g clipPath={`url(#${groundId})`}>
-        <ellipse
-          className="zb-fog-a"
-          cx="54"
-          cy="108"
-          rx="40"
-          ry="6"
-          fill="var(--bone)"
-          opacity="0.1"
-        />
-        <ellipse
-          className="zb-fog-b"
-          cx="112"
-          cy="113"
-          rx="34"
-          ry="5"
-          fill="var(--bone)"
-          opacity="0.07"
-        />
+      <g mask={`url(#${fadeId})`}>
+        <path d="M0 120 L0 112 Q40 102 80 106 Q120 102 160 112 L160 120 Z" fill={GROUND} />
+        <g clipPath={`url(#${groundId})`}>
+          <ellipse
+            className="zb-fog-a"
+            cx="54"
+            cy="108"
+            rx="40"
+            ry="6"
+            fill="var(--bone)"
+            opacity="0.1"
+          />
+          <ellipse
+            className="zb-fog-b"
+            cx="112"
+            cy="113"
+            rx="34"
+            ry="5"
+            fill="var(--bone)"
+            opacity="0.07"
+          />
+        </g>
       </g>
       <g className="zb-ghost-lean">
         <g className="zb-ghost-rise">

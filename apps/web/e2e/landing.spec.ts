@@ -900,6 +900,61 @@ test.describe("hero art layout", () => {
   }
 });
 
+test.describe("hero art edges", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 720 },
+  ]) {
+    test(`hero art has no hard edge ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const art = page.locator("[data-hero-art]");
+      // Hide every other layer of the page and make the backgrounds transparent for the shot.
+      const style = await page.addStyleTag({
+        content: `
+          html, body, body * { background: transparent !important; background-image: none !important; }
+          body *:not([data-hero-art]):not([data-hero-art] *) { visibility: hidden !important; }
+          [data-hero-art], [data-hero-art] * { visibility: visible !important; }
+        `,
+      });
+      const png = await art.screenshot({ omitBackground: true });
+      await style.evaluate((el) => el.parentNode?.removeChild(el));
+      // Decode in the page with createImageBitmap on a Blob: no network, no URL.
+      const edges = await page.evaluate(async (base64) => {
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext("2d");
+        if (context === null) throw new Error("no 2d context");
+        context.drawImage(bitmap, 0, 0);
+        const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+        const worst = { left: 0, right: 0, bottom: 0 };
+        for (let y = 0; y < bitmap.height; y += 1) {
+          for (let x = 0; x < bitmap.width; x += 1) {
+            const alpha = data[(y * bitmap.width + x) * 4 + 3] ?? 0;
+            if (x < 2) worst.left = Math.max(worst.left, alpha);
+            if (x >= bitmap.width - 2) worst.right = Math.max(worst.right, alpha);
+            if (y >= bitmap.height - 2) worst.bottom = Math.max(worst.bottom, alpha);
+          }
+        }
+        return { width: bitmap.width, height: bitmap.height, ...worst };
+      }, png.toString("base64"));
+      expect(edges.width, `${where}: screenshot width`).toBeGreaterThan(8);
+      for (const side of ["left", "right", "bottom"] as const) {
+        expect(
+          edges[side],
+          `${where}: highest alpha in the outer 2 px of the art's ${side} side is ${edges[side]}, expected 0`,
+        ).toBe(0);
+      }
+    });
+  }
+});
+
 test.describe("desktop banner gap", () => {
   test.describe.configure({ mode: "parallel" });
 
@@ -952,6 +1007,138 @@ test.describe("desktop banner gap", () => {
         primaryBox.y,
         `${where}: Primary action top ${primaryBox.y} vs Hero line bottom ${line.y + line.height}`,
       ).toBeGreaterThanOrEqual(line.y + line.height);
+    });
+  }
+});
+
+test.describe("ridge band", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 720 },
+  ]) {
+    test(`ridge band scrolls with the page ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const band = page.locator("[data-ridge-band]");
+      await expect(band, `${where}: one ridge band`).toHaveCount(1);
+      const top = () => band.evaluate((el) => el.getBoundingClientRect().top);
+      const positions = await band.evaluate((el) => {
+        const out: string[] = [];
+        for (let node: Element | null = el; node !== null; node = node.parentElement) {
+          out.push(getComputedStyle(node).position);
+          if (node === document.body) break;
+        }
+        return out;
+      });
+      expect(positions, `${where}: band and ancestors up to body are not fixed`).not.toContain("fixed");
+      const before = await top();
+      const maxScroll = await page.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight,
+      );
+      const distance = Math.min(300, maxScroll);
+      expect(distance, `${where}: the page can scroll`).toBeGreaterThan(0);
+      await page.evaluate((d) => window.scrollBy(0, d), distance);
+      const scrolled = await page.evaluate(() => window.scrollY);
+      const after = await top();
+      expect(
+        Math.abs(before - after - scrolled),
+        `${where}: band top moved ${before - after}px, page scrolled ${scrolled}px`,
+      ).toBeLessThanOrEqual(1);
+    });
+  }
+
+  for (const { width, height } of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+  ]) {
+    test(`ridge band clears the content ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const pageBox = async (loc: ReturnType<Page["locator"]>, what: string) => {
+        const box = await loc.first().evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return { x0: r.left + scrollX, y0: r.top + scrollY, x1: r.right + scrollX, y1: r.bottom + scrollY };
+        });
+        expect(box.y1 - box.y0, `${where}: ${what} has a box`).toBeGreaterThan(0);
+        return box;
+      };
+      const band = await pageBox(page.locator("[data-ridge-band]"), "ridge band");
+      const samples = await pageBox(
+        page.getByRole("list", { name: "Other sample statements" }).locator(".."),
+        "Other samples row",
+      );
+      const badge = await pageBox(
+        page.getByRole("main").locator("p", { hasText: "Your statement never leaves your device." }),
+        "Privacy badge",
+      );
+      const primary = await pageBox(page.getByRole("button", { name: PRIMARY_NAME }), "Primary action");
+      const how = await pageBox(page.getByRole("heading", { name: "How it works" }), "How it works heading");
+      for (const [name, box] of [
+        ["Other samples row", samples],
+        ["Privacy badge", badge],
+        ["Primary action", primary],
+      ] as const) {
+        expect(
+          band.y0,
+          `${where}: band top ${band.y0} is below the ${name} bottom ${box.y1}`,
+        ).toBeGreaterThanOrEqual(box.y1);
+      }
+      expect(band.y1, `${where}: band bottom ${band.y1} is above the heading top ${how.y0}`).toBeLessThanOrEqual(how.y0);
+      for (const box of await collectContentBoxes(page)) {
+        const hit = band.x0 < box.x1 && box.x0 < band.x1 && band.y0 < box.y1 && box.y0 < band.y1;
+        expect(hit, `${where}: band hits ${box.kind} "${box.label}" ${at(box)}`).toBe(false);
+      }
+      const widths = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollWidth,
+        inner: window.innerWidth,
+      }));
+      expect(widths.scroll, `${where}: scrollWidth ${widths.scroll} vs innerWidth ${widths.inner}`).toBeLessThanOrEqual(
+        widths.inner,
+      );
+    });
+  }
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 720 },
+  ]) {
+    test(`results view keeps the fixed fence and has no ridge band ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      await startUsSample(page);
+      await expect(page.getByRole("heading", { name: "Read another statement" })).toBeVisible();
+      await settle(page);
+      const where = `${width}x${height}`;
+      await expect(page.locator("[data-ridge-band]"), `${where}: no ridge band`).toHaveCount(0);
+      const m = await page.evaluate(() => {
+        const layer = Array.from(document.querySelectorAll<HTMLElement>(".fixed")).find((el) =>
+          el.querySelector("svg path[d^='M16 6l']"),
+        );
+        const fence = layer?.querySelector("svg pattern")?.closest("svg") ?? null;
+        const ground = Array.from(document.querySelectorAll<HTMLElement>(".fixed div")).find(
+          (el) => el.style.height === "var(--ground-h)",
+        );
+        return {
+          fenceBottom: fence?.getBoundingClientRect().bottom ?? null,
+          groundHeight: ground?.getBoundingClientRect().height ?? null,
+          inner: window.innerHeight,
+        };
+      });
+      expect(m.fenceBottom, `${where}: Fence SVG found in the fixed backdrop`).not.toBeNull();
+      expect(m.groundHeight, `${where}: Ground band found`).not.toBeNull();
+      if (m.fenceBottom === null || m.groundHeight === null) return;
+      const expected = m.inner - m.groundHeight;
+      expect(
+        Math.abs(m.fenceBottom - expected),
+        `${where}: Fence bottom ${m.fenceBottom} vs innerHeight - ground ${expected}`,
+      ).toBeLessThanOrEqual(2);
     });
   }
 });

@@ -398,12 +398,13 @@ export function BackdropLayers({
   fogCleared,
   fogStill,
   moon,
-}: LayerProps & { moon: boolean }) {
+  ridge = true,
+}: LayerProps & { moon: boolean; ridge?: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden="true">
       <Stars />
       {moon && <Moon placement="sky" />}
-      <Hills />
+      {ridge && <Hills />}
       <motion.div className="absolute inset-0" {...fogFade(reduceMotion, fogCleared)}>
         <FogBand
           seed={7}
@@ -414,7 +415,7 @@ export function BackdropLayers({
           still={fogStill}
         />
       </motion.div>
-      <Fence />
+      {ridge && <Fence />}
       <motion.div className="absolute inset-0" {...fogFade(reduceMotion, fogCleared)}>
         <FogBand
           seed={23}
@@ -425,6 +426,34 @@ export function BackdropLayers({
           still={fogStill}
         />
       </motion.div>
+    </div>
+  );
+}
+
+/**
+ * The hills + fence band of the Landing view, drawn once in the document flow so it scrolls with
+ * the page. `--ground-h: 0px` puts the existing Hills and Fence at the bottom of this box. Static,
+ * decorative, no text and nothing focusable.
+ */
+export function RidgeBand() {
+  return (
+    <div
+      data-ridge-band
+      aria-hidden="true"
+      className="pointer-events-none relative w-full overflow-clip"
+      style={
+        {
+          "--ground-h": "0px",
+          height: `calc(clamp(5rem, 17vh, 11rem) + ${FENCE_H}px - 2px)`,
+        } as CSSProperties
+      }
+    >
+      <Hills />
+      <Fence />
+      <div
+        className="absolute inset-x-0 bottom-0 h-4"
+        style={{ background: "linear-gradient(to bottom, transparent, var(--night))" }}
+      />
     </div>
   );
 }

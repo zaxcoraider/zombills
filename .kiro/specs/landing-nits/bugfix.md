@@ -1,10 +1,10 @@
 # Bugfix: landing-nits
 
-Five small layout and art bugs on the Landing view of the live site, found in Playwright screenshots at 390 × 844 (phone) and 1280 × 720 (desktop). Each bug has a number; its criteria are numbered `N.1` (current behaviour), `N.2` (expected behaviour) and `N.3` onwards (behaviour that must not change), so tasks can cite them.
+Small layout and art bugs on the Landing view of the live site. Bugs 1–5 were found in Playwright screenshots at 390 × 844 (phone) and 1280 × 720 (desktop); bugs 6–7 (round 2) in the user's screenshots of the live site. Each bug has a number; its criteria are numbered `N.1` (current behaviour), `N.2` (expected behaviour) and `N.3` onwards (behaviour that must not change), so tasks can cite them.
 
 Every path is in `apps/web/` unless it starts with `.kiro/` or `packages/`. `landing/` means `apps/web/src/slice/landing/`, `graveyard/` means `apps/web/src/slice/graveyard/`, `e2e/` means `apps/web/e2e/`.
 
-Scope: Landing view only. The Non-landing views, the landing-polish requirements not named here, `packages/core`, the CSP, `netlify.toml`, `index.css`, every `package.json` and `apps/web/public` do not change.
+Scope: Landing view only. Bug 7 changes the shared `graveyard/night-scene.tsx` (and, if needed, `graveyard/graveyard-backdrop.tsx`), but only what it draws on the Landing view; the Non-landing views look and behave as before or better. The Non-landing views, the landing-polish requirements not named here, `packages/core`, the CSP, `netlify.toml`, `index.css`, every `package.json` and `apps/web/public` do not change.
 
 ---
 
@@ -47,6 +47,24 @@ Source: `landing/landing-banner.tsx` and the Landing `main` in `src/slice/slice-
 - **5.1 Current.** At 1280 × 720 on the empty Landing view, about 90 px of empty space separates the bottom of the tagline "Your bank statement is haunted." from the top of the Hero line.
 - **5.2 Expected.** From `lg` up, on the empty Landing view (no savings counter), the gap between the bottom of the tagline and the top of the Hero line is between 16 px and 24 px. The fix drops the header's minimum height from `lg` up (`lg:min-h-0`) and sets the Landing `main` top padding to `lg:pt-4`; nothing else moves.
 - **5.3 Unchanged.** Below `lg`, the header minimum height and the `main` padding stay as they are. From `lg` up, the Hero grid (columns, rows, gaps, placement of the Hero line, art and actions) stays as it is. The landing moon checks of `e2e/landing.spec.ts` (disc size, no Content box hit, text at least 2.5 r from the disc centre, halo and glow centred) and the title-glow clearance test pass unchanged at every size, with and without a savings counter.
+
+## Bug 6: Hero art, a hard-edged dark box under the tombstone
+
+Source: `landing/hero-art.tsx`. The ground path `M0 120 L0 112 Q40 102 80 106 Q120 102 160 112 L160 120 Z` fills `GROUND` (`--fog` 58 % over `--night`, opaque) from edge to edge of the `viewBox`, so its flat left, right and bottom sides end exactly at the SVG box. With the clipped fog ellipses (`zb-fog-a`, `zb-fog-b`) on top, it reads as a dark rectangle under the tombstone.
+
+- **6.1 Current.** At every viewport width, a dark shape with straight left, right and bottom edges is visible under the tombstone and its grass and fog ellipses; the edges line up with the art's box.
+- **6.2 Expected.** No visible box edge: the ground fades to transparent before it reaches the left, right and bottom sides of the SVG box (for example a mask or gradient over the ground and the fog group, with alpha 0 at `x` 0 and 160 and at `y` 120), so the ground blends into the night behind it. Every pixel within 2 px of the art box's left, right and bottom sides is fully transparent in the art's own drawing (excluding the `zb-hero-glow` ellipse, which already fades to 0).
+- **6.3 Unchanged.** The `viewBox`, the art's size classes and placement (bug 3), the tombstone, ghost, eyes, grooves and glow, the class names `zb-art`, `zb-hero-glow`, `zb-fog-a`, `zb-fog-b`, `zb-ghost-lean`, `zb-ghost-rise`, `data-hero-art`, `data-motion`, the decorative attributes and per-instance unique ids (any new mask or gradient id derives from `useId()`). Colours stay `color-mix()` over the tokens; no hex value. `landing/landing-motion.css` does not change.
+
+## Bug 7: The hills and fence stay pinned to the viewport bottom while scrolling
+
+Source: `graveyard/night-scene.tsx` puts `BackdropLayers` (stars, Hills, far fog, Fence, low fog) in a `position: fixed` layer, so the Hills and Fence, drawn at `bottom: var(--ground-h)`, stay at the bottom of the viewport while the page scrolls.
+
+- **7.1 Current.** On the Landing view the hills + fence band is always at the bottom of the viewport and cuts through whatever scrolls behind it: the Other samples links and the Privacy badge on phones, the "How it works" heading on desktop, and the Footer and "Or read your own statement" cards when scrolled.
+- **7.2 Expected.** On the Landing view the hills + fence band is drawn once, in the document flow just below the Hero and above the "How it works" section, and scrolls with the page: its box moves by the scroll distance, and at no scroll position does it intersect the Other samples row, the Privacy badge, the "How it works" heading, the "Or read your own statement" card or the Footer. The sky (stars, moon, fog) may stay fixed. The band stays decorative (`aria-hidden="true"`, `pointer-events: none`), adds no text and no focusable element, and takes the full content width without causing horizontal scroll.
+- **7.3 Unchanged.** On every Non-landing view (results, graveyard) the scene looks and behaves as before or better, never worse: Hills, Fence, Ground, fog, moon, `--ground-h` and the undead rising from the ground line keep their positions. Motion and reduced-motion rules do not change: fog drift is still paused on the Landing view and under reduced motion, no new animation or transition, `landing/landing-motion.css` and every Framer Motion config stay as they are. The Landing view's Hero, Fold check, moon checks and the bug 1–6 fixes stay as they are.
+
+Amended 2026-11-18 (round 2): bug 4 is superseded by bug 7; with the band out of the Hero, the Other samples row and the badge need no backdrop. Task 4 was not built.
 
 Amended 2026-11-18: favicon path corrected (`public/z-favicon.svg` does not exist; the favicon is `public/favicon.svg`, and it never had the ground band).
 
