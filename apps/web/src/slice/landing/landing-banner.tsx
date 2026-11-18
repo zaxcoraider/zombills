@@ -14,7 +14,7 @@ export function LandingBanner({ haunt, reduceMotion }: LandingBannerProps) {
   const motion = useLandingMotion();
   return (
     <div className="mx-auto w-full max-w-[1184px] px-4 pt-4 sm:px-8 sm:pt-8">
-      <header className="relative flex min-h-[calc(var(--moon-d)*1.75+16px)] flex-col items-start gap-2 pr-[calc(var(--moon-d)*1.75+4px)] [--moon-d:48px] sm:[--moon-d:64px] lg:[--moon-d:96px] 2xl:[--moon-d:112px]">
+      <header className="relative flex min-h-[calc(var(--moon-d)*1.75+16px)] lg:min-h-0 flex-col items-start gap-2 pr-[calc(var(--moon-d)*1.75+4px)] [--moon-d:48px] sm:[--moon-d:64px] lg:[--moon-d:96px] 2xl:[--moon-d:112px]">
         <Moon placement="landing" dataMotion={motion} />
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-2">
           <BrandMark />

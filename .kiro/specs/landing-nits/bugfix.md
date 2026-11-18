@@ -22,14 +22,14 @@ Source: `landing/brand-mark.tsx`. The mark draws a ground band, `<path d="M0 432
 
 - **2.1 Current.** Beside the h1 at 390 px (56 px mark) and 1280 px (72 px mark), a `#1A1F2B` band sits across the bottom of the mark.
 - **2.2 Expected.** The Hero-size mark (`BrandMark`) draws no ground band: no element in it has the path `M0 432 …` or the fill `#1A1F2B`. The tombstone, Z, glow bar, moon and the two grass tufts stay, with the tufts resting at the tombstone's base.
-- **2.3 Unchanged.** The favicon `public/z-favicon.svg` is byte-for-byte unchanged, and so is `index.html`'s favicon link. The mark stays decorative (`aria-hidden="true"`, `focusable="false"`, `data-brand-mark`, no text, no external reference), `size-14 sm:size-[4.5rem]`, the h1's previous sibling, with unique ids per instance. The tile's rounded clip and its `#0B0D12` ground stay (the mark's own colours, as before).
+- **2.3 Unchanged.** The favicon `public/favicon.svg` is byte-for-byte unchanged, and so is `index.html`'s favicon link. The mark stays decorative (`aria-hidden="true"`, `focusable="false"`, `data-brand-mark`, no text, no external reference), `size-14 sm:size-[4.5rem]`, the h1's previous sibling, with unique ids per instance. The tile's rounded clip and its `#0B0D12` ground stay (the mark's own colours, as before).
 
 ## Bug 3: Hero art is small and left-aligned below lg
 
 Source: `landing/hero-art.tsx`. Below `lg` the SVG is `h-24 w-32 self-start` (128 × 96 px) on phones and `sm:h-32 sm:w-[10.5rem]` (168 × 128 px) from `sm`, left-aligned in the Hero's flex column.
 
 - **3.1 Current.** At 390 px the Hero art is 128 × 96 px at the left edge of the column.
-- **3.2 Expected.** Below 1024 px the Hero art is horizontally centred in the Hero column (box centre within 1 px of the column centre) and about twice today's size: 256 × 192 px (`w-64 h-48`) below `sm`, and 336 × 252 px (`sm:w-[21rem] sm:h-[15.75rem]`) from `sm` to `lg`. Its size comes from its classes alone, so its box is the same before and after fonts load and does not move other content (no layout shift).
+- **3.2 Expected.** Below 1024 px the Hero art is horizontally centred in the Hero column (box centre within 1 px of the column centre). When the viewport is at least 700 px tall, it is also about twice today's size: 256 × 192 px (`h-48 w-64`) below `sm`, and 336 × 252 px (`sm:h-[15.75rem] sm:w-[21rem]`) from `sm` to `lg`. When the viewport is shorter than 700 px, it keeps today's size (128 × 96 px below `sm`, 168 × 128 px from `sm` to `lg`), so the Fold check still passes at 320 × 568. Its size comes from its classes and media queries alone, so its box is the same before and after fonts load and does not move other content (no layout shift).
 - **3.3 Unchanged.** From `lg` up the art keeps its grid place and size: column 2, rows 1–2, `self-start`, 352 × 264 px (`lg:h-[16.5rem] lg:w-[22rem]`), 416 × 312 px from `2xl`. The motion rules (`zb-art`, `data-motion`, every rule in `landing/landing-motion.css`) and the art's content, ids and decorative attributes do not change. The landing-polish Fold check (check 8 of `e2e/landing.spec.ts`) still passes: h1, tagline and Primary action above the Fold at every size, and the Hero line, badge and art above the Fold at the `FOLD_SIZES`.
 
 ## Bug 4: The fence and hills cross the Other samples links and the badge on phones
@@ -47,3 +47,7 @@ Source: `landing/landing-banner.tsx` and the Landing `main` in `src/slice/slice-
 - **5.1 Current.** At 1280 × 720 on the empty Landing view, about 90 px of empty space separates the bottom of the tagline "Your bank statement is haunted." from the top of the Hero line.
 - **5.2 Expected.** From `lg` up, on the empty Landing view (no savings counter), the gap between the bottom of the tagline and the top of the Hero line is between 16 px and 24 px. The fix drops the header's minimum height from `lg` up (`lg:min-h-0`) and sets the Landing `main` top padding to `lg:pt-4`; nothing else moves.
 - **5.3 Unchanged.** Below `lg`, the header minimum height and the `main` padding stay as they are. From `lg` up, the Hero grid (columns, rows, gaps, placement of the Hero line, art and actions) stays as it is. The landing moon checks of `e2e/landing.spec.ts` (disc size, no Content box hit, text at least 2.5 r from the disc centre, halo and glow centred) and the title-glow clearance test pass unchanged at every size, with and without a savings counter.
+
+Amended 2026-11-18: favicon path corrected (`public/z-favicon.svg` does not exist; the favicon is `public/favicon.svg`, and it never had the ground band).
+
+Amended 2026-11-18: 2x only at min-height 700px to keep the Fold check (bug 3: 3.2 and the 3.1 current size at short viewports).

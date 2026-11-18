@@ -726,6 +726,236 @@ test.describe("landing layout", () => {
   });
 });
 
+test.describe("footer layout", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 720 },
+  ]) {
+    test(`footer reaper description on its own line ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const footer = page.getByRole("contentinfo");
+      await footer.scrollIntoViewIfNeeded();
+      const repoLink = footer.getByRole("link", { name: "Zombills on GitHub" });
+      const reaperLink = footer.getByRole("link", { name: "The Reaper on GitHub" });
+      const repoBox = await repoLink.boundingBox();
+      const linkBox = await reaperLink.boundingBox();
+      expect(repoBox, `${where}: Zombills link box`).not.toBeNull();
+      expect(linkBox, `${where}: Reaper link box`).not.toBeNull();
+      if (repoBox === null || linkBox === null) return;
+      const rect = await reaperLink.evaluate((link) => {
+        const span = link.parentElement?.querySelector("span");
+        const text = span?.firstChild;
+        if (!text) return null;
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const first = range.getClientRects()[0];
+        return first ? { left: first.left, top: first.top } : null;
+      });
+      expect(rect, `${where}: description first client rect`).not.toBeNull();
+      if (rect === null) return;
+      expect(
+        rect.top,
+        `${where}: description top ${rect.top} vs link bottom ${linkBox.y + linkBox.height}`,
+      ).toBeGreaterThanOrEqual(linkBox.y + linkBox.height - 0.5);
+      expect(
+        Math.abs(rect.left - linkBox.x),
+        `${where}: description left ${rect.left} vs link left ${linkBox.x}`,
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(repoBox.x - linkBox.x),
+        `${where}: Zombills link left ${repoBox.x} vs Reaper link left ${linkBox.x}`,
+      ).toBeLessThanOrEqual(1);
+    });
+  }
+});
+
+test.describe("hero art layout", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  const artBox = async (page: Page) => {
+    const box = await page.locator("[data-hero-art]").boundingBox();
+    if (box === null) throw new Error("no box for the Hero art");
+    return box;
+  };
+
+  for (const { width, height } of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+  ]) {
+    test(`hero art centred below lg ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const art = await artBox(page);
+      const column = await page
+        .locator("[data-hero-art]")
+        .evaluate((el) => el.parentElement?.getBoundingClientRect().toJSON() ?? null);
+      expect(column, `${where}: Hero column box`).not.toBeNull();
+      if (column === null) return;
+      const artCentre = art.x + art.width / 2;
+      const columnCentre = column.x + column.width / 2;
+      expect(
+        Math.abs(artCentre - columnCentre),
+        `${where}: art centre x ${artCentre} vs column centre x ${columnCentre}`,
+      ).toBeLessThanOrEqual(1);
+      const line = await page.getByText("We find the subscriptions still feeding on you.").boundingBox();
+      const primary = await page.getByRole("button", { name: PRIMARY_NAME }).boundingBox();
+      for (const [name, other] of [["Hero line", line], ["Primary action", primary]] as const) {
+        expect(other, `${where}: ${name} box`).not.toBeNull();
+        if (other === null) continue;
+        const overlaps =
+          art.x < other.x + other.width &&
+          other.x < art.x + art.width &&
+          art.y < other.y + other.height &&
+          other.y < art.y + art.height;
+        expect(overlaps, `${where}: art box intersects the ${name} box`).toBe(false);
+      }
+    });
+  }
+
+  for (const { width, height, w, h } of [
+    { width: 390, height: 844, w: 256, h: 192 },
+    { width: 768, height: 1024, w: 336, h: 252 },
+    { width: 320, height: 568, w: 128, h: 96 },
+    { width: 768, height: 600, w: 168, h: 128 },
+  ]) {
+    test(`hero art size below lg ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const art = await artBox(page);
+      expect(
+        Math.abs(art.width - w),
+        `${width}x${height}: art width ${art.width}, expected ${w}`,
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(art.height - h),
+        `${width}x${height}: art height ${art.height}, expected ${h}`,
+      ).toBeLessThanOrEqual(1);
+    });
+  }
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 720 },
+  ]) {
+    test(`hero art does not shift ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      const where = `${width}x${height}`;
+      const measure = async () => {
+        await expect(page.getByRole("button", { name: PRIMARY_NAME })).toBeVisible();
+        const art = await artBox(page);
+        const primary = await page.getByRole("button", { name: PRIMARY_NAME }).boundingBox();
+        const line = await page.getByText("We find the subscriptions still feeding on you.").boundingBox();
+        if (primary === null || line === null) throw new Error(`${where}: missing box`);
+        return { art, primaryTop: primary.y, lineTop: line.y };
+      };
+      const before = await measure();
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(
+        () => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))),
+      );
+      const after = await measure();
+      expect(
+        Math.abs(after.art.width - before.art.width),
+        `${where}: art width ${before.art.width} -> ${after.art.width}`,
+      ).toBeLessThanOrEqual(0.5);
+      expect(
+        Math.abs(after.art.height - before.art.height),
+        `${where}: art height ${before.art.height} -> ${after.art.height}`,
+      ).toBeLessThanOrEqual(0.5);
+      const lineMoved = after.lineTop - before.lineTop;
+      expect(
+        Math.abs(after.primaryTop - before.primaryTop - lineMoved),
+        `${where}: Primary action top ${before.primaryTop} -> ${after.primaryTop}, Hero line moved ${lineMoved}`,
+      ).toBeLessThanOrEqual(0.5);
+    });
+  }
+
+  for (const { width, height, w, h } of [
+    { width: 1280, height: 720, w: 352, h: 264 },
+    { width: 1920, height: 1080, w: 416, h: 312 },
+  ]) {
+    test(`hero art unchanged at lg ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const art = await artBox(page);
+      const line = await page.getByText("We find the subscriptions still feeding on you.").boundingBox();
+      expect(line, `${where}: Hero line box`).not.toBeNull();
+      if (line === null) return;
+      expect(Math.abs(art.width - w), `${where}: art width ${art.width}, expected ${w}`).toBeLessThanOrEqual(1);
+      expect(Math.abs(art.height - h), `${where}: art height ${art.height}, expected ${h}`).toBeLessThanOrEqual(1);
+      expect(art.x, `${where}: art left ${art.x} vs Hero line right ${line.x + line.width}`).toBeGreaterThanOrEqual(
+        line.x + line.width,
+      );
+      expect(Math.abs(art.y - line.y), `${where}: art top ${art.y} vs Hero line top ${line.y}`).toBeLessThanOrEqual(1);
+    });
+  }
+});
+
+test.describe("desktop banner gap", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  for (const { width, height } of [
+    { width: 1280, height: 720 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 },
+  ]) {
+    test(`tagline to Hero line gap ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const tagline = await page.getByText("Your bank statement is haunted.").boundingBox();
+      const line = await page.getByText("We find the subscriptions still feeding on you.").boundingBox();
+      expect(tagline, `${width}x${height}: tagline box`).not.toBeNull();
+      expect(line, `${width}x${height}: Hero line box`).not.toBeNull();
+      if (tagline === null || line === null) return;
+      const gap = line.y - (tagline.y + tagline.height);
+      expect(gap, `${width}x${height}: tagline bottom to Hero line top is ${gap}px`).toBeGreaterThanOrEqual(16);
+      expect(gap, `${width}x${height}: tagline bottom to Hero line top is ${gap}px`).toBeLessThanOrEqual(24);
+    });
+  }
+
+  for (const { width, height } of [
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+  ]) {
+    test(`hero grid unchanged at lg ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      const where = `${width}x${height}`;
+      const line = await page.getByText("We find the subscriptions still feeding on you.").boundingBox();
+      const primary = page.getByRole("button", { name: PRIMARY_NAME });
+      const wrapper = await primary.evaluate((el) => el.parentElement?.getBoundingClientRect().toJSON() ?? null);
+      const primaryBox = await primary.boundingBox();
+      const art = await page.locator("[data-hero-art]").boundingBox();
+      expect(line, `${where}: Hero line box`).not.toBeNull();
+      expect(wrapper, `${where}: action wrapper box`).not.toBeNull();
+      expect(primaryBox, `${where}: Primary action box`).not.toBeNull();
+      expect(art, `${where}: art box`).not.toBeNull();
+      if (line === null || wrapper === null || primaryBox === null || art === null) return;
+      expect(
+        Math.abs(line.x - wrapper.x),
+        `${where}: Hero line left ${line.x} vs action wrapper left ${wrapper.x}`,
+      ).toBeLessThanOrEqual(1);
+      expect(art.x, `${where}: art left ${art.x} vs Hero line right ${line.x + line.width}`).toBeGreaterThanOrEqual(
+        line.x + line.width,
+      );
+      expect(Math.abs(art.y - line.y), `${where}: art top ${art.y} vs Hero line top ${line.y}`).toBeLessThanOrEqual(1);
+      expect(
+        primaryBox.y,
+        `${where}: Primary action top ${primaryBox.y} vs Hero line bottom ${line.y + line.height}`,
+      ).toBeGreaterThanOrEqual(line.y + line.height);
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------------------------
 // Motion-related layout tests (design "Tests (Req 13.5, 13.6)").
 // ---------------------------------------------------------------------------------------------

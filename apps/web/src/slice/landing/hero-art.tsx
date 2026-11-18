@@ -27,7 +27,7 @@ export function HeroArt({ motion }: { motion: LandingMotion }) {
       focusable="false"
       data-hero-art=""
       data-motion={motion}
-      className="zb-art h-24 w-32 self-start sm:h-32 sm:w-[10.5rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[16.5rem] lg:w-[22rem] 2xl:h-[19.5rem] 2xl:w-[26rem]"
+      className="zb-art h-24 w-32 self-center max-sm:[@media(min-height:700px)]:h-48 max-sm:[@media(min-height:700px)]:w-64 sm:h-32 sm:w-[10.5rem] sm:max-lg:[@media(min-height:700px)]:h-[15.75rem] sm:max-lg:[@media(min-height:700px)]:w-[21rem] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[16.5rem] lg:w-[22rem] lg:self-start 2xl:h-[19.5rem] 2xl:w-[26rem]"
     >
       <defs>
         <radialGradient id={glowId}>

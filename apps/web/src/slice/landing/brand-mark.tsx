@@ -56,7 +56,6 @@ export function BrandMark() {
           opacity="0.9"
         />
         <path d="M190 288 H322" stroke="#8FD694" strokeWidth="18" strokeLinecap="round" />
-        <path d="M0 432 C140 410 372 410 512 432 V512 H0 Z" fill="#1A1F2B" />
         <path d="M128 428 L138 398 L146 422 L156 404 L164 428 Z" fill="#8FD694" />
         <path d="M350 428 L358 404 L366 422 L376 396 L386 428 Z" fill="#8FD694" />
       </g>

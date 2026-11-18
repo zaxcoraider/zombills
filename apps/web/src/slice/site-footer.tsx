@@ -44,7 +44,7 @@ export function SiteFooter({ noteRef, wide }: SiteFooterProps) {
             >
               {REAPER_LINK.text}
             </a>{" "}
-            <span>{REAPER_DESCRIPTION}</span>
+            <span className="block">{REAPER_DESCRIPTION}</span>
           </li>
         </ul>
         <span id={newTabId} className="sr-only">

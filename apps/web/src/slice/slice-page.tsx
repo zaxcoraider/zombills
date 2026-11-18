@@ -246,7 +246,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
               <LandingBanner haunt={haunt} reduceMotion={reduceMotion} />
               <main
                 ref={mainRef}
-                className="mx-auto flex w-full max-w-[1184px] flex-col gap-12 px-4 pb-12 pt-6 sm:px-8 sm:pt-8"
+                className="mx-auto flex w-full max-w-[1184px] flex-col gap-12 px-4 pb-12 pt-6 sm:px-8 sm:pt-8 lg:pt-4"
               >
                 <Hero
                   working={working}

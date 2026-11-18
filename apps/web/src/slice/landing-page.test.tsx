@@ -170,6 +170,45 @@ describe("Landing view: structure", () => {
     );
   });
 
+  it("the Hero art has a fixed size at every breakpoint", () => {
+    const { container } = renderFirstVisit();
+    const art = container.querySelector("[data-hero-art]");
+    if (art === null) throw new Error("expected the Hero art");
+    const classes = Array.from(art.classList);
+    const tall = "[@media(min-height:700px)]";
+    for (const expected of [
+      "zb-art",
+      "h-24",
+      "w-32",
+      "self-center",
+      `max-sm:${tall}:h-48`,
+      `max-sm:${tall}:w-64`,
+      "sm:h-32",
+      "sm:w-[10.5rem]",
+      `sm:max-lg:${tall}:h-[15.75rem]`,
+      `sm:max-lg:${tall}:w-[21rem]`,
+      "lg:h-[16.5rem]",
+      "lg:w-[22rem]",
+      "lg:self-start",
+      "2xl:h-[19.5rem]",
+      "2xl:w-[26rem]",
+    ]) {
+      expect(classes, expected).toContain(expected);
+    }
+    expect(classes).not.toContain("self-start");
+  });
+
+  it("the Banner drops its minimum height from lg up", () => {
+    renderFirstVisit();
+    const header = Array.from(screen.getByRole("banner").classList);
+    expect(header).toContain("lg:min-h-0");
+    expect(header).toContain("min-h-[calc(var(--moon-d)*1.75+16px)]");
+    const main = Array.from(mainElement().classList);
+    for (const expected of ["pt-6", "sm:pt-8", "lg:pt-4"]) {
+      expect(main, expected).toContain(expected);
+    }
+  });
+
   it("has no card behind the banner on a first visit", () => {
     renderFirstVisit();
     expect(screen.getByRole("banner").querySelector(".bg-fog\\/95")).toBeNull();
@@ -288,6 +327,20 @@ describe("Landing view: Footer", () => {
       expect(document.getElementById(describedBy ?? "")?.textContent).toBe(NEW_TAB_TEXT);
     }
     expect(within(footer).queryByText(STATEMENT_TIP)).toBeNull();
+  });
+
+  it("the Reaper description is a block outside the link", () => {
+    renderFirstVisit();
+    const footer = screen.getByRole("contentinfo");
+    const link = within(footer).getByRole("link", { name: "The Reaper on GitHub" });
+    const description = within(footer).getByText(
+      (_content, element) => element?.textContent === REAPER_DESCRIPTION && element.tagName === "SPAN",
+    );
+    expect(description.classList.contains("block")).toBe(true);
+    expect(description.closest("li")).toBe(link.closest("li"));
+    expect(link.contains(description)).toBe(false);
+    expect(link.getAttribute("aria-label")).toBeNull();
+    expect(link.textContent).toBe("The Reaper on GitHub");
   });
 });
 
