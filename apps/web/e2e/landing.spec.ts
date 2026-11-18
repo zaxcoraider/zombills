@@ -1107,6 +1107,107 @@ test.describe("ridge band", () => {
 
   for (const { width, height } of [
     { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    test(`ridge band spacing ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await openLanding(page, "empty");
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      const where = `${width}x${height}`;
+      const band = page.locator("[data-ridge-band]");
+      const above = await page.evaluate(() => {
+        const bottomOf = (el: Element | null) => (el === null ? 0 : el.getBoundingClientRect().bottom + scrollY);
+        const badge = Array.from(document.querySelectorAll("main p")).find((p) =>
+          (p.textContent ?? "").includes("Your statement never leaves your device."),
+        );
+        const hero = document.querySelector("[data-hero-art]");
+        const bandEl = document.querySelector("[data-ridge-band]");
+        return {
+          lowest: Math.max(bottomOf(badge ?? null), bottomOf(hero)),
+          bandTop: bandEl === null ? 0 : bandEl.getBoundingClientRect().top + scrollY,
+        };
+      });
+      await band.scrollIntoViewIfNeeded();
+      // Hide every other layer and make the backgrounds transparent for the shot.
+      const style = await page.addStyleTag({
+        content: `
+          html, body, body * { background: transparent !important; background-image: none !important; }
+          body *:not([data-ridge-band]):not([data-ridge-band] *) { visibility: hidden !important; }
+          [data-ridge-band], [data-ridge-band] * { visibility: visible !important; }
+        `,
+      });
+      const png = await band.screenshot({ omitBackground: true });
+      await style.evaluate((el) => el.parentNode?.removeChild(el));
+      // Decode in the page with createImageBitmap on a Blob: no network, no URL.
+      const firstRow = await page.evaluate(async (base64) => {
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext("2d");
+        if (context === null) throw new Error("no 2d context");
+        context.drawImage(bitmap, 0, 0);
+        const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+        for (let y = 0; y < bitmap.height; y += 1) {
+          for (let x = 0; x < bitmap.width; x += 1) {
+            if ((data[(y * bitmap.width + x) * 4 + 3] ?? 0) > 0) return y;
+          }
+        }
+        return -1;
+      }, png.toString("base64"));
+      expect(firstRow, `${where}: the ridge band draws something`).toBeGreaterThanOrEqual(0);
+      const space = above.bandTop + firstRow - above.lowest;
+      expect(
+        space,
+        `${where}: space from the Privacy badge / lowest Hero element (bottom ${above.lowest}) to the band's first drawn pixel (${above.bandTop + firstRow}) is ${space}px, expected 24 to 48`,
+      ).toBeGreaterThanOrEqual(24);
+      expect(space, `${where}: space above the ridge band is ${space}px, expected 24 to 48`).toBeLessThanOrEqual(48);
+    });
+  }
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    // Finding (task 13): the band's bottom fade ended in near-night, a hard edge against the
+    // lighter sky behind the next section. Amended bug 9.3: it fades to transparent.
+    test(`ridge band bottom blends into the sky ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await openLanding(page, "empty");
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      const where = `${width}x${height}`;
+      // Main and footer hidden so only the sky and the band are sampled (the band sits inside
+      // main, so it is made visible again).
+      await page.addStyleTag({
+        content:
+          "main, footer { visibility: hidden !important; } [data-ridge-band], [data-ridge-band] * { visibility: visible !important; }",
+      });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const bottom = await page.evaluate(() => {
+        const el = document.querySelector("[data-ridge-band]");
+        return el === null ? 0 : Math.round(el.getBoundingClientRect().bottom + scrollY);
+      });
+      expect(bottom, `${where}: the band must be on the page`).toBeGreaterThan(40);
+      const shot = await page.screenshot({ fullPage: true });
+      const first = bottom - 40;
+      const rows = await columnPixels(page, shot, 20, first, bottom + 40);
+      for (let i = 1; i < rows.length; i += 1) {
+        for (let c = 0; c < 3; c += 1) {
+          const step = Math.abs((rows[i]?.[c] ?? 0) - (rows[i - 1]?.[c] ?? 0));
+          expect(
+            step,
+            `${where}: channel ${c} steps by ${step} between y ${first + i - 1} and ${first + i} at x 20 (band bottom ${bottom}), expected at most 4`,
+          ).toBeLessThanOrEqual(4);
+        }
+      }
+    });
+  }
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
     { width: 1280, height: 720 },
   ]) {
     test(`results view keeps the fixed fence and has no ridge band ${width}x${height}`, async ({ page }) => {
@@ -1139,6 +1240,242 @@ test.describe("ridge band", () => {
         Math.abs(m.fenceBottom - expected),
         `${where}: Fence bottom ${m.fenceBottom} vs innerHeight - ground ${expected}`,
       ).toBeLessThanOrEqual(2);
+    });
+  }
+});
+
+test.describe("no ground line on the landing", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    test(`no ground line on the landing ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      await page.evaluate(() => document.fonts.ready);
+      const where = `${width}x${height}`;
+      // Resolve --ground-h on the NightScene root through a probe element.
+      const geometry = await page.evaluate(() => {
+        const root = Array.from(document.querySelectorAll<HTMLElement>("div")).find(
+          (el) => el.style.getPropertyValue("--ground-h") !== "",
+        );
+        if (root === undefined) throw new Error("NightScene root not found");
+        const probe = document.createElement("div");
+        probe.style.cssText =
+          "position:absolute;visibility:hidden;width:1px;height:var(--ground-h)";
+        root.appendChild(probe);
+        const groundHeight = probe.getBoundingClientRect().height;
+        probe.remove();
+        return { groundHeight, inner: window.innerHeight };
+      });
+      const lineY = Math.round(geometry.inner - geometry.groundHeight);
+      for (const scrollY of [0, 300]) {
+        await page.evaluate((y) => window.scrollTo(0, y), scrollY);
+        await page.evaluate(
+          () =>
+            new Promise<void>((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => done())),
+            ),
+        );
+        const png = await page.screenshot();
+        // Decode in the page with createImageBitmap on a Blob: no network, no URL.
+        const rows = await page.evaluate(
+          async ({ base64, from, to }) => {
+            const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+            const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+            const canvas = document.createElement("canvas");
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const context = canvas.getContext("2d");
+            if (context === null) throw new Error("no 2d context");
+            context.drawImage(bitmap, 0, 0);
+            const median = (values: number[]) => {
+              const sorted = [...values].sort((a, b) => a - b);
+              return sorted[Math.floor(sorted.length / 2)] ?? 0;
+            };
+            const scale = bitmap.height / window.innerHeight;
+            const out: number[][] = [];
+            for (let y = from; y <= to; y += 1) {
+              const row = Math.min(bitmap.height - 1, Math.round(y * scale));
+              const { data } = context.getImageData(0, row, bitmap.width, 1);
+              const channels: number[][] = [[], [], []];
+              for (let x = 0; x < bitmap.width; x += 1) {
+                for (let c = 0; c < 3; c += 1) channels[c]?.push(data[x * 4 + c] ?? 0);
+              }
+              out.push(channels.map(median));
+            }
+            return out;
+          },
+          { base64: png.toString("base64"), from: lineY - 4, to: lineY + 5 },
+        );
+        for (let i = 0; i < rows.length - 1; i += 1) {
+          const a = rows[i] ?? [];
+          const b = rows[i + 1] ?? [];
+          for (let c = 0; c < 3; c += 1) {
+            const diff = Math.abs((a[c] ?? 0) - (b[c] ?? 0));
+            expect(
+              diff,
+              `${where} scrolled ${scrollY}: median channel ${c} of row ${lineY - 4 + i} vs the next differs by ${diff}, expected at most 3 (old Ground line at y ${lineY})`,
+            ).toBeLessThanOrEqual(3);
+          }
+        }
+      }
+    });
+  }
+});
+
+/** Median RGB per row for rows `from`..`to` (CSS px) of a PNG, decoded in the page with no network. */
+async function rowMedians(page: Page, png: Buffer, from: number, to: number): Promise<number[][]> {
+  return page.evaluate(
+    async ({ base64, first, last }) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext("2d");
+      if (context === null) throw new Error("no 2d context");
+      context.drawImage(bitmap, 0, 0);
+      const median = (values: number[]) => {
+        const sorted = [...values].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)] ?? 0;
+      };
+      const scale = bitmap.width / window.innerWidth;
+      const out: number[][] = [];
+      for (let y = first; y <= last; y += 1) {
+        const row = Math.min(bitmap.height - 1, Math.round(y * scale));
+        const { data } = context.getImageData(0, row, bitmap.width, 1);
+        const channels: number[][] = [[], [], []];
+        for (let x = 0; x < bitmap.width; x += 1) {
+          for (let c = 0; c < 3; c += 1) channels[c]?.push(data[x * 4 + c] ?? 0);
+        }
+        out.push(channels.map(median));
+      }
+      return out;
+    },
+    { base64: png.toString("base64"), first: from, last: to },
+  );
+}
+
+function meanRows(rows: number[][]): number[] {
+  return [0, 1, 2].map((c) => rows.reduce((sum, row) => sum + (row[c] ?? 0), 0) / rows.length);
+}
+
+/** One pixel per row at CSS x, for CSS rows `from` to `to` of a viewport screenshot. */
+async function columnPixels(
+  page: Page,
+  png: Buffer,
+  x: number,
+  from: number,
+  to: number,
+): Promise<number[][]> {
+  return page.evaluate(
+    async ({ base64, col, first, last }) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext("2d");
+      if (context === null) throw new Error("no 2d context");
+      context.drawImage(bitmap, 0, 0);
+      const scale = bitmap.width / window.innerWidth;
+      const out: number[][] = [];
+      for (let y = first; y <= last; y += 1) {
+        const row = Math.min(bitmap.height - 1, Math.round(y * scale));
+        const { data } = context.getImageData(Math.round(col * scale), row, 1, 1);
+        out.push([data[0] ?? 0, data[1] ?? 0, data[2] ?? 0]);
+      }
+      return out;
+    },
+    { base64: png.toString("base64"), col: x, first: from, last: to },
+  );
+}
+
+test.describe("sky blends into the page", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  for (const { width, height } of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    test(`sky blends into the page ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openLanding(page, "empty");
+      await page.evaluate(() => document.fonts.ready);
+      const where = `${width}x${height}`;
+      const metrics = await page.evaluate(() => ({
+        inner: window.innerHeight,
+        total: document.documentElement.scrollHeight,
+      }));
+      expect(metrics.total, `${where}: the page must be taller than the viewport`).toBeGreaterThan(
+        metrics.inner + 8,
+      );
+      const full = await page.screenshot({ fullPage: true });
+      const above = meanRows(await rowMedians(page, full, metrics.inner - 4, metrics.inner - 1));
+      const below = meanRows(await rowMedians(page, full, metrics.inner, metrics.inner + 3));
+      for (let c = 0; c < 3; c += 1) {
+        const diff = Math.abs((above[c] ?? 0) - (below[c] ?? 0));
+        expect(
+          diff,
+          `${where} full page: mean channel ${c} of the 4 rows above y ${metrics.inner} vs the 4 rows below differs by ${diff.toFixed(1)}, expected at most 4`,
+        ).toBeLessThanOrEqual(4);
+      }
+      // Scrolled to half the page, the viewport bottom must not show an edge either.
+      await page.evaluate(() =>
+        window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) / 2),
+      );
+      await page.evaluate(
+        () =>
+          new Promise<void>((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => done())),
+          ),
+      );
+      const half = await page.screenshot();
+      const bottom = await rowMedians(page, half, metrics.inner - 4, metrics.inner - 1);
+      const inside = await rowMedians(page, half, metrics.inner - 8, metrics.inner - 5);
+      const median = (rows: number[][], c: number) => {
+        const sorted = rows.map((row) => row[c] ?? 0).sort((a, b) => a - b);
+        return ((sorted[1] ?? 0) + (sorted[2] ?? 0)) / 2;
+      };
+      for (let c = 0; c < 3; c += 1) {
+        const diff = Math.abs(median(bottom, c) - median(inside, c));
+        expect(
+          diff,
+          `${where} scrolled to 50 %: median channel ${c} of the bottom 4 rows vs rows ${metrics.inner - 8} to ${metrics.inner - 5} differs by ${diff}, expected at most 4`,
+        ).toBeLessThanOrEqual(4);
+      }
+      // No step between adjacent rows across the lowest fifth of the viewport (finding 9.2: a
+      // clamped gradient stop made a hard edge at 88 % that the rows at innerHeight never showed).
+      // The page content (the Privacy badge sits at x 20 on phones) and the RidgeBand (hills and
+      // fence, scenery that bug 9 leaves alone) are hidden for this check, so that only the
+      // fixed sky is sampled.
+      await page.addStyleTag({
+        content: "main, footer, [data-ridge-band] { visibility: hidden !important; }",
+      });
+      const first = Math.round(metrics.inner * 0.8);
+      for (const scrollY of [0, 300]) {
+        await page.evaluate((y) => window.scrollTo(0, y), scrollY);
+        await page.evaluate(
+          () =>
+            new Promise<void>((done) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => done())),
+            ),
+        );
+        const shot = await page.screenshot();
+        const rows = await columnPixels(page, shot, 20, first, metrics.inner - 1);
+        for (let i = 1; i < rows.length; i += 1) {
+          for (let c = 0; c < 3; c += 1) {
+            const step = Math.abs((rows[i]?.[c] ?? 0) - (rows[i - 1]?.[c] ?? 0));
+            expect(
+              step,
+              `${where} scrolled ${scrollY}: channel ${c} steps by ${step} between y ${first + i - 1} and ${first + i} at x 20, expected at most 4`,
+            ).toBeLessThanOrEqual(4);
+          }
+        }
+      }
     });
   }
 });

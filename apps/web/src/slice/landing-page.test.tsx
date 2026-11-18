@@ -17,6 +17,7 @@ import {
   REPO_LINK,
 } from "./logic/landing-text";
 import { PRIVACY_NOTE, STATEMENT_TIP, droppedNote, restoredLine } from "./logic/memory-text";
+import { LANDING_SKY_BACKGROUND, SKY_BACKGROUND } from "./graveyard/graveyard-backdrop";
 import { SAMPLES } from "./samples";
 import { createGraveyardStore } from "./storage/graveyard-store";
 import { fakeStorage, fakeStoreTarget, storeLoadOf } from "./storage/test-store";
@@ -31,6 +32,17 @@ const THREE_ROW_FILE =
   "Date,Description,Amount\n2026-01-03,CORNER BAKERY,-4.50\n2026-01-09,HARDWARE DEPOT,-23.10\n2026-01-20,BOOK NOOK,-12.00\n";
 
 const SVG_COUNT = 14;
+
+/** The NightScene root (the element holding --ground-h) and its first fixed layer. */
+function sceneParts(container: HTMLElement) {
+  const root = Array.from(container.querySelectorAll<HTMLElement>("div")).find(
+    (el) => el.style.getPropertyValue("--ground-h") !== "",
+  );
+  if (root === undefined) throw new Error("expected the NightScene root");
+  const layer = root.querySelector<HTMLElement>(":scope > .fixed");
+  if (layer === null) throw new Error("expected the first fixed layer");
+  return { root, layer };
+}
 
 const NETFLIX_BURIED = {
   id: "sub:USD:monthly:*:netflix",
@@ -198,6 +210,40 @@ describe("Landing view: structure", () => {
       expect(classes, expected).toContain(expected);
     }
     expect(classes).not.toContain("self-start");
+  });
+
+  it("the Landing view has no fixed Ground", () => {
+    const { container } = renderFirstVisit();
+    const fixed = Array.from(container.querySelectorAll<HTMLElement>(".fixed"));
+    expect(fixed.length).toBeGreaterThan(0);
+    for (const layer of fixed) {
+      for (const el of Array.from(layer.querySelectorAll<HTMLElement>("*"))) {
+        expect(el.style.boxShadow, "inset shadow under a fixed layer").not.toContain("inset");
+      }
+    }
+    const all = Array.from(container.querySelectorAll<HTMLElement>("*"));
+    expect(all.filter((el) => el.style.height === "var(--ground-h)")).toHaveLength(0);
+  });
+
+  it("the Landing sky is fixed and ends in night", () => {
+    const { container } = renderFirstVisit();
+    const { root, layer } = sceneParts(container);
+    expect(root.style.background).toBe("var(--night)");
+    expect(layer.style.background.endsWith("var(--night) 100%)")).toBe(true);
+    expect(layer.style.background).not.toContain("var(--ground-h)");
+    expect(root.style.background).not.toContain("#");
+    expect(layer.style.background).not.toContain("#");
+  });
+
+  it("the Landing sky background keeps the sky stops and adds the fade", () => {
+    expect(LANDING_SKY_BACKGROUND.startsWith("linear-gradient(to bottom, ")).toBe(true);
+    const stops = SKY_BACKGROUND.slice("linear-gradient(to bottom, ".length, -1);
+    expect(LANDING_SKY_BACKGROUND).toContain(stops);
+    // Amended (finding 9.2): the fog stop at 88 % fades straight to night at 100 %. A stop at
+    // calc(100% - var(--ground-h)) would be clamped up to 88 % and leave a hard edge there.
+    expect(LANDING_SKY_BACKGROUND).toBe(`linear-gradient(to bottom, ${stops}, var(--night) 100%)`);
+    expect(LANDING_SKY_BACKGROUND).not.toContain("calc(");
+    expect(LANDING_SKY_BACKGROUND.endsWith("var(--fog) 88%, var(--night) 100%)")).toBe(true);
   });
 
   it("the Hero art ground fades out", () => {
@@ -503,6 +549,27 @@ describe("Non-landing views keep today's layout", () => {
     const fixed = Array.from(container.querySelectorAll(".fixed"));
     const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
     expect(count).toBe(SVG_COUNT);
+  });
+
+  it("keep the fixed Ground with its inset line", async () => {
+    const { container } = renderFirstVisit();
+    await summon();
+    const fixed = Array.from(container.querySelectorAll<HTMLElement>(".fixed"));
+    const ground = fixed
+      .flatMap((layer) => Array.from(layer.querySelectorAll<HTMLElement>("div")))
+      .find((el) => el.style.height === "var(--ground-h)");
+    if (ground === undefined) throw new Error("expected the Ground in a fixed layer");
+    expect(ground.style.boxShadow).toContain("inset");
+    const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
+    expect(count).toBe(SVG_COUNT);
+  });
+
+  it("keep the root sky background and no fixed-layer background", async () => {
+    const { container } = renderFirstVisit();
+    await summon();
+    const { root, layer } = sceneParts(container);
+    expect(root.style.background).toBe(SKY_BACKGROUND);
+    expect(layer.style.background).toBe("");
   });
 
   it("no-subscriptions", async () => {

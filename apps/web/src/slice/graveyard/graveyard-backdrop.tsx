@@ -11,7 +11,10 @@ import { fogFade } from "./motion";
 const mix = (token: string, pct: number, other = "transparent") =>
   `color-mix(in oklab, var(--${token}) ${pct}%, ${other === "transparent" ? other : `var(--${other})`})`;
 
-export const SKY_BACKGROUND = `linear-gradient(to bottom, var(--night) 0%, var(--night) 22%, ${mix("fog", 65, "night")} 62%, var(--fog) 88%)`;
+const SKY_STOPS = `var(--night) 0%, var(--night) 22%, ${mix("fog", 65, "night")} 62%, var(--fog) 88%`;
+export const SKY_BACKGROUND = `linear-gradient(to bottom, ${SKY_STOPS})`;
+/** The Landing sky: the same stops, then a fade from the fog stop (88 %) to night at 100 %. */
+export const LANDING_SKY_BACKGROUND = `linear-gradient(to bottom, ${SKY_STOPS}, var(--night) 100%)`;
 
 /* ------------------------------------------------------------------------------------------------
  * Stars: fixed positions from a seeded PRNG so they never shift between renders. Static, no
@@ -430,6 +433,9 @@ export function BackdropLayers({
   );
 }
 
+/** Height of the fade to transparent at the bottom of the `RidgeBand`. */
+const RIDGE_FADE_H = 64;
+
 /**
  * The hills + fence band of the Landing view, drawn once in the document flow so it scrolls with
  * the page. `--ground-h: 0px` puts the existing Hills and Fence at the bottom of this box. Static,
@@ -444,16 +450,15 @@ export function RidgeBand() {
       style={
         {
           "--ground-h": "0px",
-          height: `calc(clamp(5rem, 17vh, 11rem) + ${FENCE_H}px - 2px)`,
+          height: `max(clamp(5rem, 17vh, 11rem), ${FENCE_H}px)`,
+          // The bottom of the band fades to transparent (not to night), so it blends into
+          // whatever sky is behind it.
+          maskImage: `linear-gradient(to bottom, var(--night) calc(100% - ${RIDGE_FADE_H}px), transparent)`,
         } as CSSProperties
       }
     >
       <Hills />
       <Fence />
-      <div
-        className="absolute inset-x-0 bottom-0 h-4"
-        style={{ background: "linear-gradient(to bottom, transparent, var(--night))" }}
-      />
     </div>
   );
 }

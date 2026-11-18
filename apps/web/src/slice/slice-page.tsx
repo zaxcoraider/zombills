@@ -264,7 +264,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
                     onOpen: () => dispatch({ type: "open-graveyard" }),
                   }}
                 />
-                <div className="relative left-1/2 -my-6 w-screen shrink-0 -translate-x-1/2">
+                <div className="relative left-1/2 -mb-6 -mt-12 lg:-mb-8 lg:-mt-10 w-screen shrink-0 -translate-x-1/2">
                   <RidgeBand />
                 </div>
                 <HowItWorks />
