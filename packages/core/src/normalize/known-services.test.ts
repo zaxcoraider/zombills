@@ -11,7 +11,7 @@ const EXPECTED: readonly (readonly [string, string, ServiceCategory])[] = [
   ["netflix", "Netflix", "video-streaming"],
   ["disney-plus", "Disney+", "video-streaming"],
   ["hulu", "Hulu", "video-streaming"],
-  ["max", "Max", "video-streaming"],
+  ["max", "HBO Max", "video-streaming"],
   ["paramount-plus", "Paramount+", "video-streaming"],
   ["peacock", "Peacock", "video-streaming"],
   ["apple-tv-plus", "Apple TV+", "video-streaming"],

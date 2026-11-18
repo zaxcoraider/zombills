@@ -34,7 +34,7 @@ const VIDEO_STREAMING: readonly KnownService[] = [
     contains("disneyplus"),
   ]),
   service("hulu", "Hulu", "video-streaming", [contains("hulu"), contains("hulu plus")]),
-  service("max", "Max", "video-streaming", [exact("max"), contains("hbo max"), contains("hbomax")]),
+  service("max", "HBO Max", "video-streaming", [exact("max"), contains("hbo max"), contains("hbomax")]),
   service("paramount-plus", "Paramount+", "video-streaming", [
     contains("paramount+"),
     contains("paramount plus"),
