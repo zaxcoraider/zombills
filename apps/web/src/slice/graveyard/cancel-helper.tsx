@@ -22,6 +22,7 @@ import {
   withFor,
 } from "../logic/cancel-text";
 import type { AnswerRecord } from "../logic/graveyard";
+import { buttonVariant } from "../button-variants";
 import { COPY_LABEL_FADE } from "./motion";
 import { useCopyEmail } from "./use-copy-email";
 
@@ -31,10 +32,6 @@ export interface CancelHelperProps {
   displayName: string;
   reduceMotion: boolean;
 }
-
-const CONTROL = "inline-flex min-h-11 min-w-11 items-center";
-const EXTERNAL_LINK = `${CONTROL} underline underline-offset-2`;
-const BUTTON = `${CONTROL} justify-center rounded border border-bone bg-fog px-4 py-2 text-bone`;
 
 type LinkHelp = Extract<CancelHelp, { kind: "link" }>;
 
@@ -53,7 +50,7 @@ function ExternalLink({ href, text, displayName, newTabId }: ExternalLinkProps) 
       rel="noopener noreferrer"
       aria-describedby={newTabId}
       aria-label={withFor(text, displayName)}
-      className={EXTERNAL_LINK}
+      {...buttonVariant("secondary")}
     >
       {text}
     </a>
@@ -159,7 +156,7 @@ export function CancelHelper({ record, displayName, reduceMotion }: CancelHelper
           type="button"
           onClick={onCopy}
           aria-label={withFor(copyLabel, displayName)}
-          className={BUTTON}
+          {...buttonVariant("secondary")}
         >
           <motion.span
             key={copied ? "copied" : "copy"}
@@ -173,7 +170,7 @@ export function CancelHelper({ record, displayName, reduceMotion }: CancelHelper
         <a
           href={mailtoHref(email)}
           aria-label={withFor("Open in my email app", displayName)}
-          className={`${BUTTON} no-underline`}
+          {...buttonVariant("secondary")}
         >
           Open in my email app
         </a>

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SHARE_TEXT_RIGHT_LIMIT, shareTextLayout } from "../scripts/og-font-paths";
+import * as motionValues from "./slice/graveyard/motion";
 
 const SRC_DIR = dirname(fileURLToPath(import.meta.url));
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
@@ -264,7 +265,232 @@ function artOffences(text: string): string[] {
   return found;
 }
 
+const SLICE_DIR = join(SRC_DIR, "slice");
+
+/** The files whose motion objects P7 checks: the four signature moments. */
+const P7_FILES = [
+  join(SLICE_DIR, "graveyard", "undead-card.tsx"),
+  join(SLICE_DIR, "drop-zone.tsx"),
+  join(SLICE_DIR, "statement", "grave-art.tsx"),
+  join(SLICE_DIR, "chrome", "footer-tombstone.tsx"),
+];
+const P7_KEYS = new Set(["x", "y", "rotate", "scaleY", "opacity"]);
+/** Keys of a target that configure, rather than animate. */
+const TARGET_META = new Set(["transition", "transitionEnd"]);
+
+/** The text from `open` (at `start`) to its matching closer, outside quotes. */
+function balanced(text: string, start: number): string {
+  const open = text.charAt(start);
+  const close = open === "{" ? "}" : open === "(" ? ")" : "]";
+  let depth = 0;
+  let quote = "";
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text.charAt(i);
+    if (quote) {
+      if (ch === quote) quote = "";
+    } else if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+    } else if (ch === open) {
+      depth += 1;
+    } else if (ch === close) {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return text.slice(start);
+}
+
+/** The top-level keys of an object literal `{ … }` (shorthand, `key:` and `"key":`). */
+function literalKeys(literal: string): string[] {
+  const inner = literal.slice(1, -1);
+  const keys: string[] = [];
+  let depth = 0;
+  let quote = "";
+  let segment = "";
+  const flush = () => {
+    const key = /^\s*["']?([A-Za-z_$][\w$]*)["']?\s*(?::|$)/.exec(segment)?.[1];
+    if (key) keys.push(key);
+    segment = "";
+  };
+  for (const ch of inner) {
+    if (quote) {
+      if (ch === quote) quote = "";
+    } else if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+    } else if ("{([".includes(ch)) {
+      depth += 1;
+    } else if ("})]".includes(ch)) {
+      depth -= 1;
+    } else if (ch === "," && depth === 0) {
+      flush();
+      continue;
+    }
+    segment += ch;
+  }
+  flush();
+  return keys;
+}
+
+/** Animated keys of a runtime target, or of every target in a Variants object. */
+function runtimeKeys(value: unknown, isVariants: boolean): string[] {
+  if (typeof value !== "object" || value === null) return [];
+  const targets = isVariants ? Object.values(value) : [value];
+  return targets.flatMap((target) =>
+    typeof target === "object" && target !== null
+      ? Object.keys(target).filter((key) => !TARGET_META.has(key))
+      : [],
+  );
+}
+
+/** Every animated key named by one `animate`, `variants` or `whileHover` value expression. */
+function p7Keys(
+  expr: string,
+  isVariants: boolean,
+  fileText: string,
+  exported: Readonly<Record<string, unknown>>,
+): string[] {
+  const value = expr.trim();
+  // A variant label (a string, or a lookup of one) names a target checked through `variants`.
+  if (/^["'`]/.test(value) || /^[A-Z_]+\[/.test(value)) return [];
+  if (value.startsWith("{")) {
+    const keys = literalKeys(value);
+    return isVariants ? [] : keys.filter((key) => !TARGET_META.has(key));
+  }
+  const call = /^([A-Za-z_$][\w$]*)\s*\(/.exec(value);
+  if (call) {
+    const fn = exported[call[1] ?? ""];
+    if (typeof fn !== "function") throw new Error(`P7: cannot resolve ${value}`);
+    // Motion helpers take the reduced flag first; check both modes.
+    return [true, false].flatMap((reduced) =>
+      runtimeKeys((fn as (reduced: boolean) => unknown)(reduced), isVariants),
+    );
+  }
+  const name = /^[A-Za-z_$][\w$]*$/.exec(value)?.[0];
+  if (name === undefined) throw new Error(`P7: cannot read ${value}`);
+  if (name in exported) return runtimeKeys(exported[name], isVariants);
+  const local = new RegExp(`\\bconst\\s+${name}\\s*(?::[^=]+)?=\\s*`).exec(fileText);
+  if (local === null) throw new Error(`P7: cannot resolve ${name}`);
+  const start = local.index + local[0].length;
+  const rest = fileText.slice(start);
+  const init = rest.startsWith("{") ? balanced(fileText, start) : (rest.split(/;|\n/)[0] ?? "");
+  return p7Keys(init, isVariants, fileText, exported);
+}
+
+/**
+ * The one named P7 exception (design P7): the graveyard-ui "kept" fade of the yearly-cost figure
+ * may animate `color`. It applies only to the `animate` prop of a tag marked with this attribute.
+ */
+const P7_EXCEPTION_MARK = 'data-p7-exception="yearly-cost-fade"';
+const P7_EXCEPTION_KEYS = new Set(["color"]);
+
+/** The opening tags of `text` that carry the P7 exception mark, as [start, end) ranges. */
+function p7ExceptionTags(text: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  for (const m of text.matchAll(/<[A-Za-z][\w.]*(?=[\s>/])/g)) {
+    const tag = openingTag(text, m.index);
+    if (tag.includes(P7_EXCEPTION_MARK)) ranges.push([m.index, m.index + tag.length]);
+  }
+  return ranges;
+}
+
+/** Every P7 offence in a file: an animated key outside `x`, `y`, `rotate`, `scaleY`, `opacity`. */
+function p7Offences(text: string, exported: Readonly<Record<string, unknown>>): string[] {
+  const found: string[] = [];
+  const excepted = p7ExceptionTags(text);
+  for (const m of text.matchAll(/\b(animate|variants|whileHover)=\{/g)) {
+    const braces = balanced(text, m.index + m[0].length - 1);
+    const keys = p7Keys(braces.slice(1, -1), m[1] === "variants", text, exported);
+    const inMarkedTag =
+      m[1] === "animate" && excepted.some(([start, end]) => m.index > start && m.index < end);
+    for (const key of keys) {
+      if (P7_KEYS.has(key) || (inMarkedTag && P7_EXCEPTION_KEYS.has(key))) continue;
+      found.push(`${m[1]}: ${key}`);
+    }
+  }
+  return found;
+}
+
+/** Non-test `.tsx` files under `src/slice/**`. */
+function sliceTsxFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return sliceTsxFiles(path);
+    return name.endsWith(".tsx") && !/\.test\.tsx$/.test(name) ? [path] : [];
+  });
+}
+
+/**
+ * The opening tag that starts at `start`: up to the first `>` outside `{ … }` and outside
+ * quotes, so `onClick={() => …}` does not end it early.
+ */
+function openingTag(text: string, start: number): string {
+  let depth = 0;
+  let quote = "";
+  for (let i = start + 1; i < text.length; i += 1) {
+    const ch = text.charAt(i);
+    if (quote) {
+      if (ch === quote) quote = "";
+    } else if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+    } else if (ch === "{") {
+      depth += 1;
+    } else if (ch === "}") {
+      depth -= 1;
+    } else if (ch === ">" && depth === 0) {
+      return text.slice(start, i + 1);
+    }
+  }
+  return text.slice(start);
+}
+
+/**
+ * Every Req 6.3 breach in `text`: a `<button` or `<motion.button` tag, or an `<a` or
+ * `<motion.a` tag with `min-h-11` or `rounded-control`, that has none of `data-variant`, an
+ * inline `{...buttonVariant(` spread and `data-exempt`, or that spreads anything else.
+ */
+function variantOffences(text: string): string[] {
+  const found: string[] = [];
+  for (const m of text.matchAll(/<(?:motion\.)?(button|a)(?=[\s>/])/g)) {
+    const tag = openingTag(text, m.index);
+    // An `a` is checked when it looks like a button or spreads anything (review C #8).
+    if (m[1] === "a" && !/\bmin-h-11\b|\brounded-control\b|\{\s*\.\.\./.test(tag)) continue;
+    const marked = /\bdata-variant\b|\{\s*\.\.\.\s*buttonVariant\(|\bdata-exempt\b/.test(tag);
+    const otherSpread = [...tag.matchAll(/\{\s*\.\.\.\s*(\w*)/g)].some(
+      (s) => s[1] !== "buttonVariant",
+    );
+    if (!marked || otherSpread) found.push(tag);
+  }
+  return found;
+}
+
 describe("static checks", () => {
+  it("Variants (Req 6.3)", () => {
+    const files = sliceTsxFiles(SLICE_DIR);
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      expect(variantOffences(readFileSync(file, "utf8")), file).toEqual([]);
+    }
+  });
+
+  it("the variants scan reports each form and accepts the marked ones", () => {
+    expect(variantOffences('<button type="button" onClick={() => go()}>Go</button>')).toHaveLength(
+      1,
+    );
+    expect(variantOffences('<motion.button type="button">Go</motion.button>')).toHaveLength(1);
+    expect(variantOffences('<button type="button" {...v}>Go</button>')).toHaveLength(1);
+    expect(variantOffences('<a href="#x" className="min-h-11 underline">x</a>')).toHaveLength(1);
+    expect(variantOffences('<a href="#x" {...v}>x</a>')).toHaveLength(1);
+    expect(variantOffences('<motion.a href="#x" {...props}>x</motion.a>')).toHaveLength(1);
+    const clean = [
+      '<button type="button" {...buttonVariant("secondary")} onClick={() => go()}>Go</button>',
+      '<motion.button type="button" data-variant="primary" className="bg-moss">Go</motion.button>',
+      '<button type="button" data-exempt="card">Skip</button>',
+      '<a href="#x" className="underline">plain link</a>',
+      "<aside>not a control</aside>",
+    ].join("\n");
+    expect(variantOffences(clean)).toEqual([]);
+  });
+
   it("index.css has no @keyframes (Req 13.1)", () => {
     expect(readFileSync(join(SRC_DIR, "index.css"), "utf8")).not.toMatch(/@keyframes/);
   });
@@ -367,14 +593,17 @@ describe("static checks", () => {
       if (!keyframes.children.some((stop) => FLICKER_PROPERTIES.test(stop.declarations))) continue;
       const durations = uses.filter((use) => use.name === name).map((use) => use.durationMs);
       expect(durations.length, `${name} is used`).toBeGreaterThan(0);
-      expect(smallestStopGapMs(keyframes, Math.min(...durations)), name).toBeGreaterThanOrEqual(334);
+      expect(smallestStopGapMs(keyframes, Math.min(...durations)), name).toBeGreaterThanOrEqual(
+        334,
+      );
       checked += 1;
     }
     expect(checked).toBeGreaterThan(0);
   });
 
   it("the stop-gap scan reports stops that are too close", () => {
-    const fixture = "@keyframes zb-x { 0% { opacity: 0; } 10% { opacity: 1; } 100% { opacity: 0; } }";
+    const fixture =
+      "@keyframes zb-x { 0% { opacity: 0; } 10% { opacity: 1; } 100% { opacity: 0; } }";
     const [keyframes] = keyframeRules(parseCss(fixture));
     expect(keyframes).toBeDefined();
     expect(smallestStopGapMs(keyframes as CssBlock, 3000)).toBe(300);
@@ -387,7 +616,9 @@ describe("static checks", () => {
     const transform = /(?:^|[;\s])transform\s*:/;
     for (const rule of rules) {
       if (rule.inNoPreference) continue;
-      expect(rule.declarations, `${rule.selector} has no animation or transition`).not.toMatch(motion);
+      expect(rule.declarations, `${rule.selector} has no animation or transition`).not.toMatch(
+        motion,
+      );
       if (/:hover|:focus/.test(rule.selector)) {
         expect(rule.declarations, `${rule.selector} has no transform`).not.toMatch(transform);
       }
@@ -412,6 +643,67 @@ describe("static checks", () => {
     for (const file of files) {
       expect(readFileSync(file, "utf8"), file).not.toMatch(/requestAnimationFrame|setInterval/);
     }
+  });
+
+  it("Motion (Req 12.7, 12.8)", () => {
+    // No endless motion anywhere in the slice: the card sway and the fog drift are finite.
+    const sliceFiles = urlSourceFiles(SLICE_DIR).filter((file) => /\.tsx?$/.test(file));
+    expect(sliceFiles.length).toBeGreaterThan(0);
+    for (const file of sliceFiles) {
+      expect(readFileSync(file, "utf8"), file).not.toMatch(/\bInfinity\b/);
+    }
+    const keyframeHolders = urlSourceFiles(SRC_DIR).filter((file) =>
+      /@keyframes/.test(readFileSync(file, "utf8")),
+    );
+    expect(keyframeHolders).toEqual([MOTION_CSS_PATH]);
+    for (const folder of ["chrome", "statement"]) {
+      const files = urlSourceFiles(join(SLICE_DIR, folder));
+      expect(files.length, folder).toBeGreaterThan(0);
+      for (const file of files) {
+        expect(readFileSync(file, "utf8"), file).not.toMatch(/requestAnimationFrame|setInterval/);
+      }
+    }
+  });
+
+  it("the signature moments animate only x, y, rotate, scaleY and opacity (P7)", () => {
+    for (const file of P7_FILES) {
+      expect(p7Offences(readFileSync(file, "utf8"), motionValues), file).toEqual([]);
+    }
+    // The named exception marks exactly the two yearly-cost figures of the undead card.
+    for (const file of P7_FILES) {
+      const marks = readFileSync(file, "utf8").split(P7_EXCEPTION_MARK).length - 1;
+      expect(marks, file).toBe(file === P7_FILES[0] ? 2 : 0);
+    }
+  });
+
+  it("the P7 exception allows color only on the animate prop of a marked tag", () => {
+    const fade = 'animate={{ color: calm ? "var(--bone)" : "var(--blood)" }}';
+    // The exempted yearly-cost form passes.
+    expect(
+      p7Offences(`<motion.p ${P7_EXCEPTION_MARK} initial={false} ${fade} />`, motionValues),
+    ).toEqual([]);
+    // Color on an unmarked tag fails.
+    expect(p7Offences(`<motion.p initial={false} ${fade} />`, motionValues)).toEqual([
+      "animate: color",
+    ]);
+    // Color in some other animate object fails, even next to a marked tag.
+    const sibling = `<motion.p ${P7_EXCEPTION_MARK} ${fade}><motion.span animate={{ color: "red" }} /></motion.p>`;
+    expect(p7Offences(sibling, motionValues)).toEqual(["animate: color"]);
+    // The mark allows color only, and only in animate.
+    const wider = `<motion.p ${P7_EXCEPTION_MARK} animate={{ color: "red", scale: 2 }} whileHover={{ color: "red" }} />`;
+    expect(p7Offences(wider, motionValues)).toEqual(["animate: scale", "whileHover: color"]);
+  });
+
+  it("the P7 scan reads literals, locals and motion helpers, and reports other keys", () => {
+    const fixture = [
+      "const glow = { opacity: on ? 1 : 0 };",
+      "const lift = stoneVariants(reduceMotion);",
+      '<motion.div animate={{ rotate: 0, transition: { duration: 0 } }} animate="rest" />',
+      "<motion.div animate={glow} variants={lift} animate={VARIANT_FOR_PHASE[phase]} />",
+      '<motion.p animate={{ color: "var(--bone)" }} whileHover={{ scale: 1.1 }} />',
+      "<motion.div variants={cardVariants(reduceMotion)} />",
+    ].join("\n");
+    expect(p7Offences(fixture, motionValues)).toEqual(["animate: color", "whileHover: scale"]);
   });
 
   it("art files draw no text, image or external reference, no hex colour, and ids from useId (Req 12.3)", () => {
@@ -455,7 +747,9 @@ describe("static checks", () => {
       'fill="#123456"',
     ].join("\n");
     expect(previewSvgOffences(fixture)).toHaveLength(7);
-    expect(previewSvgOffences('<use href="#a" /><rect fill="url(#sky)" stroke="#ece6d6" />')).toEqual([]);
+    expect(
+      previewSvgOffences('<use href="#a" /><rect fill="url(#sky)" stroke="#ece6d6" />'),
+    ).toEqual([]);
   });
 
   it("the preview wordmark and tagline lines end at or before x 1150 (task 10, amended 2026-11-18)", () => {

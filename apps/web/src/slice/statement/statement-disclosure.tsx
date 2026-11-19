@@ -1,6 +1,6 @@
 import { useId } from "react";
 import type { ReactNode } from "react";
-import { BARE_FOCUS } from "../landing/bare-focus";
+import { buttonVariant } from "../button-variants";
 import { TRY_ANOTHER_STATEMENT } from "../logic/chrome-text";
 import type { FocusTarget } from "../page-state";
 
@@ -64,13 +64,15 @@ export function StatementDisclosure({ open, onToggle, children }: StatementDiscl
   const bodyId = useId();
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-4">
-      <h2 id={headingId} className="text-lead font-bold">
+      {/* No inline padding on the button, so its text lines up with the Cards above (review C
+          V1); min-h-11 and min-w-11 keep the 44 px target. */}
+      <h2 id={headingId} className="text-lead font-bold [&>button]:px-0">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={bodyId}
           onClick={onToggle}
-          className={`inline-flex min-h-11 items-center gap-2 text-bone underline underline-offset-4 ${BARE_FOCUS}`}
+          {...buttonVariant("tertiary", { bare: true, inheritSize: true })}
         >
           {TRY_ANOTHER_STATEMENT}
           <ChevronIcon open={open} />

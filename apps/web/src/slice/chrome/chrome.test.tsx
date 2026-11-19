@@ -59,6 +59,13 @@ describe("LeaveQuestion", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: STAY_TEXT }));
   });
 
+  it("gives Stay and Leave the secondary variant", () => {
+    setup();
+    for (const name of [STAY_TEXT, LEAVE_TEXT]) {
+      expect(screen.getByRole("button", { name }).getAttribute("data-variant")).toBe("secondary");
+    }
+  });
+
   it("refocuses Stay when seq changes after focus moved away", () => {
     const { onStay, onLeave, rerender } = setup(1);
     const leave = screen.getByRole("button", { name: LEAVE_TEXT });

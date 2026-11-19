@@ -547,3 +547,27 @@ describe("GraveyardView: Memory and Earlier records", () => {
     });
   });
 });
+
+describe("GraveyardView: button variants (Req 6.5)", () => {
+  const variantOf = (name: string) =>
+    screen.getByRole("button", { name }).getAttribute("data-variant");
+
+  it("gives each control of the full US view its variant", () => {
+    renderView(usGraveyardModel());
+    expect(variantOf("How to cancel Netflix")).toBe("secondary");
+    expect(variantOf("Unbury Netflix")).toBe("danger");
+    expect(screen.getByRole("button", { name: "Unbury Netflix" }).className).toContain(
+      "border-blood/85",
+    );
+    expect(variantOf("Bury after all Adobe Creative Cloud")).toBe("secondary");
+    expect(variantOf("Answer now Riverside Gym Membership")).toBe("secondary");
+    expect(variantOf("Back to the rising")).toBe("secondary");
+  });
+
+  it("makes Back to the start secondary without a statement", () => {
+    renderView(pageReducer(INITIAL_PAGE_MODEL, { type: "open-graveyard" }), {
+      hasStatement: false,
+    });
+    expect(variantOf("Back to the start")).toBe("secondary");
+  });
+});

@@ -1,4 +1,5 @@
 import { NEWER_NOTE, UNREADABLE_NOTE, droppedNote } from "../logic/memory-text";
+import { buttonVariant } from "../button-variants";
 import type { LoadNote } from "../page-state";
 
 export interface ReturnNotesProps {
@@ -27,11 +28,7 @@ export function ReturnNotes({ restored, loadNote, showOpen, onOpen }: ReturnNote
       {restored !== null ? <p>{restored}</p> : null}
       {loadNote !== null ? <p>{loadNoteText(loadNote)}</p> : null}
       {showOpen ? (
-        <button
-          type="button"
-          className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-          onClick={onOpen}
-        >
+        <button type="button" {...buttonVariant("secondary")} onClick={onOpen}>
           Open the graveyard
         </button>
       ) : null}

@@ -1,11 +1,11 @@
 import type { Cadence, ClassifiedSubscription } from "@zombills/core";
-import { AnimatePresence, motion, type Transition } from "framer-motion";
-import { useId } from "react";
+import { AnimatePresence, motion, useIsPresent, type Transition } from "framer-motion";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { CADENCE_LABELS, formatDisplayDate } from "../logic/display-date";
 import { priceRiseParts, trialParts } from "../logic/label-text";
 import { LabelChip, type LabelKind } from "./label-chip";
 import { Money, TextLine } from "./money-text";
-import { REDUCED_FADE, SINK, cardVariants } from "./motion";
+import { CARD_SWAY, CARD_SWAY_SETTLE, REDUCED_FADE, SINK, cardVariants } from "./motion";
 import { useFocusRequest } from "./use-focus-request";
 
 export type CardPhase = "undead" | "resting" | "condemned" | "sinking";
@@ -41,20 +41,31 @@ const PERIOD_WORD: Readonly<Record<Cadence, string>> = {
 function swayFor(
   phase: CardPhase,
   reduceMotion: boolean,
+  stilled: boolean,
 ): { rotate: number | number[]; transition: Transition } {
   if (reduceMotion) return { rotate: 0, transition: { duration: 0 } };
   switch (phase) {
     case "undead":
+      // The undead sway once after rising, then rest; hover or a focused answer stills them.
+      return stilled
+        ? { rotate: 0, transition: CARD_SWAY_SETTLE }
+        : { rotate: [...CARD_SWAY.rotate], transition: CARD_SWAY.transition };
     case "condemned":
-      // The undead never quite stand still.
-      return {
-        rotate: [-0.9, 0.9],
-        transition: { duration: 2.8, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" },
-      };
+      return { rotate: 0, transition: CARD_SWAY_SETTLE };
     case "sinking":
       return { rotate: -2.5, transition: SINK };
     case "resting":
       return { rotate: 0, transition: { type: "spring", stiffness: 60, damping: 12 } };
+  }
+}
+
+/** True for keyboard focus on a button; false where the browser cannot parse `:focus-visible`. */
+function isVisibleButtonFocus(target: EventTarget): boolean {
+  if (!(target instanceof Element)) return false;
+  try {
+    return target.matches("button:focus-visible");
+  } catch {
+    return false;
   }
 }
 
@@ -105,6 +116,70 @@ function DataLine({
   );
 }
 
+function AskBlock({
+  canSkip,
+  tapTarget,
+  isDeciding,
+  onRest,
+  onBury,
+  onSkip,
+}: {
+  canSkip: boolean;
+  tapTarget: { scale?: number };
+  isDeciding(): boolean;
+  onRest(): void;
+  onBury(): void;
+  onSkip(): void;
+}) {
+  // While it fades out after "Yes, let it rest", the exiting copy is inert: out of the tab
+  // order, `aria-disabled`, and its handlers read the live phase.
+  const present = useIsPresent();
+  const inert = !present;
+  const tabIndex = present ? undefined : -1;
+  return (
+    <motion.div exit={{ opacity: 0 }} transition={REDUCED_FADE}>
+      <p className="font-display text-[1.75rem] italic leading-tight">Still using this?</p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <motion.button
+          type="button"
+          aria-disabled={inert}
+          tabIndex={tabIndex}
+          data-exempt="card"
+          whileTap={tapTarget}
+          onClick={() => isDeciding() && onRest()}
+          className={`${BUTTON_BASE} border border-bone/25 text-bone hover:border-bone/45 hover:bg-bone/5`}
+        >
+          Yes, let it rest
+        </motion.button>
+        <motion.button
+          type="button"
+          aria-disabled={inert}
+          tabIndex={tabIndex}
+          data-exempt="card"
+          data-variant="primary"
+          whileTap={tapTarget}
+          onClick={() => isDeciding() && onBury()}
+          className={`${BUTTON_BASE} bg-moss text-night hover:bg-moss/90`}
+        >
+          No, bury it
+        </motion.button>
+      </div>
+      {canSkip ? (
+        <button
+          type="button"
+          aria-disabled={inert}
+          tabIndex={tabIndex}
+          data-exempt="card"
+          onClick={() => isDeciding() && onSkip()}
+          className="mt-3 h-12 cursor-pointer px-1 text-sm font-semibold text-bone/90 underline underline-offset-4 aria-disabled:cursor-default"
+        >
+          Skip for now
+        </button>
+      ) : null}
+    </motion.div>
+  );
+}
+
 export function UndeadCard(props: UndeadCardProps) {
   const {
     subscription,
@@ -125,13 +200,24 @@ export function UndeadCard(props: UndeadCardProps) {
   const guessed = evidence.cadenceAssumed;
   const calm = phase === "resting";
   const deciding = phase === "undead";
+  // The answer block may fade out after "Yes, let it rest"; the exiting copy keeps its old
+  // props, so its handlers read the live phase and stay inert.
+  const phaseRef = useRef(phase);
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+  const isDeciding = () => phaseRef.current === "undead";
+  // Once stilled the card stays upright; it is keyed by subscription id, so the next one sways.
+  const [stilled, setStilled] = useState(false);
   const labelKind: LabelKind = calm
     ? "resting"
     : subscription.labels.includes("zombie")
       ? "zombie"
       : "undead";
-  const sway = swayFor(phase, reduceMotion);
-  const tapProps = reduceMotion || !deciding ? {} : { whileTap: { scale: 0.97 } };
+  const sway = swayFor(phase, reduceMotion, stilled);
+  // An empty target changes nothing, so the tap press is off under reduced motion and when not deciding.
+  // It is a prop in each tag, not a spread, so the variants static check sees every prop.
+  const tapTarget = reduceMotion || !deciding ? {} : { scale: 0.97 };
   const firstSeen = subscription.charges[0]?.date ?? evidence.firstChargeDate;
   const showPossessed =
     subscription.labels.includes("possessed") && subscription.priceRise !== null;
@@ -151,6 +237,12 @@ export function UndeadCard(props: UndeadCardProps) {
         style={{ originX: 0.5, originY: 1 }}
         animate={{ rotate: sway.rotate }}
         transition={sway.transition}
+        onPointerEnter={(event) => {
+          if (event.pointerType !== "touch") setStilled(true);
+        }}
+        onFocus={(event) => {
+          if (isVisibleButtonFocus(event.target)) setStilled(true);
+        }}
       >
         <section
           aria-labelledby={titleId}
@@ -221,6 +313,7 @@ export function UndeadCard(props: UndeadCardProps) {
               {guessed ? null : (
                 <motion.p
                   className="flex items-baseline gap-1"
+                  data-p7-exception="yearly-cost-fade"
                   initial={false}
                   animate={{ color: calm ? "var(--bone)" : "var(--blood)" }}
                   transition={{ duration: reduceMotion ? 0.15 : 0.9 }}
@@ -238,6 +331,7 @@ export function UndeadCard(props: UndeadCardProps) {
                 <span>Guessed from a single charge</span>
                 <motion.span
                   className="text-2xl font-semibold leading-tight"
+                  data-p7-exception="yearly-cost-fade"
                   initial={false}
                   animate={{ color: calm ? "var(--bone)" : "var(--blood)" }}
                   transition={{ duration: reduceMotion ? 0.15 : 0.9 }}
@@ -270,47 +364,25 @@ export function UndeadCard(props: UndeadCardProps) {
             <div className="my-6 h-px bg-bone/10" />
 
             <div className="min-h-26">
-              <AnimatePresence mode="wait" initial={false}>
-                {calm ? (
-                  <KeptNote key="kept" subscription={subscription} reduceMotion={reduceMotion} />
-                ) : (
-                  <motion.div key="ask" exit={{ opacity: 0 }} transition={REDUCED_FADE}>
-                    <p className="font-display text-[1.75rem] italic leading-tight">
-                      Still using this?
-                    </p>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <motion.button
-                        type="button"
-                        aria-disabled={!deciding}
-                        {...tapProps}
-                        onClick={() => deciding && onRest()}
-                        className={`${BUTTON_BASE} border border-bone/25 text-bone hover:border-bone/45 hover:bg-bone/5`}
-                      >
-                        Yes, let it rest
-                      </motion.button>
-                      <motion.button
-                        type="button"
-                        aria-disabled={!deciding}
-                        {...tapProps}
-                        onClick={() => deciding && onBury()}
-                        className={`${BUTTON_BASE} bg-moss text-night hover:bg-moss/90`}
-                      >
-                        No, bury it
-                      </motion.button>
-                    </div>
-                    {canSkip ? (
-                      <button
-                        type="button"
-                        aria-disabled={!deciding}
-                        onClick={() => deciding && onSkip()}
-                        className="mt-3 h-12 cursor-pointer px-1 text-sm font-semibold text-bone/90 underline underline-offset-4 aria-disabled:cursor-default"
-                      >
-                        Skip for now
-                      </button>
-                    ) : null}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* A burial removes the answer block at once, with no exit fade, so it never
+                  lingers beside "Next" (Req 6.3). Only "Yes, let it rest" fades it into the note. */}
+              {phase === "condemned" || phase === "sinking" ? null : (
+                <AnimatePresence mode="wait" initial={false}>
+                  {calm ? (
+                    <KeptNote key="kept" subscription={subscription} reduceMotion={reduceMotion} />
+                  ) : (
+                    <AskBlock
+                      key="ask"
+                      canSkip={canSkip}
+                      tapTarget={tapTarget}
+                      isDeciding={isDeciding}
+                      onRest={onRest}
+                      onBury={onBury}
+                      onSkip={onSkip}
+                    />
+                  )}
+                </AnimatePresence>
+              )}
             </div>
           </div>
         </section>

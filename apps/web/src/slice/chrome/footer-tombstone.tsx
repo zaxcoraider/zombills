@@ -232,14 +232,9 @@ export function FooterTombstone({
   describedBy,
   onActivate,
 }: FooterTombstoneProps) {
-  // `animate="rest"` makes the return from a gesture use the `rest` variant and its STONE_REST
-  // tween; without it Framer Motion falls back to its default spring, which settles late.
-  const gesture = {
-    initial: "rest",
-    animate: "rest",
-    whileHover: "peek",
-    whileFocus: "peek",
-  } as const;
+  // `animate="rest"` on each tag makes the return from a gesture use the `rest` variant and its
+  // STONE_REST tween; without it Framer Motion falls back to its default spring, which settles late.
+  // The gesture props are written in each tag, not spread, so the variants static check sees them.
   const style = { paddingTop: GHOST_HEADROOM };
   if (href !== undefined) {
     return (
@@ -251,7 +246,10 @@ export function FooterTombstone({
         aria-describedby={describedBy}
         className={CONTROL_CLASS}
         style={style}
-        {...gesture}
+        initial="rest"
+        animate="rest"
+        whileHover="peek"
+        whileFocus="peek"
       >
         <StoneParts label={label} reduceMotion={reduceMotion} place={place} />
       </motion.a>
@@ -265,7 +263,10 @@ export function FooterTombstone({
       className={CONTROL_CLASS}
       style={style}
       onClick={onActivate}
-      {...gesture}
+      initial="rest"
+      animate="rest"
+      whileHover="peek"
+      whileFocus="peek"
     >
       <StoneParts label={label} reduceMotion={reduceMotion} place={place} />
     </motion.button>

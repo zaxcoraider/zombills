@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, KeyboardEvent } from "react";
+import { buttonVariant } from "./button-variants";
 import { TAP_TO_CHOOSE } from "./logic/chrome-text";
 import { GravePit, RestingGhost } from "./statement/grave-art";
 import { useHoverNone } from "./statement/use-hover-none";
@@ -124,7 +125,8 @@ export function DropZone({ disabled, reduceMotion, onFiles }: DropZoneProps) {
           type="button"
           aria-disabled={disabled ? true : undefined}
           onClick={openPicker}
-          className="absolute inset-x-4 bottom-4 mx-auto w-fit min-h-11 text-center rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:opacity-60"
+          {...buttonVariant("secondary")}
+          className={`${buttonVariant("secondary").className} absolute inset-x-4 bottom-4 mx-auto w-fit text-center`}
         >
           Choose a file
         </button>

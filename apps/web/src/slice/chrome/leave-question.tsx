@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { LEAVE_QUESTION, LEAVE_TEXT, STAY_TEXT } from "../logic/chrome-text";
+import { buttonVariant } from "../button-variants";
 
 export interface LeaveQuestionProps {
   /** Bumped on every Home activation while open; each change refocuses "Stay". */
@@ -7,9 +8,6 @@ export interface LeaveQuestionProps {
   onStay: () => void;
   onLeave: () => void;
 }
-
-/** Today's class string; task 25 makes these secondary. */
-const BUTTON_CLASS = "min-h-11 rounded border border-bone bg-fog px-4 py-2 text-bone";
 
 /**
  * The inline question the Home control asks before leaving the results
@@ -40,10 +38,10 @@ export function LeaveQuestion({ seq, onStay, onLeave }: LeaveQuestionProps) {
         {LEAVE_QUESTION}
       </p>
       <div className="flex flex-wrap gap-3">
-        <button ref={stayRef} type="button" className={BUTTON_CLASS} onClick={onStay}>
+        <button ref={stayRef} type="button" {...buttonVariant("secondary")} onClick={onStay}>
           {STAY_TEXT}
         </button>
-        <button type="button" className={BUTTON_CLASS} onClick={onLeave}>
+        <button type="button" {...buttonVariant("secondary")} onClick={onLeave}>
           {LEAVE_TEXT}
         </button>
       </div>

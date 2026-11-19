@@ -709,6 +709,57 @@ test.describe("stage ground", () => {
   });
 });
 
+test.describe("sway ends", () => {
+  // Req 10.4, 10.7: the undead card sways once after rising and rests before 5 s (WCAG 2.2.2).
+  // Measures motion, so no reduced motion; the mouse stays away from the card so it is not stilled.
+  test("the card sways, then rests at 5.5 s and 6.0 s at 1280x800", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/");
+    await page.mouse.move(2, 2);
+    const primary = page.getByRole("button", { name: PRIMARY_NAME });
+    await primary.focus();
+    await page.keyboard.press("Enter");
+
+    const heading = page.locator("[data-burial-stage] section h3").first();
+    // t0: the first card heading has focus, read in the page on the frame it happens.
+    const t0 = await page
+      .waitForFunction(() => {
+        const active = document.activeElement;
+        return active?.matches("[data-burial-stage] section h3") ? performance.now() : null;
+      })
+      .then((handle) => handle.jsonValue() as Promise<number>);
+    await expect(heading).toBeFocused();
+    const layer = page.locator("[data-burial-stage] section").first().locator("xpath=..");
+
+    const at = (ms: number) =>
+      page.evaluate(async (target) => {
+        while (performance.now() < target) await new Promise((r) => setTimeout(r, 16));
+      }, t0 + ms);
+
+    await at(2500);
+    const swaying = await transformOf(layer);
+    expect(IDENTITY.has(swaying), `t0 + 2.5 s: ${swaying}`).toBe(false);
+
+    for (const ms of [5500, 6000]) {
+      await at(ms);
+      await expectIdentity(layer, `t0 + ${ms / 1000} s`);
+      const running = await layer.evaluate(
+        (el) =>
+          document
+            .getAnimations()
+            .filter(
+              (a) =>
+                a.effect instanceof KeyframeEffect &&
+                a.effect.target === el &&
+                a.playState === "running",
+            ).length,
+      );
+      expect(running, `t0 + ${ms / 1000} s: running animations on the sway layer`).toBe(0);
+    }
+  });
+});
+
 test.describe("free line", () => {
   // Batch A review #2: from sm the free line and "Other samples:" shared one wrapped row and
   // read as one run-on line. The free line is now a line of its own at every width.
@@ -872,5 +923,79 @@ test.describe("grave drag-over", () => {
     expect(button.y, "top edge").toBeGreaterThanOrEqual(outer.y);
     expect(button.x + button.width, "right edge").toBeLessThanOrEqual(outer.x + outer.width);
     expect(button.y + button.height, "bottom edge").toBeLessThanOrEqual(outer.y + outer.height);
+  });
+});
+
+/** Twelve monthly subscriptions, so 12 Progress dots rise (the most before the bar). */
+const TWELVE_CSV = [
+  "Date,Description,Amount",
+  ...[
+    "ALDER",
+    "BIRCH",
+    "CEDAR",
+    "DAMSON",
+    "ELDER",
+    "FIR",
+    "GORSE",
+    "HAZEL",
+    "IVY",
+    "JUNIPER",
+    "KALE",
+    "LARCH",
+  ].flatMap((word, i) =>
+    ["01", "02", "03", "04"].map(
+      (month) => `2026-${month}-${String(i + 2).padStart(2, "0")},${word} CLUB,-${10 + i}.00`,
+    ),
+  ),
+].join("\n");
+
+test.describe("batch C fixes", () => {
+  test("12 Progress dots cause no sideways scroll at 390x844 with 200% text", async ({ page }) => {
+    // Review C #3, Req 10.2 and 12.9.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await openLanding(page, "reduce");
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "twelve.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(TWELVE_CSV),
+    });
+    await expect(page.getByText("0 of 12 answered")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const dots = page.locator("[data-progress-dots]");
+    await expect(dots.locator(":scope > span")).toHaveCount(12);
+    expect((await boxOf(dots)).width).toBeCloseTo(184, 0);
+    const scroll = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+    }));
+    expect(scroll.scrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
+  });
+
+  test("Try another statement lines up with the summary Card at 390x844", async ({ page }) => {
+    // Review C V1: the visible text starts at the Card's left edge, within 1 px.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openLanding(page, "reduce");
+    await page.getByRole("button", { name: PRIMARY_NAME }).click();
+    const heading = page.getByRole("heading", { level: 2, name: "Recurring charges found" });
+    await expect(heading).toBeVisible();
+    const card = await boxOf(heading.locator(".."));
+    const button = page.getByRole("button", { name: "Try another statement" });
+    const textLeft = await button.evaluate((el) => {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const node = walker.nextNode();
+      if (node === null) throw new Error("no text");
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return range.getBoundingClientRect().left;
+    });
+    expect(Math.abs(textLeft - card.x)).toBeLessThanOrEqual(1);
+    const box = await boxOf(button);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    // The 5 px focus band stays inside the viewport.
+    expect(box.x).toBeGreaterThanOrEqual(5);
   });
 });

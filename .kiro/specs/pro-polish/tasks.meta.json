@@ -59,6 +59,95 @@
         "chatSessionId": "sess_9c3a5ce8-b7fa-4ceb-9185-2e999c966d00",
         "timestamp": 1795073415386
       }
+    ],
+    "24. Button variants and their contrast (`slice/button-variants.ts`, `logic/design-tokens.ts`, `src/contrast.test.ts`)": [
+      {
+        "executionId": "bc0ea207-f972-4673-aa05-2c9e08322c05",
+        "chatSessionId": "sess_b741ebbc-4b80-45cb-977d-f83d1ba7db26",
+        "timestamp": 1795079708483
+      }
+    ],
+    "25. Variants on the chrome, the Statement panel and the state views (`chrome/leave-question.tsx`, `statement/*`, `slice/drop-zone.tsx`, `slice/slice-page.tsx`, `slice/error-view.tsx`, `slice/no-subscriptions-view.tsx`, `landing/primary-action.tsx`)": [
+      {
+        "executionId": "b95c3c36-8121-40ea-8061-330dfb2869bc",
+        "chatSessionId": "sess_14d5056a-7e42-4f4f-aab8-3fbed6a1718c",
+        "timestamp": 1795079924635
+      },
+      {
+        "executionId": "b95c3c36-8121-40ea-8061-330dfb2869bc",
+        "chatSessionId": "sess_14d5056a-7e42-4f4f-aab8-3fbed6a1718c",
+        "timestamp": 1795080185924
+      }
+    ],
+    "26. Variants on the Rising, the card and the Helper panel (`graveyard/rising-view.tsx`, `graveyard/undead-card.tsx`, `graveyard/cancel-helper.tsx`)": [
+      {
+        "executionId": "b10271a5-cf4f-48d3-85fb-d42436b8455e",
+        "chatSessionId": "sess_83fa8f5d-495b-449e-a5e5-6d6ff535e6da",
+        "timestamp": 1795080327782
+      }
+    ],
+    "27. Variants on the Graveyard view, Memory and Share (`graveyard/graveyard-view.tsx`, `graveyard/memory-panel.tsx`, `graveyard/share-panel.tsx`)": [
+      {
+        "executionId": "dbc2d789-bee8-42fc-a3ee-db3a198fca9c",
+        "chatSessionId": "sess_dd760df0-5a24-4ff1-9ca4-87389f3c9960",
+        "timestamp": 1795080991728
+      }
+    ],
+    "28. Variants static check (`src/static-checks.test.ts`)": [
+      {
+        "executionId": "3d367b58-4111-44d5-8cea-2669391b2700",
+        "chatSessionId": "sess_b59cc972-d7bc-4ad3-ac65-074eed1ed8a4",
+        "timestamp": 1795081211976
+      }
+    ],
+    "29. One primary per Screen state (`slice/one-primary.test.tsx`)": [
+      {
+        "executionId": "34e8962c-3fe5-44e3-b990-b9d6cb5ce8c2",
+        "chatSessionId": "sess_7e61e477-9b81-40dd-bc30-613b201f40a9",
+        "timestamp": 1795081482792
+      }
+    ],
+    "30. Muted footnote (`graveyard/rising-view.tsx`, `slice/no-subscriptions-view.tsx`)": [
+      {
+        "executionId": "6d07c578-4c3d-4a61-a1fa-b55d49ea8b96",
+        "chatSessionId": "sess_70b2d15a-0fb9-4dd6-9127-4e97cf866657",
+        "timestamp": 1795081911012
+      }
+    ],
+    "31. Progress dots logic (`logic/progress-dots.ts`)": [
+      {
+        "executionId": "40c15649-c148-4f23-9197-bc2a2838b6fc",
+        "chatSessionId": "sess_14de82f5-98f4-4f12-ab29-b4f4be47e7d5",
+        "timestamp": 1795082078748
+      }
+    ],
+    "32. Progress dots on the Rising (`graveyard/rising-view.tsx`)": [
+      {
+        "executionId": "01d3885c-ed75-4350-b1ec-c1c50c7ed334",
+        "chatSessionId": "sess_58ecdd84-0bec-449d-887b-8104a57b566f",
+        "timestamp": 1795082313762
+      }
+    ],
+    "33. Finite card sway with settle (`graveyard/motion.ts`, `graveyard/undead-card.tsx`, `src/static-checks.test.ts`, `e2e/pro-polish.spec.ts`)": [
+      {
+        "executionId": "fe8506c6-9ae8-42da-84a9-ad97241bbdfa",
+        "chatSessionId": "sess_c658acf7-3718-4f45-8154-3c4b164764c6",
+        "timestamp": 1795082710750
+      }
+    ],
+    "34. Batch C checkpoint": [
+      {
+        "executionId": "11a9f43a-f8cd-423f-a11d-2e063cb8ca90",
+        "chatSessionId": "sess_4aab195c-4c8f-4bcd-a672-9d8c7960efe2",
+        "timestamp": 1795083449621
+      }
+    ],
+    "34.1. Batch C fix round (`review-batch-C.md`)": [
+      {
+        "executionId": "d6a05e17-8242-4b70-8156-b1c9e0239a46",
+        "chatSessionId": "sess_8619e3f4-0568-4e94-87ee-ec2058d7ce3d",
+        "timestamp": 1795084137117
+      }
     ]
   }
 }

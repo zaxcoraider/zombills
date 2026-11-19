@@ -318,6 +318,7 @@ Out of scope for this spec:
 6. At 320 px and at 390 px viewport width, and at 390 px with 200 % text zoom, THE Helper panel SHALL fit the viewport with no horizontal scrolling: long hosts, service names and email lines SHALL wrap (`overflow-wrap: anywhere`), and every button and link SHALL have a target of at least 44 × 44 CSS px.
 7. With `prefers-reduced-motion: reduce`, opening or closing the panel and the `Copied` change SHALL use only an opacity fade of at most 150 ms (`spooky-design.md`).
 8. Colour SHALL never be the only signal: the external links SHALL be underlined and the app-store note SHALL be text, not an icon alone.
+(Changed by pro-polish: The cancel link and App-store links are secondary buttons (outlined), not underlined text; the outline is the non-colour cue. See pro-polish Requirements 6.5 and 13.1.)
 
 ---
 

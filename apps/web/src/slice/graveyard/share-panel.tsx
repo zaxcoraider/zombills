@@ -20,6 +20,7 @@ import {
   SHARE_INTRO,
 } from "../logic/share-card-text";
 import type { CurrencyTotal } from "../logic/totals";
+import { buttonVariant } from "../button-variants";
 import { downloadFile as defaultDownloadFile } from "./download-file";
 import { helperPanelMotion } from "./motion";
 import { currentNavigator, shareImage } from "./share-image";
@@ -33,9 +34,6 @@ export interface SharePanelProps {
   /** Default: downloadFile from download-file.ts (Req 5.6) */
   downloadFile?: (file: File, name: string) => void;
 }
-
-const SHARE_BUTTON_CLASS =
-  "min-h-11 rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:opacity-60";
 
 export function SharePanel({
   tombstones,
@@ -114,7 +112,7 @@ export function SharePanel({
         <button
           ref={makeRef}
           type="button"
-          className={SHARE_BUTTON_CLASS}
+          {...buttonVariant(state.image === null ? "primary" : "secondary")}
           aria-disabled={state.run !== null ? true : undefined}
           onClick={onMake}
         >
@@ -135,7 +133,7 @@ export function SharePanel({
           <button
             ref={mainRef}
             type="button"
-            className={SHARE_BUTTON_CLASS}
+            {...buttonVariant("primary")}
             aria-disabled={current ? undefined : true}
             onClick={onMain}
           >

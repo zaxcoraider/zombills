@@ -1,6 +1,7 @@
 import { useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Dispatch } from "react";
+import { buttonVariant } from "./button-variants";
 import { CompactHeader } from "./chrome/compact-header";
 import { LeaveQuestion } from "./chrome/leave-question";
 import { ErrorView } from "./error-view";
@@ -439,7 +440,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
                         <div>
                           <button
                             type="button"
-                            className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+                            {...buttonVariant("tertiary", { bare: true })}
                             onClick={onStartAgain}
                           >
                             Start again

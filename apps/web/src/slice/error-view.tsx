@@ -1,3 +1,4 @@
+import { buttonVariant } from "./button-variants";
 import { useFocusRequest } from "./graveyard/use-focus-request";
 import { errorMessage } from "./logic/messages";
 import type { PageError } from "./logic/messages";
@@ -22,19 +23,11 @@ export function ErrorView({ sourceName, error, onStartAgain, onOpenGraveyard }: 
       {sourceName !== null ? <p>File: {sourceName}</p> : null}
       {detail !== null ? <p>{detail}</p> : null}
       <div className="flex flex-wrap gap-4">
-        <button
-          type="button"
-          onClick={onStartAgain}
-          className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-        >
+        <button type="button" onClick={onStartAgain} {...buttonVariant("primary")}>
           Start again
         </button>
         {onOpenGraveyard !== undefined ? (
-          <button
-            type="button"
-            onClick={onOpenGraveyard}
-            className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-          >
+          <button type="button" onClick={onOpenGraveyard} {...buttonVariant("secondary")}>
             Open the graveyard
           </button>
         ) : null}

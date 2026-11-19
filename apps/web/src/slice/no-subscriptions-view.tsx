@@ -1,3 +1,4 @@
+import { buttonVariant } from "./button-variants";
 import { useFocusRequest } from "./graveyard/use-focus-request";
 import type { NoSubscriptionsOutcome } from "./logic/analyze-statement";
 import { assumedValueNotes } from "./logic/assumed-values";
@@ -33,27 +34,17 @@ export function NoSubscriptionsView({
         No recurring charges were found in the {outcome.transactionCount} transactions read
         {dates}. A statement covering 2 to 3 months or more finds more.
       </p>
-      {notes.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      ) : null}
+      {notes.map((note) => (
+        <p key={note} className="text-caption sm:text-small text-bone/80">
+          {note}
+        </p>
+      ))}
       <div className="flex flex-wrap gap-4">
-        <button
-          type="button"
-          onClick={onStartAgain}
-          className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-        >
+        <button type="button" onClick={onStartAgain} {...buttonVariant("primary")}>
           Start again
         </button>
         {onOpenGraveyard !== undefined ? (
-          <button
-            type="button"
-            onClick={onOpenGraveyard}
-            className="rounded border border-bone bg-fog px-4 py-2 text-bone"
-          >
+          <button type="button" onClick={onOpenGraveyard} {...buttonVariant("secondary")}>
             Open the graveyard
           </button>
         ) : null}

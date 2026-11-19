@@ -280,3 +280,17 @@ describe("MemoryPanel: keyboard and names", () => {
     expectUniqueButtonNames(container);
   });
 });
+
+describe("MemoryPanel: button variants (Req 6.5)", () => {
+  it("makes Forget everything danger, and in the confirmation Cancel secondary and Forget danger", async () => {
+    const user = userEvent.setup();
+    renderPanel(ON, { hasRecords: true });
+    expect(forgetButton().getAttribute("data-variant")).toBe("danger");
+    await user.click(forgetButton());
+    const cancel = screen.getByRole("button", { name: FORGET_CANCEL });
+    const confirm = screen.getByRole("button", { name: FORGET_CONFIRM });
+    expect(cancel.getAttribute("data-variant")).toBe("secondary");
+    expect(confirm.getAttribute("data-variant")).toBe("danger");
+    for (const button of [cancel, confirm]) expect(button.className).not.toContain("opacity-60");
+  });
+});

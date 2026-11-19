@@ -12,6 +12,9 @@ import { formatMoney } from "../logic/money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageAction, PageModel } from "../page-state";
 import { RisingView } from "./rising-view";
+import { App } from "../../App";
+import { PRIMARY_ACTION_NAME } from "../logic/landing-text";
+import { BARE_FOCUS } from "../landing/bare-focus";
 
 beforeAll(() => {
   MotionGlobalConfig.skipAnimations = true;
@@ -207,6 +210,21 @@ describe("RisingView", () => {
   });
 });
 
+describe("RisingView: Muted footnote (Req 10.1)", () => {
+  it("shows the assumed-currency note as a muted p after the summary line", () => {
+    renderRising(usSigned);
+    const note = screen.getByText(
+      "No currency was found in the statement, so amounts are shown in USD.",
+    );
+    expect(note.tagName).toBe("P");
+    expect(note.classList.contains("text-caption")).toBe(true);
+    expect(note.classList.contains("sm:text-small")).toBe(true);
+    expect(note.classList.contains("text-bone/80")).toBe(true);
+    const summary = screen.getByText(/transactions read/);
+    expect(summary.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe("RisingView: Memory on", () => {
   it("shows the reminder and a Memory settings button that opens the settings", () => {
     const actions = renderRising(usSigned, true);
@@ -221,5 +239,154 @@ describe("RisingView: Memory on", () => {
     renderRising(usSigned);
     expect(screen.queryByText(MEMORY_ON_LINE)).toBeNull();
     expect(screen.queryByRole("button", { name: MEMORY_SETTINGS })).toBeNull();
+  });
+});
+
+describe("RisingView: Button variants (Req 6.5, 6.6)", () => {
+  it("keeps Next primary and aria-disabled while burying; Open the graveyard is secondary", () => {
+    const first = modelFor(resultsOf(usSigned));
+    if (first.view.kind !== "results") throw new Error("expected results");
+    const id = first.view.rising.order[0] as string;
+    const burying = pageReducer(first, { type: "bury", id, reducedMotion: false });
+    render(<Harness initial={burying} actions={[]} />);
+    const next = screen.getByRole("button", { name: "Next" });
+    expect(next.getAttribute("data-variant")).toBe("primary");
+    expect(next.getAttribute("aria-disabled")).toBe("true");
+    expect(next.hasAttribute("disabled")).toBe(false);
+    expect(next.className).not.toContain("opacity-60");
+    // "Next" sits on the bare scene, so it carries the bare-scene ring (review C #7).
+    expect(next.className).toContain(BARE_FOCUS);
+    expect(
+      screen.getByRole("button", { name: "Open the graveyard" }).getAttribute("data-variant"),
+    ).toBe("secondary");
+  });
+
+  it("makes Visit the graveyard primary and Memory settings secondary", () => {
+    let model = modelFor(resultsOf(usSigned));
+    for (;;) {
+      const head = deriveHaunt(model).queue[0];
+      if (head === undefined) break;
+      model = pageReducer(model, { type: "keep", id: head });
+      if (deriveHaunt(model).queue.length > 0) model = pageReducer(model, { type: "next" });
+    }
+    model = { ...model, memory: { ...model.memory, on: true } };
+    render(<Harness initial={model} actions={[]} />);
+    const visit = screen.getByRole("button", { name: "Visit the graveyard" });
+    expect(visit.getAttribute("data-variant")).toBe("primary");
+    expect(visit.hasAttribute("aria-disabled")).toBe(false);
+    expect(
+      screen.getByRole("button", { name: MEMORY_SETTINGS }).getAttribute("data-variant"),
+    ).toBe("secondary");
+  });
+});
+
+const THIRTEEN_CSV = [
+  "Date,Description,Amount",
+  ...[
+    "ALDER",
+    "BIRCH",
+    "CEDAR",
+    "DAMSON",
+    "ELDER",
+    "FIR",
+    "GORSE",
+    "HAZEL",
+    "IVY",
+    "JUNIPER",
+    "KALE",
+    "LARCH",
+    "MAPLE",
+  ].flatMap((word, i) =>
+    ["01", "02", "03", "04"].map(
+      (month) => `2026-${month}-${String(i + 2).padStart(2, "0")},${word} CLUB,-${10 + i}.00`,
+    ),
+  ),
+].join("\n");
+
+function progressDotsRow(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("[data-progress-dots]");
+}
+
+function dotStates(): boolean[] {
+  const row = progressDotsRow();
+  if (row === null) throw new Error("no Progress dots");
+  return Array.from(row.children).map((dot) => dot.classList.contains("bg-moss"));
+}
+
+describe("RisingView: Progress dots (Req 10.2)", () => {
+  it("shows M dots, none filled, in an aria-hidden row after the progress text", () => {
+    renderRising(usSigned);
+    const row = progressDotsRow();
+    expect(row?.getAttribute("aria-hidden")).toBe("true");
+    expect(row?.classList.contains("flex-nowrap")).toBe(true);
+    expect(row?.classList.contains("gap-[8px]")).toBe(true);
+    expect(dotStates()).toEqual([false, false, false, false]);
+    const text = screen.getByText("0 of 4 answered");
+    expect(text.compareDocumentPosition(row as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const dot of Array.from(row?.children ?? [])) {
+      expect(dot.classList.contains("rounded-pill")).toBe(true);
+      expect(dot.classList.contains("border-bone/45")).toBe(true);
+      // Fixed pixels, so the row never grows with the text size (Req 12.9).
+      expect(dot.classList.contains("h-[8px]")).toBe(true);
+      expect(dot.classList.contains("w-[8px]")).toBe(true);
+    }
+    expect(document.querySelector("[data-progress-bar]")).toBeNull();
+  });
+
+  it("fills the answered dot in the original Rising order after a Skip", () => {
+    let model = modelFor(resultsOf(usSigned));
+    if (model.view.kind !== "results") throw new Error("expected results");
+    const original = [...model.view.rising.order];
+    const first = original[0] as string;
+    model = pageReducer(model, { type: "skip", id: first });
+    if (model.view.kind !== "results") throw new Error("expected results");
+    const head = model.view.rising.order[0] as string;
+    expect(head).not.toBe(first);
+    model = pageReducer(model, { type: "keep", id: head });
+    render(<Harness initial={model} actions={[]} />);
+
+    const text = screen.getByText(/^\d+ of 4 answered$/);
+    const shown = Number(/^(\d+)/.exec(text.textContent ?? "")?.[1]);
+    const states = dotStates();
+    expect(states).toHaveLength(4);
+    expect(states.filter(Boolean)).toHaveLength(shown);
+    expect(states).toEqual(original.map((id) => id === head));
+    // The dots add no text and no live region; the text alone carries the count.
+    expect(progressDotsRow()?.textContent).toBe("");
+    expect(progressDotsRow()?.querySelector("[aria-live]")).toBeNull();
+  });
+
+  it("shows the bar and no dots with 13 risen", () => {
+    let model = modelFor(resultsOf(THIRTEEN_CSV));
+    const haunt = deriveHaunt(model);
+    expect(haunt.risen).toHaveLength(13);
+    const head = haunt.queue[0] as string;
+    model = pageReducer(model, { type: "keep", id: head });
+    render(<Harness initial={model} actions={[]} />);
+
+    expect(screen.getByText("1 of 13 answered")).toBeTruthy();
+    expect(progressDotsRow()).toBeNull();
+    const bar = document.querySelector<HTMLElement>("[data-progress-bar]");
+    expect(bar?.getAttribute("aria-hidden")).toBe("true");
+    for (const name of ["h-2", "w-24", "rounded-pill", "bg-bone/20"]) {
+      expect(bar?.classList.contains(name)).toBe(true);
+    }
+    const fill = bar?.querySelector<HTMLElement>("[data-progress-fill]");
+    expect(fill?.classList.contains("bg-moss")).toBe(true);
+    expect(parseFloat(fill?.style.width ?? "")).toBeCloseTo((1 / 13) * 100, 5);
+    expect(bar?.textContent).toBe("");
+  });
+
+  it("leaves the Live region text unchanged when a dot fills (Req 12.10)", async () => {
+    window.location.hash = "";
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: PRIMARY_ACTION_NAME }));
+    await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
+    expect(dotStates()).toEqual([false, false, false, false]);
+    const name = screen.getByRole("heading", { level: 3 }).textContent ?? "";
+    fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));
+    await waitFor(() => expect(dotStates().filter(Boolean)).toHaveLength(1));
+    // Exactly the Keep sentence: the dots add nothing to what is announced.
+    expect(screen.getByRole("status").textContent).toBe(`${name} rests. Kept.`);
   });
 });

@@ -27,6 +27,16 @@ export const REDUCED_FADE = { duration: 0.15 } as const;
 /** The Copy label swaps by fading, in both motion modes (cancel-helper Req 8.7). */
 export const COPY_LABEL_FADE = { duration: 0.15 } as const;
 const HELPER_PANEL_FADE = { duration: 0.2, ease: "easeOut" } as const;
+/**
+ * The undead card sways once after it has risen, with a decaying amplitude, and comes to rest at
+ * 0 at 1.2 + 3.2 = 4.4 s, before the 5 s of WCAG 2.2.2 (pro-polish "Signature moments: 1", Req 10.4).
+ */
+export const CARD_SWAY = {
+  rotate: [0, -0.9, 0.9, -0.6, 0.6, 0],
+  transition: { duration: 3.2, delay: 1.2, ease: "easeInOut", repeat: 0 },
+} as const;
+/** Hover, a `:focus-visible` button inside, or `condemned` brings the card upright (Req 10.7). */
+export const CARD_SWAY_SETTLE = { duration: 0.15, ease: "easeOut" } as const;
 /** One budget for the whole burial sequence (Req 13.6). */
 export const BURIAL_FALLBACK_MS = 2000;
 

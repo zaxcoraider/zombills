@@ -24,6 +24,7 @@ export function SecondarySamples({ disabled, onChoose }: SecondarySamplesProps) 
           <li key={sample.fileName}>
             <button
               type="button"
+              data-exempt="secondary-sample"
               aria-disabled={disabled ? true : undefined}
               onClick={() => {
                 if (!disabled) onChoose(sample);

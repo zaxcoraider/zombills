@@ -627,6 +627,22 @@ describe("Statement disclosure on the Page", () => {
     expect(disclosureBody().contains(document.querySelector("[data-grave-drop]"))).toBe(true);
   });
 
+  it("gives Choose a file secondary, the disclosure button and Start again tertiary", async () => {
+    render(<App />);
+    await toResults();
+    expect(disclosureButton().getAttribute("data-variant")).toBe("tertiary");
+    const startAgain = screen.getByRole("button", { name: "Start again", hidden: true });
+    expect(startAgain.getAttribute("data-variant")).toBe("tertiary");
+    const choose = within(disclosureBody()).getByRole("button", {
+      name: "Choose a file",
+      hidden: true,
+    });
+    expect(choose.getAttribute("data-variant")).toBe("secondary");
+    for (const button of [disclosureButton(), startAgain, choose]) {
+      expect(button.className).not.toContain("opacity-60");
+    }
+  });
+
   it("the Graveyard view: collapsed, with the panel and Start again hidden inside", async () => {
     render(<App />);
     await toResults();

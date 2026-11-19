@@ -264,7 +264,7 @@ Task 17 adds the art and motion values; task 18 redraws `DropZone` with its beha
 
 Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one area each; task 28 adds the static check and task 29 the one-primary test, after every area is converted. Tasks 30 to 33 are the small polish of Requirement 10. The "Waiting chips" of task 40 and the "Next" placement of task 38 come later; until then "Answer now" is secondary and "Next" stays below the Stage, which keeps exactly one primary per Screen state either way.
 
-- [ ] 24. Button variants and their contrast (`slice/button-variants.ts`, `logic/design-tokens.ts`, `src/contrast.test.ts`)
+- [x] 24. Button variants and their contrast (`slice/button-variants.ts`, `logic/design-tokens.ts`, `src/contrast.test.ts`)
   - Create `slice/button-variants.ts` with `ButtonVariant`, `VariantOptions { bare?; full?; inheritSize? }` and `buttonVariant(variant, opts)` returning `{ className, "data-variant" }`, with the base, `primary`, `secondary`, `tertiary`, `danger` and `danger-quiet` classes of design "Button variants". `danger-quiet` reports `data-variant="danger"`; `bare` adds `BARE_FOCUS`; `full` adds `w-full`; `inheritSize` leaves out `text-small`. No `opacity-*` class.
   - In `logic/design-tokens.ts`, export `OUTLINE_ALPHA = 0.5`, `OUTLINE_DISABLED_ALPHA = 0.45`, `DANGER_TEXT_BLOOD = 0.8`, `DANGER_QUIET_ALPHA = 0.85`, `PRIMARY_DISABLED_MOSS = 0.7` and `FOOTNOTE_ALPHA = 0.8` (`PIT_GLOW_ALPHA` is there from task 17).
   - Unit tests `slice/button-variants.test.ts`: each variant's class string contains the base classes and `rounded-control`, its colour classes, and no `opacity-`; `data-variant` per variant, with `danger-quiet` → `"danger"`; `bare` adds `BARE_FOCUS`; `full` adds `w-full`; `inheritSize` drops `text-small`; the alpha classes (`border-bone/50`, `aria-disabled:border-bone/45`, `border-blood/85`, the 80 % blood mix, the 70 % moss mix) match the exported alphas.
@@ -273,14 +273,14 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 2.11, 6.1, 6.2, 6.4, 12.4_
 
-- [ ] 25. Variants on the chrome, the Statement panel and the state views (`chrome/leave-question.tsx`, `statement/*`, `slice/drop-zone.tsx`, `slice/slice-page.tsx`, `slice/error-view.tsx`, `slice/no-subscriptions-view.tsx`, `landing/primary-action.tsx`)
+- [x] 25. Variants on the chrome, the Statement panel and the state views (`chrome/leave-question.tsx`, `statement/*`, `slice/drop-zone.tsx`, `slice/slice-page.tsx`, `slice/error-view.tsx`, `slice/no-subscriptions-view.tsx`, `landing/primary-action.tsx`)
   - Apply Req 6.5: "Stay" and "Leave" secondary; "Choose a file" secondary (on the pit); the disclosure button tertiary with `bare` and `inheritSize`; "Start again" inside the disclosure tertiary with `bare`; on `error` and `no-subscriptions`, "Start again" primary and "Open the graveyard" secondary inside the state Card. `PrimaryAction` keeps its classes and gains `data-variant="primary"` (and `data-exempt="primary-action"`); the Secondary samples get `data-exempt="secondary-sample"`. Each converted element spreads `{...buttonVariant(…)}` inline in its own tag and keeps its `type`, `ref`, `aria-*` and handlers. Remove the replaced class strings; no `opacity-60` stays on a converted control.
   - Component tests: in `chrome/chrome.test.tsx`, "Stay" and "Leave" have `data-variant="secondary"`; in `statement/statement.test.tsx`, "Choose a file" `secondary`, the disclosure button and "Start again" `tertiary`; in a new case of `slice/slice-page.test.tsx`, on `error` "Start again" is `primary` and "Open the graveyard" `secondary`, both inside the state Card.
   - Run in `apps/web`: `npx vitest run src/slice/chrome src/slice/statement src/slice/slice-page.test.tsx src/slice/landing-page.test.tsx`; then the whole web suite `npx vitest run`; then root `npm test`, `npm run typecheck`, `npm run lint`.
   - Existing tests: none change; if one asserts today's class string on a converted control, stop and report it (no such row is in the design).
   - _Requirements: 6.2, 6.3, 6.5, 6.6_
 
-- [ ] 26. Variants on the Rising, the card and the Helper panel (`graveyard/rising-view.tsx`, `graveyard/undead-card.tsx`, `graveyard/cancel-helper.tsx`)
+- [x] 26. Variants on the Rising, the card and the Helper panel (`graveyard/rising-view.tsx`, `graveyard/undead-card.tsx`, `graveyard/cancel-helper.tsx`)
   - In `rising-view.tsx`: "Next" and "Visit the graveyard" primary (keeping `aria-disabled` while `burying`, Req 6.6); "Open the graveyard" and "Memory settings" secondary.
   - In `undead-card.tsx`: the answer block ("Yes, let it rest", "No, bury it", "Skip for now") renders only while `phase === "undead"`; "No, bury it" keeps its card classes and gains `data-variant="primary"`; the card's controls carry `data-exempt="card"`. Nothing else about the card's look changes.
   - In `cancel-helper.tsx`: the cancel link and the App-store links (button-styled `a`) secondary; Copy and "Open in my email app" secondary. Texts, `href`s, names and notices unchanged.
@@ -289,7 +289,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests, per the `undead-card.test.tsx` row: cases that find the answer pair during `condemned` or `sinking` expect it absent there and present in `undead`.
   - _Requirements: 6.3, 6.5, 6.6_
 
-- [ ] 27. Variants on the Graveyard view, Memory and Share (`graveyard/graveyard-view.tsx`, `graveyard/memory-panel.tsx`, `graveyard/share-panel.tsx`)
+- [x] 27. Variants on the Graveyard view, Memory and Share (`graveyard/graveyard-view.tsx`, `graveyard/memory-panel.tsx`, `graveyard/share-panel.tsx`)
   - In `graveyard-view.tsx`: "How to cancel" secondary; "Unbury" `danger-quiet`; "Back to the rising" and "Back to the start" secondary; "Bury after all" secondary; "Answer now" secondary (task 40 replaces it with Waiting chips).
   - In `memory-panel.tsx`: "Forget everything" danger; in its confirmation, "Cancel" secondary and "Forget" danger.
   - In `share-panel.tsx`: the next step is primary ("Make an image" before an image exists, then "Share image" or "Save image"); "Make the image again" and the other controls secondary.
@@ -298,7 +298,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 6.5, 9.7, 9.8_
 
-- [ ] 28. Variants static check (`src/static-checks.test.ts`)
+- [x] 28. Variants static check (`src/static-checks.test.ts`)
   - Add the "Variants (Req 6.3)" case of design "Static checks": every `<button`, `<motion.button`, and every `<a` or `<motion.a` with `min-h-11` or `rounded-control` in its tag, in non-test `.tsx` under `src/slice/**`, has `data-variant`, spreads an inline `{...buttonVariant(` call in its own opening tag, or has `data-exempt`. Spreading a variable is reported. Text scan, no AST.
   - Fixture strings, one per form (`<button` with neither, `<motion.button` with neither, `{...v}`), are each reported, so the check cannot pass vacuously.
   - Fix any control the check reports in the file that owns it, using the Req 6.5 table; name each fix in the task notes.
@@ -306,7 +306,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 6.3_
 
-- [ ] 29. One primary per Screen state (`slice/one-primary.test.tsx`)
+- [x] 29. One primary per Screen state (`slice/one-primary.test.tsx`)
   - Tests only. Create `slice/one-primary.test.tsx` as in the design row: for each Screen state of Req 6.5 reached from the US Sample (`ask`, `rested`, `burying`, `buried`, all answered via a 1-subscription CSV, no undead via a CSV whose only subscription is `ended`, `working` with a held frame, `error`, `no-subscriptions`, the Leave question open, the Forget confirmation open), count `[data-variant="primary"]` and the interactive elements (`button, a[href], [role=button], input`) whose `classList` contains `bg-moss`: both 0 in the "none" rows and 1 elsewhere.
   - In the same file, `describe("Graveyard view rows")`: P3 as a fast-check property over `pageGraveyardArb` with at most 20 records, rendering `GraveyardView` alone with the `haunt` from `deriveHaunt` (from `idle` and from `results`), before an image and with a stubbed image, with a 30 s timeout and the default 100 runs.
   - In the same file, assert that no `[data-variant="secondary"]` or `[data-variant="danger"]` element is outside an ancestor with `bg-fog`, `bg-fog/95` or `data-grave-drop`, in each state above.
@@ -315,7 +315,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 6.5, 6.7, 13.5_
 
-- [ ] 30. Muted footnote (`graveyard/rising-view.tsx`, `slice/no-subscriptions-view.tsx`)
+- [x] 30. Muted footnote (`graveyard/rising-view.tsx`, `slice/no-subscriptions-view.tsx`)
   - Render each note of `assumedValueNotes` in `StatementSummary` and `NoSubscriptionsView` as a `p` with `text-caption sm:text-small text-bone/80`, after the main summary line. Texts unchanged.
   - Add the "Muted footnote" contrast row (`--bone` 80 % on C, at least 4.5:1, using `FOOTNOTE_ALPHA`) to `src/contrast.test.ts`.
   - Component tests: in `graveyard/rising-view.test.tsx`, a statement with no currency shows the note with its exact text in a `p` with `text-caption`, `sm:text-small` and `text-bone/80`, after the summary line; the same for `NoSubscriptionsView` in a new case of `slice/slice-page.test.tsx`.
@@ -323,7 +323,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 10.1, 12.4_
 
-- [ ] 31. Progress dots logic (`logic/progress-dots.ts`)
+- [x] 31. Progress dots logic (`logic/progress-dots.ts`)
   - Create `logic/progress-dots.ts` with `PROGRESS_DOTS_MAX = 12`, `ProgressDot`, `progressDots(model)` and `progressCounts(model)`, as in design "Progress dots": both `null` unless `view.kind === "results"`; order from `risingOrder(outcome.subscriptions, outcome.statement)`; `answered` when the Graveyard holds a Current record for the id; `progressDots` is `null` when more than 12 have risen.
   - Unit tests `logic/progress-dots.test.ts`: `null` outside `results`; 3 risen, 1 answered → `[true, false, false]` in the original order after a Skip; 13 risen → `null` and `progressCounts` `{ answered, risen: 13 }`.
   - Property test `logic/progress-dots.property.test.ts`: P4 over `pageModelArb` filtered to `results`.
@@ -331,7 +331,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 10.2, 10.3, 13.5_
 
-- [ ] 32. Progress dots on the Rising (`graveyard/rising-view.tsx`)
+- [x] 32. Progress dots on the Rising (`graveyard/rising-view.tsx`)
   - After "N of M answered" (text unchanged), render an `aria-hidden="true"` row of dots from `progressDots`: `rounded-pill` dots, `bg-moss` filled for answered and a `border-bone/45` outline for unanswered, gap `gap-2`, no wrap. When `progressDots` is `null`, render the bar from `progressCounts`: an 8 px `w-24 rounded-pill bg-bone/20` track with a `bg-moss` fill of width `answered / risen`. No motion.
   - Add the Progress dot (filled, outline) and Progress bar contrast rows to `src/contrast.test.ts`.
   - Component tests in `graveyard/rising-view.test.tsx`: the dot count equals M, the filled count equals the number in the visible text, the order follows the original Rising order after a Skip, the row is `aria-hidden`; with 13 risen the bar shows and no dots; the Live region text is unchanged.
@@ -339,7 +339,7 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change.
   - _Requirements: 10.2, 12.4, 12.11_
 
-- [ ] 33. Finite card sway with settle (`graveyard/motion.ts`, `graveyard/undead-card.tsx`, `src/static-checks.test.ts`, `e2e/pro-polish.spec.ts`)
+- [x] 33. Finite card sway with settle (`graveyard/motion.ts`, `graveyard/undead-card.tsx`, `src/static-checks.test.ts`, `e2e/pro-polish.spec.ts`)
   - In `motion.ts`, export `CARD_SWAY` (`rotate: [0, -0.9, 0.9, -0.6, 0.6, 0]`, `duration: 3.2`, `delay: 1.2`, `easeInOut`, `repeat: 0`) and `CARD_SWAY_SETTLE` (0.15 s easeOut) and remove the infinite sway values.
   - In `undead-card.tsx`, as in "Signature moments: 1": the sway layer uses `CARD_SWAY` while `undead` and not `stilled`; `onPointerEnter` (when `pointerType !== "touch"`) and `onFocus` (only when `event.target.matches("button:focus-visible")`) set `stilled`, after which `animate={{ rotate: 0 }}` with `CARD_SWAY_SETTLE`; `stilled` never resets (the card is keyed by subscription id). `condemned` settles to 0 with `CARD_SWAY_SETTLE`; `sinking`, `resting`, the rise, shudder and sink are unchanged; under reduced motion `rotate: 0`, `duration: 0`.
   - Unit tests: `graveyard/motion.test.ts` checks `CARD_SWAY.transition.repeat` is a finite integer, `delay + duration × (repeat + 1) <= 5`, and the last `rotate` keyframe is 0. `graveyard/undead-card.test.tsx` checks that after `pointerenter`, or a focus on a button whose `matches` is stubbed to match `:focus-visible`, the sway layer's `animate` is `{ rotate: 0 }` and stays so after `pointerleave` and blur; focus on the card heading leaves the sway running.
@@ -349,11 +349,19 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
   - Existing tests: none change; if a motion test asserts `repeat: Infinity` on the sway, stop and report it (no such row is in the design).
   - _Requirements: 10.4, 10.5, 10.6, 10.7, 12.7, 12.8_
 
-- [ ] 34. Batch C checkpoint
+- [x] 34. Batch C checkpoint
   - Run from the repo root: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`; then `npm run test:e2e --workspace @zombills/web`. All must pass.
   - Check that `grep -rn "Infinity" apps/web/src/slice --include=*.ts --include=*.tsx` finds only test files; that `git diff` shows no change to the files listed in task 16; and that each existing test changed in this batch matches a row of "Existing tests that change" or a note in task 26, and removes or widens no assertion.
   - Report any failure or gap as a finding; fix it here only if it is a one-line test or text change.
   - _Requirements: 6.7, 10.7, 12.8, 13.2, 13.7_
+
+
+- [x] 34.1. Batch C fix round (`review-batch-C.md`)
+  - Apply every finding in `review-batch-C.md`: reviewer findings 1 to 10 as each "Suggested fix" says (#6: add the R13.1 note and the cancel-helper spec note; #10: update the design row), and owner finding V1.
+  - Replace a pinned value only with the new exact value; never weaken or delete a test (finding 2 restores real click checks).
+  - Append a `## Resolution` table to `review-batch-C.md` (finding, what changed, files, tests).
+  - Rerun the task 34 checkpoint commands including the whole e2e run; all must pass.
+  - _Requirements: 6.2, 6.3, 6.5, 10.2, 10.3, 12.5, 12.9, 13.1_
 
 ---
 

@@ -18,6 +18,7 @@ import {
   leftOutNote,
 } from "../logic/memory-text";
 import type { LoadNote, MemoryModel, PageAction, StorageNote } from "../page-state";
+import { buttonVariant } from "../button-variants";
 import { useFocusRequest } from "./use-focus-request";
 
 export interface MemoryPanelProps {
@@ -28,9 +29,6 @@ export interface MemoryPanelProps {
   busy: boolean;
   dispatch: Dispatch<PageAction>;
 }
-
-/** Same classes as the Graveyard view's buttons. */
-const BUTTON_CLASS = "rounded border border-bone bg-fog px-4 py-2 text-bone";
 
 function loadNoteText(note: LoadNote): string {
   switch (note.kind) {
@@ -74,7 +72,7 @@ function ForgetControl({ busy, dispatch }: { busy: boolean; dispatch: Dispatch<P
         <button
           ref={forgetRef}
           type="button"
-          className={BUTTON_CLASS}
+          {...buttonVariant("danger")}
           aria-disabled={busy ? "true" : undefined}
           onClick={() => {
             if (busy) return;
@@ -103,7 +101,7 @@ function ForgetControl({ busy, dispatch }: { busy: boolean; dispatch: Dispatch<P
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          className={BUTTON_CLASS}
+          {...buttonVariant("danger")}
           aria-disabled={busy ? "true" : undefined}
           onClick={() => {
             if (busy) return;
@@ -113,7 +111,7 @@ function ForgetControl({ busy, dispatch }: { busy: boolean; dispatch: Dispatch<P
         >
           {FORGET_CONFIRM}
         </button>
-        <button ref={cancelRef} type="button" className={BUTTON_CLASS} onClick={cancel}>
+        <button ref={cancelRef} type="button" {...buttonVariant("secondary")} onClick={cancel}>
           {FORGET_CANCEL}
         </button>
       </div>

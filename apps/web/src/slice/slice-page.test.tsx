@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { analyzeStatement } from "./logic/analyze-statement";
 import { partsToText, priceRiseParts } from "./logic/label-text";
+import { NoSubscriptionsView } from "./no-subscriptions-view";
 import { storeLoadOf } from "./storage/test-store";
 import { fakeStorage, fakeStoreTarget } from "./storage/test-store";
 import { createGraveyardStore } from "./storage/graveyard-store";
@@ -676,6 +677,23 @@ describe("SlicePage: Assumed value", () => {
       screen.getByText("No currency was found in the statement, so amounts are shown in USD."),
     ).toBeTruthy();
   });
+
+  it("shows the note in NoSubscriptionsView as a muted p after the summary line (Req 10.1)", () => {
+    const outcome = analyzeStatement(
+      ["Date,Description,Amount", "2026-01-05,CORNER BAKERY,-4.50"].join("\n"),
+    );
+    if (outcome.kind !== "no-subscriptions") throw new Error(`got ${outcome.kind}`);
+    render(<NoSubscriptionsView sourceName="s.csv" outcome={outcome} onStartAgain={() => {}} />);
+    const note = screen.getByText(
+      "No currency was found in the statement, so amounts are shown in USD.",
+    );
+    expect(note.tagName).toBe("P");
+    expect(note.classList.contains("text-caption")).toBe(true);
+    expect(note.classList.contains("sm:text-small")).toBe(true);
+    expect(note.classList.contains("text-bone/80")).toBe(true);
+    const summary = screen.getByText(/No recurring charges were found/);
+    expect(summary.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe("SlicePage: Ended", () => {
@@ -734,5 +752,20 @@ describe("SlicePage: fog panels", () => {
     dropFiles([csvFile("", "empty.csv")]);
     const heading = await screen.findByRole("heading", { level: 2, name: "The file is empty." });
     expect(heading.closest(FOG_PANEL)).not.toBeNull();
+  });
+});
+
+describe("SlicePage: Button variants on error (pro-polish Req 6.5)", () => {
+  it("Start again is primary and Open the graveyard secondary, both inside the state Card", async () => {
+    renderWithStore(JSON.stringify({ version: 1, records: [NETFLIX_BURIED] }));
+    dropFiles([csvFile("", "empty.csv")]);
+    await screen.findByRole("heading", { level: 2, name: "The file is empty." });
+    const card = screen.getByRole("alert").parentElement as HTMLElement;
+    expect(card.className).toContain("bg-fog/95");
+    const startAgain = within(card).getByRole("button", { name: "Start again" });
+    const openGraveyard = within(card).getByRole("button", { name: "Open the graveyard" });
+    expect(startAgain.getAttribute("data-variant")).toBe("primary");
+    expect(openGraveyard.getAttribute("data-variant")).toBe("secondary");
+    expect(screen.getAllByRole("button", { name: "Start again" })).toEqual([startAgain]);
   });
 });

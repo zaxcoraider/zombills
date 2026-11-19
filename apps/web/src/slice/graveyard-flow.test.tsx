@@ -190,12 +190,14 @@ describe("graveyard flow: bury", () => {
 
     const stage = screen.getByRole("group", { name: "Burying Netflix" });
     expect(document.activeElement).toBe(stage);
-    for (const name of ["Yes, let it rest", "No, bury it"]) {
-      expect(screen.getByRole("button", { name }).getAttribute("aria-disabled")).toBe("true");
-    }
     expectUnique();
     // The chip swaps after the Undead chip has left.
     await waitFor(() => expect(within(stage).queryByText("Zombie")).not.toBeNull());
+    await waitFor(() => {
+      for (const name of ["Yes, let it rest", "No, bury it"]) {
+        expect(screen.queryByRole("button", { name })).toBeNull();
+      }
+    });
 
     const tombstone = await screen.findByRole("region", { name: "Here lies Netflix." });
     expect(tombstone.textContent).toContain("Fed on you every month.");

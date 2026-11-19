@@ -5,8 +5,29 @@ import { MotionGlobalConfig } from "framer-motion";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi, type Mock } from "vitest";
 import { formatMoney } from "../logic/money";
 import { partsToText, priceRiseParts, trialParts } from "../logic/label-text";
+import { CARD_SWAY } from "./motion";
 import { GUESSED_AMAZON_PRIME, POSSESSED_TRIAL_TRAP, TRIAL_TRAP, APPLE_99 } from "./test-fixtures";
 import { UndeadCard, type CardPhase, type UndeadCardProps } from "./undead-card";
+
+/** The latest `animate` prop of the sway layer (the `motion.div` turning about its bottom centre). */
+const swayAnimate = vi.hoisted(() => ({ current: undefined as unknown }));
+
+// Pass-through: every `motion.div` renders the real one; the sway layer's `animate` is recorded.
+vi.mock("framer-motion", async () => {
+  const actual = await vi.importActual<typeof import("framer-motion")>("framer-motion");
+  const { createElement, forwardRef } = await vi.importActual<typeof import("react")>("react");
+  type DivProps = Parameters<typeof actual.motion.div>[0];
+  const RecordingDiv = forwardRef<HTMLDivElement, DivProps>(function RecordingDiv(props, ref) {
+    const style = props.style as { originY?: number } | undefined;
+    if (style?.originY === 1) swayAnimate.current = props.animate;
+    return createElement(actual.motion.div, { ...props, ref });
+  });
+  const motion = new Proxy(actual.motion, {
+    get: (target, key, receiver) =>
+      key === "div" ? RecordingDiv : Reflect.get(target, key, receiver),
+  });
+  return { ...actual, motion };
+});
 
 beforeAll(() => {
   MotionGlobalConfig.skipAnimations = true;
@@ -79,6 +100,32 @@ function renderCard(
     />,
   );
   return { container, handlers };
+}
+
+function renderCardWithRerender(subscription: ClassifiedSubscription): {
+  handlers: Handlers;
+  rerender: (props: Partial<UndeadCardProps>) => void;
+} {
+  const handlers: Handlers = {
+    onRest: vi.fn(),
+    onBury: vi.fn(),
+    onSkip: vi.fn(),
+    onCondemned: vi.fn(),
+    onSunk: vi.fn(),
+  };
+  const element = (props: Partial<UndeadCardProps>) => (
+    <UndeadCard
+      subscription={subscription}
+      displayName={subscription.merchant}
+      phase="undead"
+      canSkip
+      reduceMotion={false}
+      {...handlers}
+      {...props}
+    />
+  );
+  const view = render(element({}));
+  return { handlers, rerender: (props) => view.rerender(element(props)) };
 }
 
 describe("UndeadCard content", () => {
@@ -268,19 +315,70 @@ describe("UndeadCard answers", () => {
   });
 
   it.each<CardPhase>(["condemned", "sinking"])(
-    "keeps the buttons rendered but inert in %s",
+    "renders the answer block in undead and removes it in %s",
     (phase) => {
-      const { handlers } = renderCard(APPLE_99, { phase });
+      const { handlers, rerender } = renderCardWithRerender(APPLE_99);
       for (const name of ["Yes, let it rest", "No, bury it", "Skip for now"]) {
-        const button = screen.getByRole("button", { name });
-        expect(button.getAttribute("aria-disabled")).toBe("true");
-        fireEvent.click(button);
+        expect(screen.getByRole("button", { name })).toBeTruthy();
       }
+      expect(screen.getByText("Still using this?")).toBeTruthy();
+      rerender({ phase });
+      // Synchronous: the block has no exit window beside "Next" (review C #1).
+      for (const name of ["Yes, let it rest", "No, bury it", "Skip for now"]) {
+        expect(screen.queryByRole("button", { name })).toBeNull();
+      }
+      expect(screen.queryByText("Still using this?")).toBeNull();
+      expect(document.querySelectorAll('[data-variant="primary"]')).toHaveLength(0);
       expect(handlers.onRest).not.toHaveBeenCalled();
       expect(handlers.onBury).not.toHaveBeenCalled();
       expect(handlers.onSkip).not.toHaveBeenCalled();
     },
   );
+
+  it("keeps the fading answer block inert after 'Yes, let it rest'", () => {
+    MotionGlobalConfig.skipAnimations = false;
+    vi.useFakeTimers();
+    try {
+      const { handlers, rerender } = renderCardWithRerender(APPLE_99);
+      rerender({ phase: "resting" });
+      // The exiting copy is still mounted while it fades.
+      for (const name of ["Yes, let it rest", "No, bury it", "Skip for now"]) {
+        const button = screen.getByRole("button", { name });
+        expect(button.getAttribute("aria-disabled")).toBe("true");
+        expect(button.getAttribute("tabindex")).toBe("-1");
+        fireEvent.click(button);
+      }
+      expect(handlers.onRest).not.toHaveBeenCalled();
+      expect(handlers.onBury).not.toHaveBeenCalled();
+      expect(handlers.onSkip).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      MotionGlobalConfig.skipAnimations = true;
+    }
+  });
+
+  it.each<CardPhase>(["condemned", "sinking"])(
+    "renders no answer block when first shown in %s",
+    (phase) => {
+      renderCard(APPLE_99, { phase });
+      for (const name of ["Yes, let it rest", "No, bury it", "Skip for now"]) {
+        expect(screen.queryByRole("button", { name })).toBeNull();
+      }
+    },
+  );
+
+  it("marks 'No, bury it' as the primary and every answer control as card-exempt", () => {
+    renderCard(APPLE_99);
+    expect(
+      screen.getByRole("button", { name: "No, bury it" }).getAttribute("data-variant"),
+    ).toBe("primary");
+    for (const name of ["Yes, let it rest", "No, bury it", "Skip for now"]) {
+      expect(screen.getByRole("button", { name }).getAttribute("data-exempt")).toBe("card");
+    }
+    expect(
+      screen.getByRole("button", { name: "Yes, let it rest" }).hasAttribute("data-variant"),
+    ).toBe(false);
+  });
 
   it("leaves the buttons enabled while deciding", () => {
     renderCard(APPLE_99);
@@ -312,5 +410,57 @@ describe("UndeadCard outcome", () => {
     expect(container.textContent).toContain(
       `It goes on charging ${formatMoney(13_900, CURRENCY)} (how often is a guess).`,
     );
+  });
+});
+
+describe("UndeadCard sway (Req 10.4, 10.7)", () => {
+  const STILL = { rotate: 0 };
+  const SWAYING = { rotate: [...CARD_SWAY.rotate] };
+
+  /** The sway layer: the card section's parent. */
+  function swayLayer(): HTMLElement {
+    const layer = screen.getByRole("region").parentElement;
+    if (layer === null) throw new Error("no sway layer");
+    return layer;
+  }
+
+  it("sways once while undead", () => {
+    renderCard(APPLE_99);
+    expect(swayAnimate.current).toEqual(SWAYING);
+  });
+
+  it("stills on pointer enter and stays still after pointer leave", () => {
+    renderCard(APPLE_99);
+    fireEvent.pointerEnter(swayLayer());
+    expect(swayAnimate.current).toEqual(STILL);
+    fireEvent.pointerLeave(swayLayer());
+    expect(swayAnimate.current).toEqual(STILL);
+  });
+
+  it("stills on keyboard focus of an answer and stays still after blur", () => {
+    renderCard(APPLE_99);
+    const button = screen.getByRole("button", { name: "No, bury it" });
+    const matches = button.matches.bind(button);
+    vi.spyOn(button, "matches").mockImplementation((selector) =>
+      selector === "button:focus-visible" ? true : matches(selector),
+    );
+    fireEvent.focus(button);
+    expect(swayAnimate.current).toEqual(STILL);
+    fireEvent.blur(button);
+    expect(swayAnimate.current).toEqual(STILL);
+  });
+
+  it("keeps swaying when the card heading takes focus", () => {
+    renderCard(APPLE_99);
+    fireEvent.focus(screen.getByRole("heading", { level: 3 }));
+    expect(swayAnimate.current).toEqual(SWAYING);
+  });
+
+  it("settles to 0 when condemned, and does not rotate under reduced motion", () => {
+    renderCard(APPLE_99, { phase: "condemned" });
+    expect(swayAnimate.current).toEqual(STILL);
+    cleanup();
+    renderCard(APPLE_99, { reduceMotion: true });
+    expect(swayAnimate.current).toEqual(STILL);
   });
 });

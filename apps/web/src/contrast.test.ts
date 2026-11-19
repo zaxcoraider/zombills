@@ -13,7 +13,17 @@ import {
   TITLE_GLOW_ALPHA,
 } from "./slice/logic/scene-alphas";
 import { BLOCK_SHAPES, textBoxes, type Point } from "./slice/logic/test-share-card-geometry";
-import { PIT_GLOW_ALPHA } from "./slice/logic/design-tokens";
+import {
+  DANGER_QUIET_ALPHA,
+  DANGER_DISABLED_OUTLINE_ALPHA,
+  DANGER_DISABLED_TEXT_ALPHA,
+  DANGER_TEXT_BLOOD,
+  FOOTNOTE_ALPHA,
+  OUTLINE_ALPHA,
+  OUTLINE_DISABLED_ALPHA,
+  PIT_GLOW_ALPHA,
+  PRIMARY_DISABLED_MOSS,
+} from "./slice/logic/design-tokens";
 import { GRAVE_EARTH } from "./slice/statement/grave-art";
 
 const CSS = readFileSync(new URL("./index.css", import.meta.url), "utf8");
@@ -497,6 +507,14 @@ describe("pro-polish contrast (Req 12.4)", () => {
     expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(3);
   });
 
+  it("'Choose a file' as the secondary variant on P: text at least 4.5:1, outline at least 3:1, at rest and aria-disabled (review C #10)", () => {
+    // The secondary variant is bg-transparent, so the pit P is behind its text and outline.
+    expect(contrast(bone(), pit())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(over(pit(), bone(), OUTLINE_ALPHA), pit())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(pit(), bone(), 0.7), pit())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(over(pit(), bone(), OUTLINE_DISABLED_ALPHA), pit())).toBeGreaterThanOrEqual(3);
+  });
+
   it("'Choose a file' while aria-disabled (opacity 60 % over P): text at least 4.5:1", () => {
     expect(contrast(over(pit(), bone(), 0.6), over(pit(), fog(), 0.6))).toBeGreaterThanOrEqual(4.5);
   });
@@ -532,5 +550,109 @@ describe("pro-polish contrast (Req 12.4)", () => {
   it("the grave rim glow, moss against C and against E, is at least 3:1", () => {
     expect(contrast(moss(), card())).toBeGreaterThanOrEqual(3);
     expect(contrast(moss(), earth())).toBeGreaterThanOrEqual(3);
+  });
+
+  const blood = () => tokenHex("blood");
+  /** G: GROUND_TOP (`fog` 58 % over `night`), composited with `over` as the design's table does. */
+  const ground = () => over(night(), fog(), 0.58);
+  /** `color-mix(in srgb, a t%, b)` is `a` laid over `b` at `t`. */
+  const dangerText = () => over(bone(), blood(), DANGER_TEXT_BLOOD);
+  const primaryDisabled = () => over(fog(), moss(), PRIMARY_DISABLED_MOSS);
+
+  it("G and the variant mixes have the design's values", () => {
+    expect(card()).toBe("#1e232e");
+    expect(ground()).toBe("#141721");
+    expect(dangerText()).toBe("#e27673");
+    expect(primaryDisabled()).toBe("#6c9f75");
+  });
+
+  it("tertiary text (rest, hover, aria-disabled) and the Home control, bone on S, are at least 4.5:1", () => {
+    expect(contrast(bone(), scene())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("secondary text at rest, on hover and while aria-disabled is at least 4.5:1 on C", () => {
+    expect(contrast(bone(), card())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(bone(), over(card(), bone(), 0.1))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(over(card(), bone(), 0.7), card())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the secondary outline at rest and while aria-disabled is at least 3:1 on C", () => {
+    expect(OUTLINE_ALPHA).toBe(0.5);
+    expect(OUTLINE_DISABLED_ALPHA).toBe(0.45);
+    expect(contrast(over(card(), bone(), OUTLINE_ALPHA), card())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(card(), bone(), OUTLINE_DISABLED_ALPHA), card())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("primary text at rest, on hover and while aria-disabled is at least 4.5:1", () => {
+    expect(PRIMARY_DISABLED_MOSS).toBe(0.7);
+    expect(contrast(night(), moss())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(night(), over(bone(), moss(), 0.88))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(night(), primaryDisabled())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the aria-disabled primary fill against C is at least 3:1", () => {
+    expect(contrast(primaryDisabled(), card())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("danger text at rest, on hover and while aria-disabled is at least 4.5:1 on C", () => {
+    expect(DANGER_TEXT_BLOOD).toBe(0.8);
+    // aria-disabled dims the text (review C #4); its hover is transparent, so C is behind it.
+    expect(contrast(dangerText(), card())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(dangerText(), over(card(), blood(), 0.1))).toBeGreaterThanOrEqual(4.5);
+    expect(DANGER_DISABLED_TEXT_ALPHA).toBe(0.9);
+    expect(
+      contrast(over(card(), dangerText(), DANGER_DISABLED_TEXT_ALPHA), card()),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the danger outline while aria-disabled, blood 80 % on C, is at least 3:1 and dimmer than at rest", () => {
+    expect(DANGER_DISABLED_OUTLINE_ALPHA).toBe(0.8);
+    const disabled = contrast(over(card(), blood(), DANGER_DISABLED_OUTLINE_ALPHA), card());
+    expect(disabled).toBeGreaterThanOrEqual(3);
+    expect(disabled).toBeLessThan(contrast(over(card(), blood(), DANGER_QUIET_ALPHA), card()));
+  });
+
+  it("the danger outline and the quiet danger outline are at least 3:1 on C", () => {
+    expect(DANGER_QUIET_ALPHA).toBe(0.85);
+    expect(contrast(blood(), card())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(card(), blood(), DANGER_QUIET_ALPHA), card())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("quiet danger text at rest, on hover and while aria-disabled is at least 4.5:1 on C", () => {
+    expect(contrast(dangerText(), card())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(dangerText(), over(card(), blood(), 0.1))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("Footer stone text, bone on fog, is at least 4.5:1", () => {
+    expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the Footer stone outline, bone 50 % over fog, against G is at least 3:1", () => {
+    expect(contrast(over(fog(), bone(), OUTLINE_ALPHA), ground())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the Footer moss outline (hover, focus) against G is at least 3:1", () => {
+    expect(contrast(moss(), ground())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the Reaper description and the Privacy note, bone on G, are at least 4.5:1", () => {
+    expect(contrast(bone(), ground())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the Muted footnote, bone 80 % on C, is at least 4.5:1", () => {
+    expect(FOOTNOTE_ALPHA).toBe(0.8);
+    expect(contrast(over(card(), bone(), FOOTNOTE_ALPHA), card())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("a filled Progress dot, moss on C, is at least 3:1", () => {
+    expect(contrast(moss(), card())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("an outline Progress dot, bone 45 % over C, against C is at least 3:1", () => {
+    expect(contrast(over(card(), bone(), 0.45), card())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the Progress bar fill, moss against the bone 20 % track over C, is at least 3:1", () => {
+    expect(contrast(moss(), over(card(), bone(), 0.2))).toBeGreaterThanOrEqual(3);
   });
 });

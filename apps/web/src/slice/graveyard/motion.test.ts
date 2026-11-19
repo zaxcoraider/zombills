@@ -7,6 +7,8 @@ import {
   CARD_REDUCED_VARIANTS,
   CARD_RISE_SPRING,
   CARD_SETTLE_SPRING,
+  CARD_SWAY,
+  CARD_SWAY_SETTLE,
   CARD_VARIANTS,
   COPY_LABEL_FADE,
   COUNTER_TWEEN,
@@ -147,6 +149,21 @@ describe("fog", () => {
 describe("burial fallback", () => {
   it("is 2,000 ms", () => {
     expect(BURIAL_FALLBACK_MS).toBe(2000);
+  });
+});
+
+describe("card sway", () => {
+  it("is finite, ends within 5 s and comes to rest at 0 (Req 10.4)", () => {
+    const { repeat, delay, duration } = CARD_SWAY.transition;
+    expect(Number.isInteger(repeat)).toBe(true);
+    expect(delay + duration * (repeat + 1)).toBeLessThanOrEqual(5);
+    expect(CARD_SWAY.rotate.at(-1)).toBe(0);
+    expect(CARD_SWAY.rotate).toEqual([0, -0.9, 0.9, -0.6, 0.6, 0]);
+    expect(CARD_SWAY.transition.ease).toBe("easeInOut");
+  });
+
+  it("settles in 0.15 s, easing out", () => {
+    expect(CARD_SWAY_SETTLE).toEqual({ duration: 0.15, ease: "easeOut" });
   });
 });
 

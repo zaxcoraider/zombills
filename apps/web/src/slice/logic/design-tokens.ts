@@ -49,3 +49,25 @@ export const RADIUS_SCALE: readonly RadiusToken[] = [
 
 /** Peak stop-opacity of the moss glow in the Grave pit (pro-polish "Colours and contrast", P). */
 export const PIT_GLOW_ALPHA = 0.14;
+
+/**
+ * Alphas and mix fractions of the Button variants and the footnote (pro-polish "Colours and
+ * contrast"). The class strings in `slice/button-variants.ts` are literal, for Tailwind's scanner;
+ * `button-variants.test.ts` checks that they match these values.
+ */
+/** Secondary outline: `border-bone/50`. */
+export const OUTLINE_ALPHA = 0.5;
+/** Secondary outline while `aria-disabled`: `aria-disabled:border-bone/45`. */
+export const OUTLINE_DISABLED_ALPHA = 0.45;
+/** Danger text: `color-mix(in srgb, var(--blood) 80%, var(--bone))`. */
+export const DANGER_TEXT_BLOOD = 0.8;
+/** Quiet danger outline: `border-blood/85`. */
+export const DANGER_QUIET_ALPHA = 0.85;
+/** Danger and quiet danger outline while `aria-disabled`: `aria-disabled:border-blood/80`. */
+export const DANGER_DISABLED_OUTLINE_ALPHA = 0.8;
+/** Danger text while `aria-disabled`: the danger text mix at 90 % over the surface. */
+export const DANGER_DISABLED_TEXT_ALPHA = 0.9;
+/** Primary fill while `aria-disabled`: `color-mix(in srgb, var(--moss) 70%, var(--fog))`. */
+export const PRIMARY_DISABLED_MOSS = 0.7;
+/** Muted footnote text: `text-bone/80`. */
+export const FOOTNOTE_ALPHA = 0.8;

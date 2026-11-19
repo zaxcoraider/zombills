@@ -155,7 +155,7 @@ describe("CancelHelper link panel", () => {
     });
     expect(link.getAttribute("href")).toBe(NETFLIX_URL);
     expect(link.textContent).toBe("Open the Netflix cancel page (fixture-provider.test)");
-    expect(link.className).toContain("underline");
+    expect(link.getAttribute("data-variant")).toBe("secondary");
     const description = document.getElementById(link.getAttribute("aria-describedby") ?? "");
     expect(description?.textContent).toBe("(opens in a new tab)");
   });
@@ -190,6 +190,8 @@ describe("CancelHelper link panel", () => {
     const google = screen.getByRole("link", { name: "Google Play subscriptions for Netflix" });
     expect(apple.getAttribute("href")).toBe(APP_STORE_LINKS.apple.url);
     expect(google.getAttribute("href")).toBe(APP_STORE_LINKS.google.url);
+    expect(apple.getAttribute("data-variant")).toBe("secondary");
+    expect(google.getAttribute("data-variant")).toBe("secondary");
   });
 
   it("leaves out the store note when appStoreMayApply is false", () => {
@@ -455,5 +457,19 @@ describe("CancelHelper copy flow", () => {
     expect(calls).toEqual([]);
     expect(errorSpy).not.toHaveBeenCalled();
     expect(warnSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("CancelHelper Button variants (Req 6.5)", () => {
+  it("makes Copy and Open in my email app secondary", () => {
+    render(ui(NETFLIX));
+    expect(
+      screen.getByRole("button", { name: "Copy email for Netflix" }).getAttribute("data-variant"),
+    ).toBe("secondary");
+    expect(
+      screen
+        .getByRole("link", { name: "Open in my email app for Netflix" })
+        .getAttribute("data-variant"),
+    ).toBe("secondary");
   });
 });

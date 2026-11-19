@@ -7,7 +7,9 @@ import { assumedValueNotes } from "../logic/assumed-values";
 import { formatDisplayDate } from "../logic/display-date";
 import type { HauntView } from "../logic/haunt-view";
 import type { PageAction, RisingModel } from "../page-state";
+import { buttonVariant } from "../button-variants";
 import { MEMORY_ON_LINE, MEMORY_SETTINGS, carriedOverLine } from "../logic/memory-text";
+import { progressCountsFor, progressDotsFor } from "../logic/progress-dots";
 import { BurialStage } from "./burial-stage";
 import { Money } from "./money-text";
 import { useFocusRequest } from "./use-focus-request";
@@ -26,9 +28,6 @@ export interface RisingViewProps {
 }
 
 const NOT_INCLUDED_NOTE = "Ended subscriptions and guessed ones are not included in the total.";
-
-const BUTTON_CLASS =
-  "rounded border border-bone bg-fog px-4 py-2 text-bone aria-disabled:cursor-default";
 
 function skippedClause(count: number): string {
   if (count === 0) return "";
@@ -57,13 +56,11 @@ function StatementSummary({
         {dates} · {outcome.transactionCount} transactions read
         {skippedClause(outcome.rowErrorCount)}
       </p>
-      {notes.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      ) : null}
+      {notes.map((note) => (
+        <p key={note} className="text-caption sm:text-small text-bone/80">
+          {note}
+        </p>
+      ))}
     </>
   );
 }
@@ -110,12 +107,58 @@ function AllAnswered({ dispatch }: { dispatch: Dispatch<PageAction> }) {
       </p>
       <button
         type="button"
-        className={BUTTON_CLASS}
+        {...buttonVariant("primary")}
         onClick={() => dispatch({ type: "open-graveyard" })}
       >
         Visit the graveyard
       </button>
     </div>
+  );
+}
+
+/** Progress dots, or the bar above 12 risen (Req 10.2). Hidden: the text carries the count. */
+function ProgressMarks({
+  outcome,
+  currentIds,
+}: {
+  outcome: ResultsOutcome;
+  currentIds: ReadonlySet<string>;
+}) {
+  const dots = progressDotsFor(outcome, currentIds);
+  if (dots !== null) {
+    if (dots.length === 0) return null;
+    return (
+      <span
+        aria-hidden="true"
+        data-progress-dots=""
+        className="flex flex-nowrap items-center gap-[8px]"
+      >
+        {/* Fixed pixels, not rem: 12 dots stay 184 px wide at 200 % text (Req 12.9). */}
+        {dots.map((dot) => (
+          <span
+            key={dot.id}
+            data-answered={dot.answered ? "true" : "false"}
+            className={`box-border block h-[8px] w-[8px] shrink-0 rounded-pill ${
+              dot.answered ? "bg-moss" : "border border-bone/45"
+            }`}
+          />
+        ))}
+      </span>
+    );
+  }
+  const { answered, risen } = progressCountsFor(outcome, currentIds);
+  return (
+    <span
+      aria-hidden="true"
+      data-progress-bar=""
+      className="block h-2 w-24 shrink-0 overflow-hidden rounded-pill bg-bone/20"
+    >
+      <span
+        data-progress-fill=""
+        className="block h-full rounded-pill bg-moss"
+        style={{ width: `${(answered / risen) * 100}%` }}
+      />
+    </span>
   );
 }
 
@@ -173,12 +216,15 @@ export function RisingView({
         ))}
         {carriedOver > 0 ? <p>{carriedOverLine(carriedOver)}</p> : null}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p>
-            {haunt.answeredCount} of {haunt.risen.length} answered
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p>
+              {haunt.answeredCount} of {haunt.risen.length} answered
+            </p>
+            <ProgressMarks outcome={outcome} currentIds={haunt.currentIds} />
+          </div>
           <button
             type="button"
-            className={BUTTON_CLASS}
+            {...buttonVariant("secondary")}
             onClick={() => dispatch({ type: "open-graveyard" })}
           >
             Open the graveyard
@@ -189,7 +235,7 @@ export function RisingView({
             <p>{MEMORY_ON_LINE}</p>
             <button
               type="button"
-              className={BUTTON_CLASS}
+              {...buttonVariant("secondary")}
               onClick={() => dispatch({ type: "open-memory-settings" })}
             >
               {MEMORY_SETTINGS}
@@ -217,8 +263,8 @@ export function RisingView({
         <div>
           <button
             type="button"
-            className={BUTTON_CLASS}
-            aria-disabled={burying ? "true" : undefined}
+            {...buttonVariant("primary", { bare: true })}
+            aria-disabled={burying || undefined}
             onClick={onNext}
           >
             {queueEmpty ? "Visit the graveyard" : "Next"}

@@ -854,17 +854,29 @@ function pageModelActionArb(outcome: AnalysisOutcome): fc.Arbitrary<PageAction> 
  * A Page model reached from `initialPageModel` by 0 to 30 actions over one outcome (results,
  * no-subscriptions or an error), so every view kind and both screens occur (pro-polish P1, P2).
  */
-export const pageModelArb: fc.Arbitrary<PageModel> = fc
-  .tuple(
-    pageReadResultArb,
-    fc.oneof(
-      pageResultsOutcomeArb.map((o): AnalysisOutcome => o),
-      fc.constant(NO_SUBSCRIPTIONS_OUTCOME),
-      errorOutcomeArb,
-    ),
+export const pageModelArb: fc.Arbitrary<PageModel> = pageModelOver(
+  fc.oneof(
+    pageResultsOutcomeArb.map((o): AnalysisOutcome => o),
+    fc.constant(NO_SUBSCRIPTIONS_OUTCOME),
+    errorOutcomeArb,
+  ),
+);
+
+/** A Page model built as `pageModelArb` is, over outcomes drawn from `outcomeArb`. */
+export function pageModelOver(outcomeArb: fc.Arbitrary<AnalysisOutcome>): fc.Arbitrary<PageModel> {
+  return fc
+    .tuple(pageReadResultArb, outcomeArb)
+    .chain(([read, outcome]) =>
+      fc
+        .array(pageModelActionArb(outcome), { maxLength: 30 })
+        .map((actions) => actions.reduce(pageReducer, initialPageModel(read))),
+    );
+}
+
+/** A `results` outcome with 13 to 16 active subscriptions: more than the 12 Progress dots. */
+export const manyRisenOutcomeArb: fc.Arbitrary<ResultsOutcome> = fc
+  .uniqueArray(
+    pageSubscriptionArb.map((s): Subscription => ({ ...s, status: "active" })),
+    { selector: (s) => s.id, minLength: 13, maxLength: 16 },
   )
-  .chain(([read, outcome]) =>
-    fc
-      .array(pageModelActionArb(outcome), { maxLength: 30 })
-      .map((actions) => actions.reduce(pageReducer, initialPageModel(read))),
-  );
+  .map(resultsOutcomeOf);

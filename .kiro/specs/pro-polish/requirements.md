@@ -385,6 +385,7 @@ Requirements 12 and 13 cover both phases.
     - cancel-helper Requirements 8.1 and 8.2: the tab order passes the Email disclosure button, and on the Rising "Next" sits inside the Helper panel as its last control.
     - cancel-helper Requirement 10.4: the demo-path mailto check opens "Write to them instead" before finding "Open in my email app".
     - cancel-helper Requirement 10.5: the Helper panel overflow test opens "Write to them instead" before measuring.
+    - cancel-helper Requirement 8.8: the cancel link and App-store links are secondary buttons (outlined), not underlined text.
     - graveyard-ui Requirements 2.5, 5.5 and 14.2: in the `buried` stage "Next" sits inside the Helper panel.
     - graveyard-ui Requirement 14.2: when another statement is read from the Statement panel of `results` or the Graveyard view, the panel remounts open on `working` and focus moves to the same-named control in it. *(Amended by design review 1 #4.)*
     - share-card Requirement 4.8: the Share panel uses the Button variants of pro-polish Requirement 6.

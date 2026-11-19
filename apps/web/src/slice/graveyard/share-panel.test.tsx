@@ -347,3 +347,24 @@ describe("share panel: content, props and motion", () => {
     expect(calls).not.toContain(false);
   });
 });
+
+describe("share panel: button variants (Req 6.5)", () => {
+  const primaries = () => panel().querySelectorAll('[data-variant="primary"]');
+
+  it("makes Make an image the one primary before an image exists", async () => {
+    await openGraveyardWithNetflix();
+    expect(makeButton("Make an image").getAttribute("data-variant")).toBe("primary");
+    expect(primaries().length).toBe(1);
+  });
+
+  it("makes the main button the one primary after an image, with Make the image again secondary", async () => {
+    await openGraveyardWithNetflix();
+    await makeFirstImage();
+    const again = makeButton("Make the image again");
+    const main = within(panel()).getByRole("button", { name: /^(Share|Save) image$/ });
+    expect(again.getAttribute("data-variant")).toBe("secondary");
+    expect(main.getAttribute("data-variant")).toBe("primary");
+    expect(primaries().length).toBe(1);
+    for (const button of [again, main]) expect(button.className).not.toContain("opacity-60");
+  });
+});

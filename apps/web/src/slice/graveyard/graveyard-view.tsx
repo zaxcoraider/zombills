@@ -8,6 +8,7 @@ import { CADENCE_FACTOR, type AnswerRecord } from "../logic/graveyard";
 import type { HauntView } from "../logic/haunt-view";
 import { CARRIED_OVER_NOTE, EARLIER_NOTE } from "../logic/memory-text";
 import type { MemoryModel, PageAction } from "../page-state";
+import { buttonVariant } from "../button-variants";
 import { CancelHelper } from "./cancel-helper";
 import { MemoryPanel } from "./memory-panel";
 import { BURIAL_FALLBACK_MS, helperPanelVariants } from "./motion";
@@ -31,8 +32,6 @@ export interface GraveyardViewProps {
   dispatch: Dispatch<PageAction>;
 }
 
-const BUTTON_CLASS = "rounded border border-bone bg-fog px-4 py-2 text-bone";
-
 /** `How to cancel` and the Helper panel it opens; the panel stays mounted while hidden. */
 function HelperDisclosure({
   record,
@@ -52,7 +51,7 @@ function HelperDisclosure({
     <>
       <button
         type="button"
-        className={BUTTON_CLASS}
+        {...buttonVariant("secondary")}
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`How to cancel ${name}`}
@@ -95,7 +94,7 @@ function TombstoneActions({
     <div className="flex flex-wrap justify-center gap-3">
       <button
         type="button"
-        className={BUTTON_CLASS}
+        {...buttonVariant("danger-quiet")}
         aria-label={`Unbury ${name}`}
         onClick={() => dispatch({ type: "unbury", id: record.id })}
       >
@@ -188,7 +187,7 @@ function RestingItem({
       </p>
       <button
         type="button"
-        className={BUTTON_CLASS}
+        {...buttonVariant("secondary")}
         aria-label={`Bury after all ${name}`}
         onClick={() => dispatch({ type: "bury-after-all", id: record.id })}
       >
@@ -303,7 +302,7 @@ export function GraveyardView({
                   </p>
                   <button
                     type="button"
-                    className={BUTTON_CLASS}
+                    {...buttonVariant("secondary")}
                     aria-label={`Answer now ${name}`}
                     onClick={() => dispatch({ type: "answer-now", id: subscription.id })}
                   >
@@ -326,7 +325,7 @@ export function GraveyardView({
         {hasStatement ? (
           <button
             type="button"
-            className={BUTTON_CLASS}
+            {...buttonVariant("secondary")}
             onClick={() => dispatch({ type: "back-to-rising" })}
           >
             Back to the rising
@@ -334,7 +333,7 @@ export function GraveyardView({
         ) : (
           <button
             type="button"
-            className={BUTTON_CLASS}
+            {...buttonVariant("secondary")}
             onClick={() => dispatch({ type: "back-to-start" })}
           >
             Back to the start
