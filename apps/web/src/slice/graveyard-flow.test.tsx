@@ -62,6 +62,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** The four Footer tombstones, in tab order (Req 2.2, 12.6). */
+const FOOTER_STONES = ["Zombills on GitHub", "The Reaper", "Privacy note", "Built with Kiro"];
+
 async function chooseSample(label: string) {
   fireEvent.click(screen.getByRole("button", { name: label }));
   await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
@@ -232,7 +235,7 @@ describe("graveyard flow: burial fallback", () => {
 });
 
 describe("graveyard flow: Gate keeps focus", () => {
-  it("does not remount the Gate while another statement is read", async () => {
+  it("Gate keeps focus on the same control while another statement is read", async () => {
     const frames: FrameRequestCallback[] = [];
     render(<App />);
     await summon();
@@ -244,12 +247,21 @@ describe("graveyard flow: Gate keeps focus", () => {
         return frames.length;
       }),
     );
-    const button = screen.getByRole("button", { name: UK_LABEL });
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
+    const button = within(screen.getByRole("list", { name: "Sample statements" })).getByRole(
+      "button",
+      { name: UK_LABEL },
+    );
     button.focus();
     fireEvent.click(button);
     await waitFor(() => expect(frames).toHaveLength(1));
-    expect(screen.getByRole("button", { name: UK_LABEL })).toBe(button);
-    expect(document.activeElement).toBe(button);
+    // The working panel remounts by design; focus is handed to its UK chip.
+    const workingChip = within(screen.getByRole("list", { name: "Sample statements" })).getByRole(
+      "button",
+      { name: UK_LABEL },
+    );
+    expect(document.activeElement).toBe(workingChip);
+    expect(workingChip.getAttribute("aria-disabled")).toBe("true");
 
     await act(async () => {
       frames[0]?.(0);
@@ -259,7 +271,10 @@ describe("graveyard flow: Gate keeps focus", () => {
       expect(first).not.toBeNull();
       expect(document.activeElement).toBe(first);
     });
-    expect(screen.getByRole("button", { name: UK_LABEL })).toBe(button);
+    // Back on results, the disclosure is collapsed again with the chip inside it.
+    expect(
+      screen.getByRole("button", { name: UK_LABEL, hidden: true }).closest("[hidden]"),
+    ).not.toBeNull();
   });
 });
 
@@ -440,6 +455,7 @@ describe("graveyard flow: Graveyard view", () => {
     reachNetflix();
     await buryCurrent("Netflix");
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
     const dropArea = screen.getByRole("button", { name: DROP_AREA_NAME });
     await waitFor(() => expect(document.activeElement).toBe(dropArea));
@@ -522,6 +538,7 @@ describe("graveyard flow: default empty load", () => {
     reachNetflix();
     await buryCurrent("Netflix");
 
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     await chooseSample(US_LABEL);
 
     expect(screen.queryByRole("region", { name: "Netflix" })).toBeNull();
@@ -550,10 +567,37 @@ describe("graveyard flow: unique names and Tab order", () => {
       "Yes, let it rest",
       "No, bury it",
       "Skip for now",
+      "Try another statement",
+      ...FOOTER_STONES,
+    ];
+    for (const name of expected) {
+      await user.tab();
+      const active = document.activeElement as HTMLElement;
+      expect(active.getAttribute("aria-label") ?? active.textContent).toBe(name);
+    }
+    expectUnique();
+  });
+
+  it("tabs the first card in the drawn order with the Statement disclosure open", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await summon();
+    await waitFor(() => expect(document.activeElement).toBe(cardHeading("Adobe Creative Cloud")));
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
+    (document.activeElement as HTMLElement).blur();
+
+    const expected = [
+      HOME_CONTROL_NAME,
+      "Open the graveyard",
+      "Yes, let it rest",
+      "No, bury it",
+      "Skip for now",
+      "Try another statement",
       DROP_AREA_NAME,
       "Choose a file",
       ...SAMPLES.map((sample) => sample.label),
       "Start again",
+      ...FOOTER_STONES,
     ];
     for (const name of expected) {
       await user.tab();

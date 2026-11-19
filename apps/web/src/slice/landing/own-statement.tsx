@@ -1,19 +1,21 @@
-import { DropZone } from "../drop-zone";
-import { OWN_STATEMENT_HEADING } from "../logic/landing-text";
-import { STATEMENT_TIP } from "../logic/memory-text";
+import { StatementPanel } from "../statement/statement-panel";
 
 export interface OwnStatementProps {
   disabled: boolean;
+  reduceMotion: boolean;
   onFiles: (files: File[]) => void;
 }
 
-/** The drop area for the user's own statement, with the Tip. */
-export function OwnStatement({ disabled, onFiles }: OwnStatementProps) {
+/** The Landing Statement panel: the drop area for the user's own statement (no Sample chips). */
+export function OwnStatement({ disabled, reduceMotion, onFiles }: OwnStatementProps) {
   return (
-    <section className="flex flex-col gap-4 rounded-2xl bg-fog/95 p-4 sm:p-6">
-      <h2 className="text-xl font-bold">{OWN_STATEMENT_HEADING}</h2>
-      <p>{STATEMENT_TIP}</p>
-      <DropZone disabled={disabled} onFiles={onFiles} />
-    </section>
+    <StatementPanel
+      place="landing"
+      showHeading
+      disabled={disabled}
+      reduceMotion={reduceMotion}
+      onFiles={onFiles}
+      onChooseSample={() => {}}
+    />
   );
 }

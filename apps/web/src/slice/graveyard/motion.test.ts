@@ -10,6 +10,11 @@ import {
   CARD_VARIANTS,
   COPY_LABEL_FADE,
   COUNTER_TWEEN,
+  GRAVE_GHOST_REST_Y,
+  GRAVE_GHOST_RETURN,
+  GRAVE_GHOST_RISE,
+  GRAVE_GHOST_RISE_Y,
+  GRAVE_GLOW_FADE,
   REDUCED_FADE,
   SHUDDER,
   SINK,
@@ -282,5 +287,28 @@ describe("footer peek variants", () => {
       expect(found.length).toBeGreaterThan(0);
       for (const d of found) expect(d).toBeLessThanOrEqual(0.3);
     }
+  });
+});
+
+describe("grave drop zone ghost", () => {
+  it("rests at 24 px and rises to 8 px", () => {
+    expect(GRAVE_GHOST_REST_Y).toBe(24);
+    expect(GRAVE_GHOST_RISE_Y).toBe(8);
+  });
+
+  it("ends every grave leg within 0.3 s, inside the 0.4 s of Req 3.6", () => {
+    const legs = { GRAVE_GHOST_RISE, GRAVE_GHOST_RETURN, GRAVE_GLOW_FADE };
+    for (const [name, transition] of Object.entries(legs)) {
+      const delay = "delay" in transition ? (transition.delay as number) : 0;
+      expect(delay + transition.duration, name).toBeLessThanOrEqual(0.4);
+      expect(delay + transition.duration, name).toBeLessThanOrEqual(0.3);
+      expect(JSON.stringify(transition), name).not.toContain("repeat");
+    }
+  });
+
+  it("uses the design's easings", () => {
+    expect(GRAVE_GHOST_RISE).toEqual({ duration: 0.3, ease: [0.22, 1, 0.36, 1] });
+    expect(GRAVE_GHOST_RETURN).toEqual({ duration: 0.25, ease: "easeIn" });
+    expect(GRAVE_GLOW_FADE).toEqual({ duration: 0.2, ease: "easeOut" });
   });
 });

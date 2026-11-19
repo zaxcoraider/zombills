@@ -1,0 +1,64 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "18. Grave drop area (`slice/drop-zone.tsx`)": [
+      {
+        "executionId": "97e3b632-a8e6-4c8e-b1cd-e02d130c180f",
+        "chatSessionId": "sess_bbf4955f-3b76-449b-8c97-e3f28cb9bc76",
+        "timestamp": 1795069988368
+      }
+    ],
+    "19. Statement panel and Sample chips (`statement/statement-panel.tsx`, `statement/sample-chips.tsx`, `landing/own-statement.tsx`, `slice/slice-page.tsx`, `slice/sample-buttons.tsx`)": [
+      {
+        "executionId": "57a8a323-49d1-4e85-88ac-7fcd1ba24203",
+        "chatSessionId": "sess_10b4f8a5-5a77-4ce4-88f3-5495327d007c",
+        "timestamp": 1795070418295
+      },
+      {
+        "executionId": "72d65224-7e95-4265-b670-c5602dc89856",
+        "chatSessionId": "sess_45bb79d0-c0de-46ae-a96f-46c4695f0855",
+        "timestamp": 1795071080000
+      }
+    ],
+    "20. Statement disclosure (`statement/statement-disclosure.tsx`, `slice/slice-page.tsx`, `slice/error-view.tsx`, `slice/no-subscriptions-view.tsx`)": [
+      {
+        "executionId": "c49b2d93-e555-43ad-a412-74d484f154c9",
+        "chatSessionId": "sess_ad60a3f3-166d-47bb-b16a-02c23fd315b4",
+        "timestamp": 1795071140408
+      },
+      {
+        "executionId": "c84a9e39-ece0-4d06-a286-d7b6b0cf8ba1",
+        "chatSessionId": "sess_e59c0c0b-4f39-492b-aa88-44554e415d1a",
+        "timestamp": 1795071969343
+      }
+    ],
+    "21. Focus handover and window drag (`slice/page-state.ts`, `statement/sample-chips.tsx`, `slice/drop-zone.tsx`, `slice/slice-page.tsx`)": [
+      {
+        "executionId": "37ec149f-2ff7-4a63-b1b4-1a1f0979240b",
+        "chatSessionId": "sess_c194f7e6-561a-45c5-92db-5321a56af802",
+        "timestamp": 1795072021358
+      }
+    ],
+    "22. Grave and disclosure browser tests (`e2e/pro-polish.spec.ts`, `e2e/demo-path.spec.ts`)": [
+      {
+        "executionId": "fd4b1002-ad58-471d-a206-65c94752b7fd",
+        "chatSessionId": "sess_2bbe5bba-4ae4-4e49-889c-9997fa2faa4d",
+        "timestamp": 1795072418236
+      }
+    ],
+    "23. Batch B checkpoint": [
+      {
+        "executionId": "d9af6fe2-8e95-4417-88e0-bff757576aec",
+        "chatSessionId": "sess_76a340b3-629c-4fb1-b670-561a5deb6aba",
+        "timestamp": 1795072665746
+      }
+    ],
+    "23.1. Batch B fix round (`review-batch-B.md`)": [
+      {
+        "executionId": "a5bc3f23-8df4-4f95-8fb5-fb9fe4e35534",
+        "chatSessionId": "sess_9c3a5ce8-b7fa-4ceb-9185-2e999c966d00",
+        "timestamp": 1795073415386
+      }
+    ]
+  }
+}

@@ -7,9 +7,15 @@ export interface NoSubscriptionsViewProps {
   sourceName: string;
   outcome: NoSubscriptionsOutcome;
   onStartAgain: () => void;
+  /** Set when the Graveyard has records: "Open the graveyard" follows "Start again". */
+  onOpenGraveyard?: (() => void) | undefined;
 }
 
-export function NoSubscriptionsView({ outcome, onStartAgain }: NoSubscriptionsViewProps) {
+export function NoSubscriptionsView({
+  outcome,
+  onStartAgain,
+  onOpenGraveyard,
+}: NoSubscriptionsViewProps) {
   const headingRef = useFocusRequest("state-heading");
   const { firstDate, lastDate } = outcome.statement;
   const dates =
@@ -34,7 +40,7 @@ export function NoSubscriptionsView({ outcome, onStartAgain }: NoSubscriptionsVi
           ))}
         </ul>
       ) : null}
-      <div>
+      <div className="flex flex-wrap gap-4">
         <button
           type="button"
           onClick={onStartAgain}
@@ -42,6 +48,15 @@ export function NoSubscriptionsView({ outcome, onStartAgain }: NoSubscriptionsVi
         >
           Start again
         </button>
+        {onOpenGraveyard !== undefined ? (
+          <button
+            type="button"
+            onClick={onOpenGraveyard}
+            className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+          >
+            Open the graveyard
+          </button>
+        ) : null}
       </div>
     </div>
   );

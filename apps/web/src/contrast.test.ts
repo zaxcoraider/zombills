@@ -13,6 +13,8 @@ import {
   TITLE_GLOW_ALPHA,
 } from "./slice/logic/scene-alphas";
 import { BLOCK_SHAPES, textBoxes, type Point } from "./slice/logic/test-share-card-geometry";
+import { PIT_GLOW_ALPHA } from "./slice/logic/design-tokens";
+import { GRAVE_EARTH } from "./slice/statement/grave-art";
 
 const CSS = readFileSync(new URL("./index.css", import.meta.url), "utf8");
 
@@ -459,5 +461,76 @@ describe("footer graveyard contrast (pro-polish R2.11)", () => {
   it("the moss hover and focus outline on the stone face and on the earth is at least 3:1", () => {
     expect(contrast(moss(), stoneFace())).toBeGreaterThanOrEqual(3);
     expect(contrast(moss(), groundTop())).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("pro-polish contrast (Req 12.4)", () => {
+  const night = () => tokenHex("night");
+  const fog = () => tokenHex("fog");
+  const bone = () => tokenHex("bone");
+  const moss = () => tokenHex("moss");
+  /** S: the lightest bare scene (landing-polish). */
+  const scene = () =>
+    FOG_DENSITIES.reduce(
+      (colour, density) => over(colour, bone(), density),
+      over(fog(), bone(), SKY_GLOW_ALPHA),
+    );
+  /** C: a `bg-fog/95` Card over S. */
+  const card = () => over(scene(), fog(), 0.95);
+  /** P: the lightest pit colour, `mix(night 85 %, fog)` plus the moss pit glow at its full alpha. */
+  const pit = () => over(mixOklab(night(), fog(), 0.15), moss(), PIT_GLOW_ALPHA);
+
+  it("C and P have the design's values", () => {
+    expect(card()).toBe("#1e232e");
+    expect(PIT_GLOW_ALPHA).toBe(0.14);
+    expect(pit()).toBe("#1f2c28");
+  });
+
+  it("grave text, bone on P, is at least 4.5:1", () => {
+    expect(contrast(bone(), pit())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("'Choose a file' in the pit, today's classes (bone border on bg-fog): text at least 4.5:1, border at least 3:1 against P and the fill", () => {
+    // Today's pair (review B #6); task 25's secondary variant brings its own row.
+    expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(bone(), pit())).toBeGreaterThanOrEqual(3);
+    expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("'Choose a file' while aria-disabled (opacity 60 % over P): text at least 4.5:1", () => {
+    expect(contrast(over(pit(), bone(), 0.6), over(pit(), fog(), 0.6))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("a Sample chip: text bone on fog at least 4.5:1, outline bone 50 % over fog against C at least 3:1", () => {
+    expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(over(fog(), bone(), 0.5), card())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(fog(), bone(), 0.5), fog())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("a Sample chip while aria-disabled (opacity 60 % over C): text at least 4.5:1 (review B #9)", () => {
+    expect(contrast(over(card(), bone(), 0.6), over(card(), fog(), 0.6))).toBeGreaterThanOrEqual(
+      4.5,
+    );
+  });
+
+  /** E: the grave's earth ring, GRAVE_EARTH = `color-mix(in oklab, var(--night) 85%, var(--ember))`. */
+  const earth = () => mixOklab(night(), tokenHex("ember"), 0.15);
+
+  it("E has the design's value and reads apart from C by hue", () => {
+    expect(GRAVE_EARTH).toBe("color-mix(in oklab, var(--night) 85%, var(--ember))");
+    expect(earth()).toBe("#271f1d");
+    // E is warm (red channel above blue); C is cool (blue above red).
+    expect(parseInt(earth().slice(1, 3), 16)).toBeGreaterThan(parseInt(earth().slice(5, 7), 16));
+    expect(parseInt(card().slice(5, 7), 16)).toBeGreaterThan(parseInt(card().slice(1, 3), 16));
+  });
+
+  it("the grave outline, bone 50 % over E, against E and against C is at least 3:1", () => {
+    expect(contrast(over(earth(), bone(), 0.5), earth())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(earth(), bone(), 0.5), card())).toBeGreaterThanOrEqual(3);
+  });
+
+  it("the grave rim glow, moss against C and against E, is at least 3:1", () => {
+    expect(contrast(moss(), card())).toBeGreaterThanOrEqual(3);
+    expect(contrast(moss(), earth())).toBeGreaterThanOrEqual(3);
   });
 });

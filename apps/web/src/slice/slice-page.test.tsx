@@ -330,6 +330,7 @@ describe("SlicePage: Start again", () => {
     render(<App />);
     await summon();
 
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
 
     await waitFor(() => expect(document.activeElement).toBe(dropAreaElement()));
@@ -350,7 +351,12 @@ describe("SlicePage: Replace result", () => {
     await summon();
     expect(screen.getByText(/2 Jan 2026 to 25 Mar 2026/).textContent).toContain(US_LABEL);
 
-    fireEvent.click(screen.getByRole("button", { name: UK_LABEL }));
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Sample statements" })).getByRole("button", {
+        name: UK_LABEL,
+      }),
+    );
 
     await waitFor(() =>
       expect(screen.getByText(/transactions read/).textContent).toContain(UK_LABEL),

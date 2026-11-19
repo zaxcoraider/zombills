@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { NEW_TAB_TEXT } from "./logic/cancel-text";
-import { FREE_LINE, PRIVACY_TOMBSTONE, SITE_LINKS_NAME } from "./logic/chrome-text";
+import { FREE_LINE, PRIVACY_TOMBSTONE, SITE_LINKS_NAME, STATEMENT_HINT } from "./logic/chrome-text";
 import {
   HERO_LINE,
   HOW_IT_WORKS_HEADING,
@@ -402,16 +402,18 @@ describe("Landing view: badge, steps and own statement", () => {
     expect(section.querySelector("button, a, [tabindex]")).toBeNull();
   });
 
-  it("orders the Own statement section as heading, Tip, drop area", () => {
+  it("orders the Own statement section as heading, hint, Tip, drop area", () => {
     const { container } = renderFirstVisit();
     const heading = screen.getByRole("heading", { level: 2, name: OWN_STATEMENT_HEADING });
     const section = heading.closest("section") as HTMLElement;
     const children = Array.from(section.children);
-    expect(children).toHaveLength(3);
+    expect(children).toHaveLength(4);
     expect(children[0]).toBe(heading);
     expect(children[1]?.tagName).toBe("P");
-    expect(children[1]?.textContent).toBe(STATEMENT_TIP);
-    expect(children[2]?.querySelector('[data-focus="drop-zone"]')).toBe(dropArea());
+    expect(children[1]?.textContent).toBe(STATEMENT_HINT);
+    expect(children[2]?.tagName).toBe("P");
+    expect(children[2]?.textContent).toBe(STATEMENT_TIP);
+    expect(children[3]?.querySelector('[data-focus="drop-zone"]')).toBe(dropArea());
     expect(container.querySelector('input[type="file"]')?.getAttribute("accept")).toBe(
       ".csv,text/csv",
     );
@@ -570,32 +572,41 @@ describe("Landing view: Return notes and working", () => {
   });
 });
 
-describe("Non-landing views keep today's layout", () => {
-  function expectNonLanding(container: HTMLElement, readAnother: boolean) {
+describe("Non-landing views", () => {
+  /** Opens the Statement disclosure, shown on `results` and the Graveyard view (Req 3.7). */
+  function openStatement() {
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
+  }
+
+  function expectNonLanding(container: HTMLElement) {
     expect(within(screen.getByRole("contentinfo")).getByText(PRIVACY_NOTE)).toBeTruthy();
     expect(screen.queryByRole("button", { name: PRIMARY_ACTION_NAME })).toBeNull();
     expect(screen.queryByText(HERO_LINE)).toBeNull();
     expect(container.querySelector("[data-hero-art]")).toBeNull();
     expect(screen.queryByText(PRIVACY_BADGE_TEXT)).toBeNull();
     expect(screen.queryByRole("heading", { name: HOW_IT_WORKS_HEADING })).toBeNull();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Or try a sample statement" }),
-    ).toBeTruthy();
-    const gate = screen
-      .getByRole("heading", { level: 2, name: "Or try a sample statement" })
-      .closest("section") as HTMLElement;
-    expect(within(gate).getAllByRole("button").map(nameOf)).toEqual(
+    expect(screen.queryByRole("heading", { name: "Or try a sample statement" })).toBeNull();
+    const chips = screen.getByRole("list", { name: "Sample statements" });
+    expect(within(chips).getAllByRole("button").map(nameOf)).toEqual([
+      US_LABEL,
+      UK_LABEL,
+      EU_LABEL,
+      PREAMBLE_LABEL,
+    ]);
+    expect(within(chips).getAllByRole("button").map(nameOf)).toEqual(
       SAMPLES.map((sample) => sample.label),
     );
-    const another = screen.queryByRole("heading", { level: 2, name: "Read another statement" });
-    expect(another !== null).toBe(readAnother);
+    expect(
+      screen.getAllByRole("heading", { level: 2, name: "Try another statement" }),
+    ).toHaveLength(1);
     expect(mainElement().className).toContain("max-w-[640px]");
   }
 
   it("results", async () => {
     const { container } = renderFirstVisit();
     await summon();
-    expectNonLanding(container, true);
+    openStatement();
+    expectNonLanding(container);
   });
 
   it("have exactly one ridge band, in the flow before the footer", async () => {
@@ -643,31 +654,37 @@ describe("Non-landing views keep today's layout", () => {
     const { container } = renderFirstVisit();
     dropFiles([csvFile(THREE_ROW_FILE)]);
     await screen.findByRole("heading", { level: 2, name: "No undead here." });
-    expectNonLanding(container, false);
+    expectNonLanding(container);
   });
 
   it("error", async () => {
     const { container } = renderFirstVisit();
     dropFiles([csvFile("a", "notes.txt", "text/plain")]);
     await screen.findByRole("heading", { level: 2, name: "This file is not a CSV statement." });
-    expectNonLanding(container, false);
+    expectNonLanding(container);
   });
 
   it("the Graveyard view", () => {
     const { container } = renderRestored(RESTORED_TEXT);
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
     expect(screen.getByRole("heading", { name: "Your graveyard" })).toBeTruthy();
-    expectNonLanding(container, true);
+    openStatement();
+    expectNonLanding(container);
   });
 
   it("working with origin other", async () => {
     const { container } = renderFirstVisit();
     await summon();
     const frames = holdFrames();
-    fireEvent.click(screen.getByRole("button", { name: UK_LABEL }));
+    openStatement();
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Sample statements" })).getByRole("button", {
+        name: UK_LABEL,
+      }),
+    );
     await waitFor(() => expect(frames).toHaveLength(1));
     expect(within(mainElement()).getByText(`Reading ${UK_LABEL}…`)).toBeTruthy();
-    expectNonLanding(container, false);
+    expectNonLanding(container);
     frames[0]?.(0);
     await waitFor(() =>
       expect(screen.getByText(/transactions read/).textContent).toContain(UK_LABEL),
@@ -679,6 +696,7 @@ describe("Start again", () => {
   it("returns to the Landing view and focuses the drop area", async () => {
     renderFirstVisit();
     await summon();
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
     await waitFor(() => expect(document.activeElement).toBe(dropArea()));
     expect(primaryAction()).toBeTruthy();

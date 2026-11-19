@@ -729,3 +729,148 @@ test.describe("free line", () => {
     });
   }
 });
+
+test.describe("grave drag-over", () => {
+  // Req 3.6: the Resting ghost rises and the rim glows while a file is over the Grave drop area.
+  // Measured by computed style, so these tests do not emulate reduced motion unless they say so.
+  const GHOST_REST = "matrix(1, 0, 0, 1, 0, 24)";
+  const GHOST_RISEN = "matrix(1, 0, 0, 1, 0, 8)";
+  const POLL = { timeout: 2000 };
+
+  type Where = "landing" | "results";
+
+  async function openGrave(
+    page: Page,
+    where: Where,
+    reducedMotion: "reduce" | "no-preference",
+  ): Promise<Locator> {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openLanding(page, reducedMotion);
+    if (where === "results") {
+      await page.getByRole("button", { name: PRIMARY_NAME }).click();
+      await expect(page.getByText("Recurring charges found")).toBeVisible();
+      const disclosure = page.getByRole("button", { name: "Try another statement" });
+      await disclosure.click();
+      await expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    }
+    const grave = page.locator("[data-grave-drop]");
+    await expect(grave).toHaveCount(1);
+    await grave.scrollIntoViewIfNeeded();
+    return grave;
+  }
+
+  /** Dispatches a drag event on the grave with a DataTransfer holding one CSV file. */
+  async function drag(page: Page, grave: Locator, type: "dragenter" | "dragleave") {
+    const dataTransfer = await page.evaluateHandle(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(
+        new File(["Date,Description,Amount\n"], "statement.csv", { type: "text/csv" }),
+      );
+      return transfer;
+    });
+    await grave.dispatchEvent(type, { dataTransfer });
+  }
+
+  const opacityOf = (locator: Locator) => locator.evaluate((el) => getComputedStyle(el).opacity);
+
+  for (const where of ["landing", "results"] as const) {
+    test(`ghost rises and rim glows on ${where}, no reduced motion`, async ({ page }) => {
+      const grave = await openGrave(page, where, "no-preference");
+      const ghost = grave.locator("[data-resting-ghost]");
+      const rim = grave.locator("[data-rim-glow]");
+      expect(await transformOf(ghost), `${where}: ghost at rest`).toBe(GHOST_REST);
+      expect(await opacityOf(rim), `${where}: rim at rest`).toBe("0");
+
+      await drag(page, grave, "dragenter");
+      await expect(grave).toHaveAttribute("data-dragging", "true");
+      await page.waitForTimeout(400);
+      // Framer Motion runs on rAF, so a loaded runner may still be finishing the tween (review B #8).
+      await expect
+        .poll(() => transformOf(ghost), { ...POLL, message: `${where}: ghost on drag-over` })
+        .toBe(GHOST_RISEN);
+      await expect
+        .poll(() => opacityOf(rim), { ...POLL, message: `${where}: rim on drag-over` })
+        .toBe("1");
+
+      await drag(page, grave, "dragleave");
+      await expect(grave).toHaveAttribute("data-dragging", "false");
+      await page.waitForTimeout(400);
+      await expect
+        .poll(() => transformOf(ghost), { ...POLL, message: `${where}: ghost after leave` })
+        .toBe(GHOST_REST);
+      await expect
+        .poll(() => opacityOf(rim), { ...POLL, message: `${where}: rim after leave` })
+        .toBe("0");
+    });
+
+    test(`ghost stays and rim glows on ${where}, reduced motion`, async ({ page }) => {
+      const grave = await openGrave(page, where, "reduce");
+      const ghost = grave.locator("[data-resting-ghost]");
+      const rim = grave.locator("[data-rim-glow]");
+
+      await drag(page, grave, "dragenter");
+      await expect(grave).toHaveAttribute("data-dragging", "true");
+      await page.waitForTimeout(400);
+      expect(await transformOf(ghost), `${where}: ghost on drag-over`).toBe(GHOST_REST);
+      await expect
+        .poll(() => opacityOf(rim), { ...POLL, message: `${where}: rim on drag-over` })
+        .toBe("1");
+    });
+  }
+
+  test("one outline and one moss rim glow, both on the rounded edge, with an even 12 px pit inset", async ({
+    page,
+  }) => {
+    // Review B V2 and V3: the earth ring is even on every side and drag-over shows one moss ring.
+    const grave = await openGrave(page, "landing", "reduce");
+    const area = grave.getByRole("button", { name: "Drop area: choose or drop a CSV statement" });
+    await area.focus();
+    await drag(page, grave, "dragenter");
+    await expect(grave).toHaveAttribute("data-dragging", "true");
+    await expect.poll(() => opacityOf(grave.locator("[data-rim-glow]")), POLL).toBe("1");
+    const shape = await grave.evaluate((root) => {
+      const box = root.querySelector(".grave")?.getBoundingClientRect();
+      const pit = root.querySelector("[data-pit]")?.getBoundingClientRect();
+      const ringed = [...root.querySelectorAll<HTMLElement>("*")].filter((el) => {
+        const style = getComputedStyle(el);
+        const border = parseFloat(style.borderTopWidth) > 0 && style.borderTopStyle !== "none";
+        const outline = parseFloat(style.outlineWidth) > 0 && style.outlineStyle !== "none";
+        const isButton = el.tagName === "BUTTON";
+        return !isButton && (border || outline);
+      });
+      return {
+        insets:
+          box && pit
+            ? [pit.left - box.left, pit.top - box.top, box.right - pit.right, box.bottom - pit.bottom]
+            : [],
+        rings: ringed.map((el) => ({
+          name: Object.keys(el.dataset).join(","),
+          radius: getComputedStyle(el).borderTopLeftRadius,
+          outline: getComputedStyle(el).outlineStyle,
+        })),
+      };
+    });
+    expect(shape.insets).toEqual([12, 12, 12, 12]);
+    expect(shape.rings).toEqual([
+      { name: "graveOutline", radius: "16px", outline: "none" },
+      { name: "rimGlow", radius: "16px", outline: "none" },
+    ]);
+  });
+
+  test("Choose a file sits inside the grave at 390x844 with 200% text", async ({ page }) => {
+    // Review B #5, Req 3.5 and 12.9.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await openLanding(page, "reduce");
+    const grave = page.locator("[data-grave-drop] .grave");
+    await grave.scrollIntoViewIfNeeded();
+    const outer = await boxOf(grave);
+    const button = await boxOf(grave.getByRole("button", { name: "Choose a file" }));
+    expect(button.x, "left edge").toBeGreaterThanOrEqual(outer.x);
+    expect(button.y, "top edge").toBeGreaterThanOrEqual(outer.y);
+    expect(button.x + button.width, "right edge").toBeLessThanOrEqual(outer.x + outer.width);
+    expect(button.y + button.height, "bottom edge").toBeLessThanOrEqual(outer.y + outer.height);
+  });
+});

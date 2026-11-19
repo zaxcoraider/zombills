@@ -290,6 +290,7 @@ describe("share panel: names, order and unmount", () => {
   it("writes and announces nothing when a render settles after Start again", async () => {
     await openGraveyardWithNetflix();
     fireEvent.click(makeButton("Make an image"));
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
     expect(screen.queryByRole("region", { name: "Share your graveyard" })).toBeNull();
     const before = live().textContent;

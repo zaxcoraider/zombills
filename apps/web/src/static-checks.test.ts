@@ -232,8 +232,9 @@ function scansForStorage(path: string): boolean {
   return !/(\.test\.tsx?|[\\/]test-store\.ts|[\\/]test-arbitraries\.ts)$/.test(path);
 }
 
-/** Art files of pro-polish Req 12.3. Task 17 adds its own. */
+/** Art files of pro-polish Req 12.3. */
 const ART_FILES = [
+  join(SRC_DIR, "slice", "statement", "grave-art.tsx"),
   join(SRC_DIR, "slice", "chrome", "footer-tombstone.tsx"),
   join(SRC_DIR, "slice", "graveyard", "ground-line.tsx"),
   join(SRC_DIR, "slice", "site-footer.tsx"),

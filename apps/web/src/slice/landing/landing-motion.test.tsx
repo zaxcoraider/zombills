@@ -48,6 +48,7 @@ describe("Landing effects: once per load", () => {
     await screen.findByRole("heading", { level: 2, name: "Recurring charges found" });
     expect(container.querySelector("[data-hero-art]")).toBeNull();
 
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
     expect(motionOf(container)).toEqual({ title: "still", art: "still", moon: "still" });
   });

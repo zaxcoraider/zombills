@@ -46,3 +46,6 @@ export const RADIUS_SCALE: readonly RadiusToken[] = [
   { name: "radius-stone", value: "1.5rem" },
   { name: "radius-pill", value: "9999px" },
 ];
+
+/** Peak stop-opacity of the moss glow in the Grave pit (pro-polish "Colours and contrast", P). */
+export const PIT_GLOW_ALPHA = 0.14;

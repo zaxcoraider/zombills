@@ -96,7 +96,11 @@ async function setUpState(page: Page, state: State): Promise<void> {
       await page.evaluate(() => document.fonts.ready);
       // Relative to the current fake time, so a slow load cannot leave the pause in the past.
       await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
-      await page.getByRole("button", { name: "UK bank statement" }).click();
+      await page.getByRole("button", { name: "Try another statement" }).click();
+      await page
+        .getByRole("list", { name: "Sample statements" })
+        .getByRole("button", { name: "UK bank statement" })
+        .click();
       await expect(page.getByRole("main").getByText("Reading UK bank statement…")).toBeVisible();
       return;
   }
@@ -1214,7 +1218,9 @@ test.describe("ridge band", () => {
       await page.setViewportSize({ width, height });
       await openLanding(page, "empty");
       await startUsSample(page);
-      await expect(page.getByRole("heading", { name: "Read another statement" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { level: 2, name: "Try another statement" }),
+      ).toBeVisible();
       await settle(page);
       const where = `${width}x${height}`;
       await expect(page.locator("[data-ridge-band]"), `${where}: one ridge band`).toHaveCount(1);

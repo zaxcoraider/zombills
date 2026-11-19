@@ -104,7 +104,12 @@ export type FocusTarget =
   | "resting-item"
   | "memory-checkbox"
   /** The Landing view's Primary action, after going home */
-  | "primary-action";
+  | "primary-action"
+  /** A Sample chip of the gate, by file name, while another statement is read */
+  | "sample-chip";
+
+/** The gate control a `start` came from, so focus can follow it into the working panel. */
+export type StartFrom = { target: "sample-chip"; id: string } | { target: "drop-zone" };
 
 export interface FocusRequest {
   target: FocusTarget;
@@ -127,7 +132,7 @@ export interface PageModel {
 }
 
 export type PageAction =
-  | { type: "start"; runId: number; sourceName: string }
+  | { type: "start"; runId: number; sourceName: string; from?: StartFrom }
   | { type: "finish"; runId: number; outcome: AnalysisOutcome }
   | { type: "fail"; runId: number; error: PageError }
   | { type: "reject"; sourceName: string | null; error: PageError }
@@ -419,20 +424,33 @@ function burialOf(model: PageModel, id: string, from: BurialPhase | null) {
 export function pageReducer(model: PageModel, action: PageAction): PageModel {
   const { view } = model;
   switch (action.type) {
-    case "start":
+    case "start": {
       if (view.kind === "working") return model;
+      // Read before `screen` is reset to "main" below.
+      const origin: WorkingOrigin =
+        view.kind === "idle" && model.screen === "main" ? "landing" : "other";
+      const { from } = action;
+      // The gate remounts as the working panel, so focus follows by request (design Decision
+      // "Focus while another statement is read").
+      const handover =
+        origin === "other" && from !== undefined
+          ? {
+              focus: focusRequest(
+                model,
+                from.target,
+                from.target === "sample-chip" ? from.id : null,
+              ),
+            }
+          : {};
       return {
         ...model,
         runId: action.runId,
-        view: {
-          kind: "working",
-          sourceName: action.sourceName,
-          // Read before `screen` is reset to "main" below.
-          origin: view.kind === "idle" && model.screen === "main" ? "landing" : "other",
-        },
+        view: { kind: "working", sourceName: action.sourceName, origin },
         screen: "main",
         event: null,
+        ...handover,
       };
+    }
     case "finish":
       if (view.kind !== "working" || action.runId !== model.runId) return model;
       return withClearedLoadNotes(finishedModel(model, view.sourceName, action.outcome));

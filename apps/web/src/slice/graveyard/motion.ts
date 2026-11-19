@@ -161,3 +161,12 @@ export const PEEK_GHOST_VARIANTS: Variants = {
   rest: { y: 0, transition: STONE_REST },
   peek: { y: PEEK_GHOST_Y, transition: PEEK_GHOST_RISE },
 };
+
+/* Grave drop zone ghost (pro-polish "Signature moments: 3"). Every leg ends within 0.3 s (Req 3.6). */
+/** The resting ghost's y offset in px: its top 24 px (crown and most of both eyes) show above the rim. */
+export const GRAVE_GHOST_REST_Y = 24;
+/** The ghost's y offset in px while a file is over the drop target: 40 px show. */
+export const GRAVE_GHOST_RISE_Y = 8;
+export const GRAVE_GHOST_RISE = { duration: 0.3, ease: [0.22, 1, 0.36, 1] } as const;
+export const GRAVE_GHOST_RETURN = { duration: 0.25, ease: "easeIn" } as const;
+export const GRAVE_GLOW_FADE = { duration: 0.2, ease: "easeOut" } as const;

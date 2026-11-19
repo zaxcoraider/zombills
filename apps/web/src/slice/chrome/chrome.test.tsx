@@ -142,12 +142,14 @@ async function summon() {
 async function reachError() {
   await summon();
   fireEvent.click(screen.getByRole("button", { name: "Yes, let it rest" }));
+  fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
   dropFile("", "empty.csv");
   await screen.findByRole("heading", { level: 2, name: "The file is empty." });
 }
 
 async function reachNoSubscriptions() {
   await summon();
+  fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
   dropFile(NO_SUBSCRIPTIONS_CSV, "few.csv");
   await screen.findByRole("heading", { level: 2, name: "No undead here." });
 }
@@ -289,6 +291,7 @@ describe("Home control", () => {
         return frames.length;
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     dropFile(NO_SUBSCRIPTIONS_CSV, "few.csv");
     await waitFor(() => expect(frames).toHaveLength(1));
     expect(screen.queryByRole("group", { name: LEAVE_QUESTION })).toBeNull();
@@ -312,7 +315,10 @@ describe("Home control", () => {
   });
 
   it("goes home on Leave and focuses the Primary action", async () => {
-    const expected = await liveTextAfterTodaysControl(summon, "Start again");
+    const expected = await liveTextAfterTodaysControl(async () => {
+      await summon();
+      fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
+    }, "Start again");
     render(<App />);
     await summon();
     fireEvent.click(homeControl());
@@ -334,6 +340,7 @@ describe("Home control", () => {
         return frames.length;
       }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     dropFile(NO_SUBSCRIPTIONS_CSV, "few.csv");
     await waitFor(() => expect(frames).toHaveLength(1));
     const home = homeControl();
@@ -356,6 +363,7 @@ describe("Home control", () => {
   it("does not ask on Start again", async () => {
     render(<App />);
     await summon();
+    fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
     fireEvent.click(screen.getByRole("button", { name: "Start again" }));
     expect(screen.queryByRole("group", { name: LEAVE_QUESTION })).toBeNull();
     await waitFor(() => expect(primaryAction()).toBeTruthy());

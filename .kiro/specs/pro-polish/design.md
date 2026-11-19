@@ -28,7 +28,7 @@ The design keeps the two layers of the earlier specs:
 | Moon on Wide-layout views | `NightScene` gains `skyMoon: boolean`. `SlicePage` passes `!landing && !isWideView(model)` | Req 5.3 makes the Non-landing moon optional. The landing-polish moon sits right of a 640 px column (`left: calc(75% + 160px)`); the 1120 px Wide layout leaves no free band at 1024 to 1600 px, so a fixed moon would pass behind the summary panel. Below 1024 px the moon is not drawn on any Non-landing view already |
 | Wide views | `isWideView(model) = !isLandingView(model) && (model.view.kind === "results" \|\| model.screen === "graveyard")`. Only these views widen at `lg` | Req 7.1, 7.2, 7.5 |
 | Statement disclosure state | `SlicePage` holds `statementOpen`, reset to `false` whenever the key `` `${view.kind}:${screen}` `` changes | Req 3.7 "collapsed on first show of each view". A card answer changes `view` but not the key, so the disclosure does not snap shut mid-Rising |
-| Focus while another statement is read | The gate cannot keep its DOM identity from `results` (inside `RisingView`) to `working` (a separate open panel), so focus is handed over by a request. `start` gains an optional `from?: { target: "sample-chip"; id: fileName } \| { target: "drop-zone" }`, set by the gate's chips and drop area (not by the Landing view). When the new view's `origin` is `"other"` and `from` is set, `start` issues `focusRequest(model, from.target, from.id)`; the existing `[data-focus]` effect lands it on the matching `aria-disabled` control of the working panel (each chip carries `data-focus={focusKey({ target: "sample-chip", id: fileName })}`, compared as a string as today). After `finish` the focus requests of today apply | graveyard-ui R14.2 (focus never left on a removed element), design review 1 #4. No new effect: one `FocusTarget` value and one optional action field |
+| Focus while another statement is read | The gate cannot keep its DOM identity from `results` (inside `RisingView`) to `working` (a separate open panel), so focus is handed over by a request. `start` gains an optional `from?: { target: "sample-chip"; id: fileName } \| { target: "drop-zone" }`, set by the gate's chips and drop area (not by the Landing view). The gate always sets `from`, whether the control was clicked (Safari, and Firefox on macOS, do not focus a clicked `<button>`), a file was dropped (a drop never moves focus), or focus sat on a Rising control that unmounts on `working`; the one exception is focus inside the open Leave question, which follows the Leave question's own rule *(amended 2026-11-19, Batch B review #3: the implementation had only set `from` when focus was inside the gate)*. When the new view's `origin` is `"other"` and `from` is set, `start` issues `focusRequest(model, from.target, from.id)`; the existing `[data-focus]` effect lands it on the matching `aria-disabled` control of the working panel (each chip carries `data-focus={focusKey({ target: "sample-chip", id: fileName })}`, compared as a string as today). After `finish` the focus requests of today apply | graveyard-ui R14.2 (focus never left on a removed element), design review 1 #4. No new effect: one `FocusTarget` value and one optional action field |
 | Drop-area focus while collapsed | The `[data-focus]` effect gains `statementOpen` as a dependency. When the request is `drop-zone` and the disclosure is shown and collapsed, it sets `statementOpen` and returns without claiming; the next run finds the now visible drop area and claims | Req 3.8. A `hidden` element cannot take focus, so the request must wait one commit. No reducer path issues a `drop-zone` request while the disclosure is shown today (`reset` and `back-to-start` both lead to the Landing view, and the `start` request of "Focus while another statement is read" lands on `working`, where the panel is open), so the rule guards future requests. Because no user path reaches it, the decision is a pure function, `disclosureFocusStep(target, shown, open): "open" | "claim"` in `statement/statement-disclosure.tsx`, which the effect calls; `statement.test.tsx` tests it directly for `drop-zone` collapsed (`"open"`), `drop-zone` open (`"claim"`) and other targets (`"claim"`) (design review 1 #22) |
 | Grave and peek tweens | `GRAVE_GHOST_RISE`, `GRAVE_GHOST_RETURN`, `STONE_LIFT`, `PEEK_GHOST_RISE` and `STONE_REST` are tweens of 0.2 to 0.3 s that are not in the `spooky-design.md` motion table, which R3.6 points to | The table's springs settle after 400 ms (the rise spring 120 / 14 in about 0.57 s), past the 400 ms of R3.6 and the 300 ms of R2.8; the table has no entry for hover or drag feedback. A deliberate deviation (design review 1 #21) |
 | Window drag opens the disclosure | A `dragenter` listener on `window` in `SlicePage` opens the disclosure when `event.dataTransfer?.types` includes `"Files"`, the disclosure is shown and collapsed, and the Page is not `working`. It never moves focus | Req 3.8, vertical-slice Req 4.11 |
@@ -574,7 +574,7 @@ export const CARD_SWAY = {
   transition: { duration: 3.2, delay: 1.2, ease: "easeInOut", repeat: 0 },
 } as const;
 export const CARD_SWAY_SETTLE = { duration: 0.15, ease: "easeOut" } as const;
-export const GRAVE_GHOST_REST_Y = 32;
+export const GRAVE_GHOST_REST_Y = 24;
 export const GRAVE_GHOST_RISE_Y = 8;
 export const GRAVE_GHOST_RISE = { duration: 0.3, ease: [0.22, 1, 0.36, 1] } as const;
 export const GRAVE_GHOST_RETURN = { duration: 0.25, ease: "easeIn" } as const;
@@ -662,41 +662,44 @@ The whole moment ends by about 2.4 s; `BURIAL_FALLBACK_MS` (2 s) still forces `b
 **Structure** (`statement/grave-art.tsx`, `drop-zone.tsx`):
 
 ```
-div[data-grave-drop][data-dragging={dragging && !disabled}] .relative.pt-[48px]
+div[data-grave-drop][data-dragging={dragging && !disabled}] .group/grave.relative.pt-[48px]
 ├─ div.ghost-window aria-hidden .pointer-events-none.absolute.inset-x-0.top-0.flex.h-[48px].justify-center.overflow-clip
-│  └─ motion.svg RestingGhost  width 40 height 56 viewBox "0 0 40 56"   y: 32 (rest) | 8 (drag-over)
+│  └─ motion.svg RestingGhost  width 40 height 56 viewBox "0 0 40 56"   y: 24 (rest) | 8 (drag-over)
 │     ├─ path body  "M2 50 L2 20 A18 18 0 0 1 38 20 L38 50 Q33 45 29 50 Q24 55 20 50 Q16 45 11 50 Q6 55 2 50 Z"
 │     │             fill var(--bone), opacity 0.92 (the Hero ghost, moved by −60, −12)
 │     ├─ ellipse eye cx 13 cy 20 rx 3 ry 4.5 fill var(--night)
 │     └─ ellipse eye cx 27 cy 20 rx 3 ry 4.5 fill var(--night)
 └─ div.grave .relative.min-h-32.w-full
-   ├─ div aria-hidden .pointer-events-none.absolute.inset-0.overflow-clip.rounded-card
-   │  └─ svg GravePit .size-full viewBox "0 0 100 100" preserveAspectRatio "none"
-   │     ├─ defs: linearGradient #pit (useId) var(--night) → mix(night 85 %, fog);
-   │     │        radialGradient #glow (useId) var(--moss) at stop-opacity 0.14 → 0
-   │     ├─ rect earth   0 0 100 100        fill GROUND_TOP
-   │     ├─ rect pit     6 14 88 80         fill url(#pit)
-   │     ├─ motion.rect pit glow  6 14 88 80  fill url(#glow), opacity 0 | 1
-   │     ├─ rect outline 1 1 98 98          fill none, stroke color-mix(bone 50 %), 2 px, vector-effect non-scaling-stroke
-   │     └─ motion.rect rim glow 1 1 98 98  fill none, stroke var(--moss), 3 px, non-scaling, opacity 0 | 1
-   ├─ div[role=button] … span text          over the pit
-   └─ button "Choose a file" (secondary)    over the pit, bottom centre
+   ├─ div aria-hidden .pointer-events-none.absolute.inset-0
+   │  └─ div[data-grave-pit] GravePit aria-hidden .absolute.inset-0.overflow-clip.rounded-card   background GRAVE_EARTH (E)
+   │     ├─ div[data-pit] .absolute.inset-3.overflow-clip.rounded-[4px]
+   │     │     background linear-gradient(to bottom, var(--night), mix(night 85 %, fog))
+   │     │  └─ motion.div[data-pit-glow] .absolute.inset-0   radial-gradient(closest-side, moss 14 %, transparent), opacity 0 | 1
+   │     ├─ div[data-grave-outline] .absolute.inset-0.rounded-card.border-2   border-color color-mix(bone 50 %, transparent)
+   │     └─ motion.div[data-rim-glow] .absolute.inset-0.rounded-card.border-[3px]   border-color var(--moss), opacity 0 | 1
+   ├─ div[role=button] … span text          over the pit; click, Enter and Space open the picker;
+   │                                         group-data-[dragging=true]/grave:outline-none
+   └─ button "Choose a file" (secondary)    over the pit, bottom centre, absolute.inset-x-4.bottom-4.mx-auto.w-fit.text-center (wraps only when it must, never past the grave)
 ```
 
-The ghost window's bottom edge is the grave's top edge. The window is 48 px, not `h-12`, so at 200 % text it keeps the size the 40 × 56 px ghost and its px offsets are drawn for (design review 1 #18). At rest the ghost's top 16 px show above the rim: the crown of the head and the top of both eyes, a ghost peeking out of its grave. At drag-over 40 px show. Its lower part is always clipped by the window, so it never covers the grave's text. The pit has no text in the SVG; the stretched viewBox affects only rectangles, and the ghost is a separate SVG at its own aspect ratio.
+The ghost window's bottom edge is the grave's top edge. The window is 48 px, not `h-12`, so at 200 % text it keeps the size the 40 × 56 px ghost and its px offsets are drawn for (design review 1 #18). At rest the ghost's top 24 px show above the rim: the crown of the head and most of both eyes (the eyes run from 15.5 to 24.5 px), a ghost peeking out of its grave *(amended 2026-11-19, Batch B owner review V1: was 16 px, which showed no eyes and read as a blob)*. At drag-over 40 px show. Its lower part is always clipped by the window, so it never covers the grave's text.
+
+The grave is drawn in CSS, not a stretched SVG *(amended 2026-11-19, Batch B review #4 and owner review V2, V3)*. E, the earth ring, is `GRAVE_EARTH = color-mix(in oklab, var(--night) 85%, var(--ember))` (`#271f1d`), a dark brown that reads apart from the blue-grey Card by hue; it is decorative and carries no state. The pit sits at an even 12 px inset on all four sides (`inset-3`) with a 4 px radius, 16 − 12, so it nests inside `rounded-card`; the pit gradient and pit glow are unchanged in colour. The grave has exactly one outline (`border-2`, bone 50 %) and one moss rim glow (`border-[3px]`), both on the grave's own `rounded-card` edge, so both follow the rounded corners. While a file is over the grave the rim glow also stands in for the drop area's focus ring, which is hidden only then (`group-data-[dragging=true]/grave:outline-none`), so exactly one moss ring shows. The pit art has no text, no ids and no url() references; the ghost is a separate SVG at its own aspect ratio.
 
 **Timeline** (trigger: `dragging` becomes true; and back):
 
 | Trigger | Element | Property | From → to | Timing |
 | --- | --- | --- | --- | --- |
-| drag enters | ghost | `translateY` | 32 → 8 px (rises 24 px) | `GRAVE_GHOST_RISE` 0.3 s, cubic-bezier(0.22, 1, 0.36, 1) |
+| drag enters | ghost | `translateY` | 24 → 8 px (rises 16 px) | `GRAVE_GHOST_RISE` 0.3 s, cubic-bezier(0.22, 1, 0.36, 1) |
 | drag enters | rim glow, pit glow | `opacity` | 0 → 1 | `GRAVE_GLOW_FADE` 0.2 s |
-| drag leaves or drop | ghost | `translateY` | 8 → 32 px | `GRAVE_GHOST_RETURN` 0.25 s easeIn |
+| drag leaves or drop | ghost | `translateY` | 8 → 24 px | `GRAVE_GHOST_RETURN` 0.25 s easeIn |
 | drag leaves or drop | rim glow, pit glow | `opacity` | 1 → 0 | 0.2 s |
 
 Every leg ends within 300 ms, inside the 400 ms of Req 3.6. Nothing moves without a drag, so there is no automatic motion. While `disabled` the ghost stays at rest and the glows stay off.
 
-**Reduced motion:** the ghost stays at `y: 32`; only the two glows change, with `REDUCED_FADE` (opacity, 150 ms).
+**Contrast** (amended with V2; rows of "Colours and contrast" that name G for the grave read E): grave outline, bone 50 % over E, against E 4.31 and against C 4.20 (target 3); rim glow, moss, against C 9.15 and against E 9.40 (target 3).
+
+**Reduced motion:** the ghost stays at `y: 24`; only the two glows change, with `REDUCED_FADE` (opacity, 150 ms).
 
 ### 4. The footer graveyard peek
 
@@ -786,7 +789,7 @@ S is the landing-polish lightest bare scene (`#646567`). C is a `bg-fog/95` Card
 | Secondary text, `aria-disabled` | `--bone` 70 % | C | 6.92 | 4.5 |
 | Secondary outline | `--bone` 50 % over C | C | 4.25 | 3 |
 | Secondary outline, `aria-disabled` | `--bone` 45 % over C | C | 3.71 | 3 |
-| "Choose a file" text and outline in the pit | `--bone`; `--bone` 50 % | P | 11.63; 4.07 | 4.5; 3 |
+| "Choose a file" text and outline in the pit | `--bone` on `--fog`; `--bone` border | `--fog`; P and `--fog` | 13.22; 11.63 and 13.22 | 4.5; 3 |
 | Primary text | `--night` | `--moss` | 11.30 | 4.5 |
 | Primary text, hover | `--night` | `mix(moss 88 %, bone)` | 11.73 | 4.5 |
 | Primary text, `aria-disabled` | `--night` | `mix(moss 70 %, fog)` (`#6c9f75`) | 6.34 | 4.5 |
@@ -802,10 +805,10 @@ S is the landing-polish lightest bare scene (`#646567`). C is a `bg-fog/95` Card
 | Footer moss outline (hover, focus) | `--moss` | G | 10.40 | 3 |
 | Reaper description, Privacy note | `--bone` | G | 14.35 | 4.5 |
 | Grave text | `--bone` | P | 11.63 | 4.5 |
-| Grave outline | `--bone` 50 % over G | C | 3.93 | 3 |
+| Grave outline | `--bone` 50 % over E | E and C | 4.31 and 4.20 | 3 |
 | Grave rim glow | `--moss` | C | 9.15 | 3 |
 | Sample chip and Waiting chip text | `--bone` | `--fog` | 13.22 | 4.5 |
-| Chip outline | `--bone` 50 % over C | C | 4.25 | 3 |
+| Chip outline | `--bone` 50 % over `--fog` | C and `--fog` | 4.14 and 4.34 | 3 |
 | Muted footnote | `--bone` 80 % | C | 8.56 | 4.5 |
 | Leave question, `MEMORY_SHORT`, hint | `--bone` | C | 12.63 | 4.5 |
 | Progress dot, filled | `--moss` | C | 9.15 | 3 |
@@ -885,7 +888,7 @@ Tab orders asserted in `pro-polish-page.test.tsx` (from `document.body`, Memory 
 | same | Peek, no reduced motion, 1280 × 800: hover "The Reaper" with the mouse, wait 400 ms, `[data-stone-face]` computed `transform` is `matrix(1, 0, 0, 1, 0, -4)` and `[data-peek-ghost]` is `matrix(1, 0, 0, 1, 0, -12)`; move away, wait 400 ms, both `none` or identity; Tab to it: the same peek values. After a touch tap (`page.touchscreen.tap`, `hasTouch` context) on the "Privacy note" tombstone (a `button`, so the tap opens no external page) its face and ghost stay identity | 2.8 |
 | same | Peek, reduced motion: hover and focus leave `[data-stone-face]` at identity, `[data-peek-ghost]` absent, `[data-stone-outline]` opacity 1 after 200 ms | 2.9 |
 | same | Focus ring not covered, no reduced motion: for each stone after Tab, in the `peek` pose (wait 400 ms), the `[data-peek-ghost]` and `[data-stone-face]` boxes lie inside the control's border box (± 0.5 px); and for points 2 px outside the middle of each edge of the control, `elementFromPoint` returns no element inside another tombstone (the ring is a box-shadow outside the border box, so the test checks what could cover it, not the ring's pixels) | 2.11 |
-| same | Grave drag-over, no reduced motion: dispatch `dragenter` with a `DataTransfer` holding a file on `[data-grave-drop]`; after 400 ms the ghost's computed `transform` is `matrix(1, 0, 0, 1, 0, 8)` and the rim glow's opacity is 1; `dragleave`, after 400 ms back to `matrix(1, 0, 0, 1, 0, 32)` and 0. Reduced motion: the ghost stays at `matrix(1, 0, 0, 1, 0, 32)` and the glow reaches 1 | 3.6 |
+| same | Grave drag-over, no reduced motion: dispatch `dragenter` with a `DataTransfer` holding a file on `[data-grave-drop]`; after 400 ms the ghost's computed `transform` is `matrix(1, 0, 0, 1, 0, 8)` and the rim glow's opacity is 1; `dragleave`, after 400 ms back to `matrix(1, 0, 0, 1, 0, 24)` and 0. Reduced motion: the ghost stays at `matrix(1, 0, 0, 1, 0, 24)` and the glow reaches 1 | 3.6 |
 | same | Scene scroll: `results` and the Graveyard view (restored Graveyard of 12 records so it scrolls) at 1280 × 800 and 390 × 844: scroll by `min(400, scrollHeight − innerHeight)` (asserted ≥ 100); `[data-ridge-band]` box moves by that amount ± 1 px; no fixed element with a ridge, fence or ground | 5.1, 5.2 |
 | same | Fog at rest, no reduced motion, `results` and the Graveyard view: each `[data-backdrop-fog]` computed `transform` equal at t and t + 10 s (`page.clock` fast-forward) | 5.3 |
 | same | Stage box: 1280 × 800 and 390 × 844, `ask` and `buried`: `[data-burial-stage] > div` has transparent `background-color`, `border-width` 0, `box-shadow` none; the Stage `Ground` has no `box-shadow` and its last gradient layer's first stop is `transparent` with the next stop ≥ 24 px further on | 5.4, 5.6 |

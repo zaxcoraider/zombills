@@ -6,9 +6,11 @@ export interface ErrorViewProps {
   sourceName: string | null;
   error: PageError;
   onStartAgain: () => void;
+  /** Set when the Graveyard has records: "Open the graveyard" follows "Start again". */
+  onOpenGraveyard?: (() => void) | undefined;
 }
 
-export function ErrorView({ sourceName, error, onStartAgain }: ErrorViewProps) {
+export function ErrorView({ sourceName, error, onStartAgain, onOpenGraveyard }: ErrorViewProps) {
   const headingRef = useFocusRequest("state-heading");
   const { summary, detail } = errorMessage(error);
 
@@ -19,7 +21,7 @@ export function ErrorView({ sourceName, error, onStartAgain }: ErrorViewProps) {
       </h2>
       {sourceName !== null ? <p>File: {sourceName}</p> : null}
       {detail !== null ? <p>{detail}</p> : null}
-      <div>
+      <div className="flex flex-wrap gap-4">
         <button
           type="button"
           onClick={onStartAgain}
@@ -27,6 +29,15 @@ export function ErrorView({ sourceName, error, onStartAgain }: ErrorViewProps) {
         >
           Start again
         </button>
+        {onOpenGraveyard !== undefined ? (
+          <button
+            type="button"
+            onClick={onOpenGraveyard}
+            className="rounded border border-bone bg-fog px-4 py-2 text-bone"
+          >
+            Open the graveyard
+          </button>
+        ) : null}
       </div>
     </div>
   );

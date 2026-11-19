@@ -190,7 +190,7 @@ Tasks 1 to 3 are pure and change no rendered output. Tasks 4 to 6 build the Comp
 
 Task 17 adds the art and motion values; task 18 redraws `DropZone` with its behaviour unchanged; task 19 replaces the gate with the Statement panel and the Sample chips; task 20 puts the panel behind the Statement disclosure; task 21 hands focus over when another statement is read and opens the disclosure on a window drag; task 22 adds the browser tests. Until task 36, `SlicePage` renders the disclosure after `RisingView` on `results`, which is the DOM order the `statementSlot` keeps. The disclosure button, "Choose a file" and "Start again" use plain classes in this batch (the disclosure button: `inline-flex min-h-11 items-center gap-2 text-bone underline underline-offset-4` plus `BARE_FOCUS`); task 25 converts them to variants.
 
-- [ ] 17. Grave art, hover detection and the grave motion values (`statement/grave-art.tsx`, `statement/use-hover-none.ts`, `graveyard/motion.ts`)
+- [x] 17. Grave art, hover detection and the grave motion values (`statement/grave-art.tsx`, `statement/use-hover-none.ts`, `graveyard/motion.ts`)
   - In `graveyard/motion.ts`, export `GRAVE_GHOST_REST_Y = 32`, `GRAVE_GHOST_RISE_Y = 8`, `GRAVE_GHOST_RISE` (0.3 s, `[0.22, 1, 0.36, 1]`), `GRAVE_GHOST_RETURN` (0.25 s easeIn) and `GRAVE_GLOW_FADE` (0.2 s easeOut), as in "Signature moments".
   - Create `statement/grave-art.tsx` with `GravePit({ dragging, reduceMotion })` and `RestingGhost({ dragging, reduceMotion })`, as in "Signature moments: 3": the pit SVG (`viewBox="0 0 100 100"`, `preserveAspectRatio="none"`, earth rect `GROUND_TOP`, pit rect with the `useId` linear gradient, pit glow and rim glow `motion.rect` with opacity 0 | 1, outline stroke `color-mix(bone 50 %)` 2 px non-scaling); the ghost `motion.svg` (40 × 56, body path and two `--night` eyes of the design) at `y: GRAVE_GHOST_REST_Y` or `GRAVE_GHOST_RISE_Y`. Under reduced motion the ghost stays at rest and only the glows fade with `REDUCED_FADE`. Both `aria-hidden="true"`, no text.
   - Create `statement/use-hover-none.ts`: `useHoverNone()` reads `matchMedia("(hover: none)")`, listens for `change`, and returns `false` when `matchMedia` is missing.
@@ -201,7 +201,7 @@ Task 17 adds the art and motion values; task 18 redraws `DropZone` with its beha
   - Existing tests: none change.
   - _Requirements: 3.4, 3.6, 3.12, 3.14, 12.3, 12.4, 12.7_
 
-- [ ] 18. Grave drop area (`slice/drop-zone.tsx`)
+- [x] 18. Grave drop area (`slice/drop-zone.tsx`)
   - Restructure `DropZone` as in design "Statement panel": add `reduceMotion: boolean`; the wrapper `div[data-grave-drop][data-dragging]` (`relative pt-[48px]`) holds `onDragEnter`, `onDragLeave`, `onDragOver`, `onDrop` and the depth counter; inside it the ghost window (`aria-hidden`, `h-[48px]`, `overflow-clip`) with `RestingGhost`, then `div.grave` (`relative min-h-32 w-full`) with `GravePit`, the `div[role=button][data-focus="drop-zone"][data-exempt="drop-area"]` (`relative grid min-h-32 place-items-center rounded-card px-4 pb-16 pt-6 text-center`) and, as its sibling, the "Choose a file" button (`absolute bottom-4 left-1/2 -translate-x-1/2`, today's classes). The `input type=file` stays `sr-only` with `accept=".csv,text/csv"`.
   - Kept as today: `role="button"`, the name "Drop area: choose or drop a CSV statement", Enter and Space, the drag texts "Release to read this file" and "Reading…", the `working` `aria-disabled` behaviour, drops outside the area ignored. The resting text is `useHoverNone() ? TAP_TO_CHOOSE : "Drop a CSV statement here"`. While disabled the ghost stays at rest and the glows stay off.
   - Pass `reduceMotion` from every `DropZone` caller (`OwnStatement` and the gate in `slice-page.tsx`).
@@ -210,7 +210,7 @@ Task 17 adds the art and motion values; task 18 redraws `DropZone` with its beha
   - Existing tests: none change; every existing drop-area and drag-guard test passes as written.
   - _Requirements: 3.3, 3.4, 3.5, 3.6, 3.13, 3.14_
 
-- [ ] 19. Statement panel and Sample chips (`statement/statement-panel.tsx`, `statement/sample-chips.tsx`, `landing/own-statement.tsx`, `slice/slice-page.tsx`, `slice/sample-buttons.tsx`)
+- [x] 19. Statement panel and Sample chips (`statement/statement-panel.tsx`, `statement/sample-chips.tsx`, `landing/own-statement.tsx`, `slice/slice-page.tsx`, `slice/sample-buttons.tsx`)
   - Create `statement/sample-chips.tsx` with `SampleChips({ disabled, onChoose })`: `ul[aria-label={SAMPLE_LIST_NAME}].flex.flex-wrap.gap-2` of `li > button type="button" data-exempt="sample-chip"` in `SAMPLES` order, each with its `label`, the chip classes of the design (`min-h-11 rounded-t-stone rounded-b-small border border-bone/50 bg-fog px-4 pb-2 pt-4 text-small font-semibold text-bone hover:border-moss`), and `aria-disabled` while working.
   - Create `statement/statement-panel.tsx` with `StatementPanelProps` and the order of Req 3.1: the `h2` (`OWN_STATEMENT_HEADING` on `place="landing"`, `TRY_ANOTHER_STATEMENT` on `"gate"`) when `showHeading`; `p` `STATEMENT_HINT`; `p` `STATEMENT_TIP`; `DropZone`; `SampleChips` only on `"gate"`. A `section` Card (`rounded-card bg-fog/95 p-4 sm:p-6 flex flex-col gap-4`) with `aria-labelledby` on its `h2`.
   - `landing/own-statement.tsx` renders `StatementPanel place="landing" showHeading`. In `slice-page.tsx`, the Non-landing gate (today's `bg-fog/95` box headed "Read another statement" with `SampleButtons`) becomes `StatementPanel place="gate" showHeading` on every Non-landing view, open, with "Start again" after it as today. Delete `slice/sample-buttons.tsx` (no other importer; confirm with `grep -rn sample-buttons apps/web/src`).
@@ -219,7 +219,7 @@ Task 17 adds the art and motion values; task 18 redraws `DropZone` with its beha
   - Run in `apps/web`: `npx vitest run` (the whole web suite); then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web`.
   - _Requirements: 3.1, 3.2, 3.9, 3.10, 3.11, 3.12, 12.3_
 
-- [ ] 20. Statement disclosure (`statement/statement-disclosure.tsx`, `slice/slice-page.tsx`, `slice/error-view.tsx`, `slice/no-subscriptions-view.tsx`)
+- [x] 20. Statement disclosure (`statement/statement-disclosure.tsx`, `slice/slice-page.tsx`, `slice/error-view.tsx`, `slice/no-subscriptions-view.tsx`)
   - Create `statement/statement-disclosure.tsx` with `StatementDisclosure({ open, onToggle, children })` as in the design: `section[aria-labelledby]`, `h2.text-lead.font-bold > button type="button"` with `aria-expanded`, `aria-controls`, the text `TRY_ANOTHER_STATEMENT` and an `aria-hidden` chevron SVG that flips with no transition; `div[id][hidden={!open}]` holding `children`. Export the pure `disclosureFocusStep(target, shown, open): "open" | "claim"`.
   - In `slice-page.tsx`: `statementOpen` state, reset to `false` when `` `${view.kind}:${screen}` `` changes. On `results` (either screen) and the Graveyard view, the gate is `StatementDisclosure` holding `StatementPanel place="gate" showHeading={false}` and "Start again"; on `working`, `error` and `no-subscriptions` the panel is shown open with its heading and no disclosure. The `[data-focus]` effect gains `statementOpen` as a dependency and calls `disclosureFocusStep`; on `"open"` it sets `statementOpen` and returns without claiming.
   - In `error-view.tsx` and `no-subscriptions-view.tsx`, "Start again" and then "Open the graveyard" (when the Graveyard has records; it moves here from `showOpenGraveyard` in the gate) sit inside the state Card, today's classes. The tab order becomes that of Req 12.6.
@@ -228,7 +228,7 @@ Task 17 adds the art and motion values; task 18 redraws `DropZone` with its beha
   - Run in `apps/web`: `npx vitest run` (the whole web suite); then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web`.
   - _Requirements: 3.7, 3.8, 12.5, 12.6, 13.3, 13.4_
 
-- [ ] 21. Focus handover and window drag (`slice/page-state.ts`, `statement/sample-chips.tsx`, `slice/drop-zone.tsx`, `slice/slice-page.tsx`)
+- [x] 21. Focus handover and window drag (`slice/page-state.ts`, `statement/sample-chips.tsx`, `slice/drop-zone.tsx`, `slice/slice-page.tsx`)
   - In `page-state.ts`, as in Decision "Focus while another statement is read": add `"sample-chip"` to `FocusTarget`; `start` gains `from?: { target: "sample-chip"; id: string } | { target: "drop-zone" }`; when the new view's `origin` is `"other"` and `from` is set, `start` issues `focusRequest(model, from.target, from.id)`. The Landing view's controls never set `from`.
   - The gate's chips dispatch `start` with `from: { target: "sample-chip", id: fileName }` and carry `data-focus={focusKey({ target: "sample-chip", id: fileName })}`; the gate's drop area and file button dispatch `from: { target: "drop-zone" }`. Thread the `from` through `runAnalysis` without changing what it reads or does.
   - In `slice-page.tsx`, a `dragenter` listener on `window` opens the disclosure when `event.dataTransfer?.types` includes `"Files"`, the disclosure is shown and collapsed, and the Page is not `working`. It never moves focus and is removed on unmount.
@@ -238,18 +238,25 @@ Task 17 adds the art and motion values; task 18 redraws `DropZone` with its beha
   - Run in `apps/web`: `npx vitest run src/slice/page-state.test.ts src/slice/page-state.property.test.ts src/slice/page-state.leave.property.test.ts src/slice/statement src/slice/graveyard-flow.test.tsx src/slice/slice-page.test.tsx`; then the whole web suite `npx vitest run`; then root `npm test`, `npm run typecheck`, `npm run lint`.
   - _Requirements: 3.8, 12.5, 13.4_
 
-- [ ] 22. Grave and disclosure browser tests (`e2e/pro-polish.spec.ts`, `e2e/demo-path.spec.ts`)
+- [x] 22. Grave and disclosure browser tests (`e2e/pro-polish.spec.ts`, `e2e/demo-path.spec.ts`)
   - In `e2e/pro-polish.spec.ts`, Grave drag-over: no reduced motion, dispatch `dragenter` with a `DataTransfer` holding a file on `[data-grave-drop]`; after 400 ms the ghost's computed `transform` is `matrix(1, 0, 0, 1, 0, 8)` and the rim glow's opacity is 1; after `dragleave` and 400 ms, `matrix(1, 0, 0, 1, 0, 32)` and 0. Reduced motion: the ghost stays at `matrix(1, 0, 0, 1, 0, 32)` and the rim glow reaches opacity 1. Run on the Landing view and on `results` with the disclosure open.
   - In `e2e/demo-path.spec.ts`, extend the path (Req 12.1): open and close "Try another statement" on `results`; the CSP, request, console and storage checks stay unchanged.
   - Run: `npm run test:e2e --workspace @zombills/web -- e2e/pro-polish.spec.ts e2e/demo-path.spec.ts`, then the whole run; then root `npm test`, `npm run typecheck`, `npm run lint`.
   - Existing tests: the `demo-path.spec.ts` extension only.
   - _Requirements: 3.6, 12.1, 13.6_
 
-- [ ] 23. Batch B checkpoint
+- [x] 23. Batch B checkpoint
   - Run from the repo root: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`; then `npm run test:e2e --workspace @zombills/web`. All must pass.
   - Check that `slice/sample-buttons.tsx` is gone and nothing imports it; that `git diff` shows no change to the files listed in task 16; and that each existing test changed in this batch matches a row of "Existing tests that change" or a note in tasks 19 to 21, and removes or widens no assertion.
   - Report any failure or gap as a finding; fix it here only if it is a one-line test or text change.
   - _Requirements: 12.1, 12.2, 13.2, 13.7_
+
+- [x] 23.1. Batch B fix round (`review-batch-B.md`)
+  - Apply every finding in `review-batch-B.md`: reviewer findings 1 to 9 as each "Fix:" line says (#6: test today's real pair; #9: add the disabled look, text stays at least 4.5:1; #3: record the decision in design.md under "Focus while another statement is read"; #5: add the Playwright assertion it names), and owner findings V1 to V3. V1 and V2 update design.md section "3. The grave drop zone ghost" to match.
+  - Replace a pinned value only with the new exact value; never weaken or delete a test.
+  - Append a `## Resolution` table to `review-batch-B.md` (finding, what changed, files, tests).
+  - Rerun the task 23 checkpoint commands; all must pass.
+  - _Requirements: 1.9, 3.4, 3.5, 3.7, 3.12, 3.14, 6.5, 12.4, 12.5, 12.9_
 
 ---
 

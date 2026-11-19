@@ -119,6 +119,36 @@ describe("pageReducer: start", () => {
   });
 });
 
+describe("pageReducer: start from the gate", () => {
+  const CHIP = { target: "sample-chip", id: "uk-debit-credit.csv" } as const;
+  const DROP = { target: "drop-zone" } as const;
+  const graveyardIdle: PageModel = { ...IDLE, screen: "graveyard", focus: null };
+
+  it("hands focus to the gate control from results and from the Graveyard view", () => {
+    for (const model of [RESULTS_MODEL, graveyardIdle]) {
+      const seq = (model.focus?.seq ?? 0) + 1;
+      const chip = pageReducer(model, { type: "start", runId: 9, sourceName: "b", from: CHIP });
+      expect(chip.focus).toEqual({ target: "sample-chip", id: "uk-debit-credit.csv", seq });
+      const drop = pageReducer(model, { type: "start", runId: 9, sourceName: "b", from: DROP });
+      expect(drop.focus).toEqual({ target: "drop-zone", id: null, seq });
+      expect(drop.view).toEqual({ kind: "working", sourceName: "b", origin: "other" });
+    }
+  });
+
+  it("issues no request from the Landing view", () => {
+    for (const from of [CHIP, DROP]) {
+      const next = pageReducer(IDLE, { type: "start", runId: 9, sourceName: "b", from });
+      expect(next.focus).toBe(IDLE.focus);
+      expect(next.view).toEqual({ kind: "working", sourceName: "b", origin: "landing" });
+    }
+  });
+
+  it("without from keeps the focus request as today", () => {
+    const next = pageReducer(RESULTS_MODEL, { type: "start", runId: 9, sourceName: "b" });
+    expect(next.focus).toBe(RESULTS_MODEL.focus);
+  });
+});
+
 describe("pageReducer: start origin", () => {
   const onGraveyard = (model: PageModel): PageModel => ({ ...model, screen: "graveyard" });
   const rows: [string, PageModel, "landing" | "other"][] = [

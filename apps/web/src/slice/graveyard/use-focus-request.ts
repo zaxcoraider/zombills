@@ -14,7 +14,7 @@ export const FocusRequestContext = createContext<FocusRequestValue>({
 });
 
 /** The `data-focus` key a request names: `target`, or `target:id` when it has an id. */
-export function focusKey(request: FocusRequest): string {
+export function focusKey(request: Pick<FocusRequest, "target" | "id">): string {
   return request.id === null ? request.target : `${request.target}:${request.id}`;
 }
 
