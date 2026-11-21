@@ -463,7 +463,79 @@ function variantOffences(text: string): string[] {
   return found;
 }
 
+/**
+ * The markup files pro-polish creates or restyles (design "New files" and "Changed files").
+ * Not listed: `undead-card.tsx` (its card keeps `rounded-2xl` and `rounded-xl`, Out of scope)
+ * and `primary-action.tsx` (it keeps its landing-polish classes, design "Button variants").
+ */
+const RADIUS_FILES = [
+  join(SLICE_DIR, "button-variants.ts"),
+  join(SLICE_DIR, "chrome", "compact-header.tsx"),
+  join(SLICE_DIR, "chrome", "leave-question.tsx"),
+  join(SLICE_DIR, "chrome", "footer-tombstone.tsx"),
+  join(SLICE_DIR, "statement", "statement-panel.tsx"),
+  join(SLICE_DIR, "statement", "grave-art.tsx"),
+  join(SLICE_DIR, "statement", "sample-chips.tsx"),
+  join(SLICE_DIR, "statement", "statement-disclosure.tsx"),
+];
+RADIUS_FILES.push(
+  join(SLICE_DIR, "graveyard", "ground-line.tsx"),
+  join(SLICE_DIR, "slice-page.tsx"),
+  join(SLICE_DIR, "site-footer.tsx"),
+  join(SLICE_DIR, "drop-zone.tsx"),
+  join(SLICE_DIR, "error-view.tsx"),
+  join(SLICE_DIR, "no-subscriptions-view.tsx"),
+  join(SLICE_DIR, "landing", "own-statement.tsx"),
+  join(SLICE_DIR, "landing", "hero.tsx"),
+  join(SLICE_DIR, "landing", "brand-mark.tsx"),
+);
+RADIUS_FILES.push(
+  join(SLICE_DIR, "graveyard", "night-scene.tsx"),
+  join(SLICE_DIR, "graveyard", "graveyard-backdrop.tsx"),
+  join(SLICE_DIR, "graveyard", "burial-stage.tsx"),
+  join(SLICE_DIR, "graveyard", "rising-view.tsx"),
+  join(SLICE_DIR, "graveyard", "cancel-helper.tsx"),
+  join(SLICE_DIR, "graveyard", "graveyard-view.tsx"),
+  join(SLICE_DIR, "graveyard", "memory-panel.tsx"),
+  join(SLICE_DIR, "graveyard", "share-panel.tsx"),
+  join(SLICE_DIR, "graveyard", "savings-counter.tsx"),
+);
+
+/**
+ * A radius class outside the design tokens: `rounded`, `rounded-sm`, `rounded-lg`, `rounded-xl`
+ * or `rounded-2xl`, with or without variant prefixes (`sm:`, `hover:`). The class must end at a
+ * space, quote, backtick or line end, so `rounded-control`, `rounded-t-stone` or `rounded-full`
+ * do not match, and the start must not follow a letter, digit or `-`.
+ */
+const OFF_SCALE_RADIUS = /(?<![\w-])(?:[\w-]+:)*rounded(?:-sm|-lg|-xl|-2xl)?(?=$|[\s"'`])/gm;
+
+/** Every off-scale radius class in `text`, with comments removed first. */
+function radiusOffences(text: string): string[] {
+  const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  return [...code.matchAll(OFF_SCALE_RADIUS)].map((m) => m[0]);
+}
+
 describe("static checks", () => {
+  it("Radius (design tokens)", () => {
+    for (const file of RADIUS_FILES) {
+      expect(statSync(file).isFile(), file).toBe(true);
+      expect(radiusOffences(readFileSync(file, "utf8")), file).toEqual([]);
+    }
+  });
+
+  it("the radius scan reports off-scale classes and accepts the tokens", () => {
+    expect(
+      radiusOffences(
+        '"rounded p-2" "sm:rounded-lg" `rounded-xl` "a rounded-2xl" "hover:rounded-sm b"',
+      ),
+    ).toEqual(["rounded", "sm:rounded-lg", "rounded-xl", "rounded-2xl", "hover:rounded-sm"]);
+    expect(
+      radiusOffences(
+        '"rounded-control rounded-card rounded-t-stone rounded-full rounded-pill rounded-small" // a rounded edge\n/* rounded corners */',
+      ),
+    ).toEqual([]);
+  });
+
   it("Variants (Req 6.3)", () => {
     const files = sliceTsxFiles(SLICE_DIR);
     expect(files.length).toBeGreaterThan(0);

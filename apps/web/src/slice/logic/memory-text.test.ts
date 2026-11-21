@@ -18,6 +18,7 @@ import {
   MEMORY_NOT_KEPT_REMOVE_FAILED,
   MEMORY_ON_LINE,
   MEMORY_SETTINGS,
+  MEMORY_SHORT,
   NEWER_NOTE,
   REMOVE_FAILED_NOTE,
   UNREADABLE_NOTE,
@@ -35,6 +36,13 @@ describe("Landing privacy texts", () => {
       "Your statement stays on this device and is never uploaded. Nothing is kept after you close this page unless you choose to remember your graveyard.",
     );
     expect(STATEMENT_TIP).toBe("Tip: 2 to 3 months of transactions works best.");
+  });
+
+  it("MEMORY_SHORT equals its text exactly and makes no claim beyond MEMORY_HINT (pro-polish R9.4, R9.6)", () => {
+    expect(MEMORY_SHORT).toBe("Kept only in this browser, on this device.");
+    for (const word of ["private", "secure", "encrypted", "anonymous"]) {
+      expect(MEMORY_SHORT.toLowerCase()).not.toContain(word);
+    }
   });
 });
 

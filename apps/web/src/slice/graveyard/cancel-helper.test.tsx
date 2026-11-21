@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MotionGlobalConfig } from "framer-motion";
 import type { ReactElement } from "react";
@@ -27,6 +27,7 @@ import {
   emailInputFor,
   panelLine,
 } from "../logic/cancel-text";
+import { WRITE_INSTEAD } from "../logic/chrome-text";
 import type { AnswerRecord } from "../logic/graveyard";
 import { formatMoney } from "../logic/money";
 import { CancelHelper } from "./cancel-helper";
@@ -133,6 +134,21 @@ function emailTextOf(record: AnswerRecord): string {
   return copyTextOf(cancellationEmail(emailInputFor(record)));
 }
 
+/** Opens the Email disclosure of a Cancel entry (Req 8.2), before any query of its content. */
+function openEmail(displayName = "Netflix"): void {
+  fireEvent.click(screen.getByRole("button", { name: withName(displayName) }));
+}
+
+function withName(displayName: string): string {
+  return `${WRITE_INSTEAD} for ${displayName}`;
+}
+
+function renderOpen(node: ReactElement, displayName = "Netflix") {
+  const view = render(node);
+  openEmail(displayName);
+  return view;
+}
+
 function emailBlock(): HTMLElement {
   const block = document.querySelector<HTMLElement>("[data-email-text]");
   if (block === null) throw new Error("no email block");
@@ -161,7 +177,7 @@ describe("CancelHelper link panel", () => {
   });
 
   it("puts target, rel and the new-tab description on every external link, and none on mailto", () => {
-    render(ui(NETFLIX));
+    renderOpen(ui(NETFLIX));
     const links = screen.getAllByRole("link");
     const external = links.filter((a) => !(a.getAttribute("href") ?? "").startsWith("mailto:"));
     expect(external).toHaveLength(3);
@@ -217,9 +233,16 @@ describe("CancelHelper link panel", () => {
     ).toBeTruthy();
   });
 
-  it("shows the intro, bracket note, email text and hint", () => {
+  it("shows no intro, then the bracket note, email text and hint once opened", () => {
+    const dated = render(ui(SPOTIFY));
+    expect(screen.queryByText(LINK_INTRO)).toBeNull();
+    expect(screen.getByText(/^Link checked .* 2026\.$/).nextElementSibling).toBe(
+      screen.getByRole("button", { name: withName("Spotify") }),
+    );
+    dated.unmount();
     render(ui(NETFLIX));
-    expect(screen.getByText(LINK_INTRO)).toBeTruthy();
+    expect(screen.queryByText(LINK_INTRO)).toBeNull();
+    openEmail();
     expect(screen.queryByText(EMAIL_ONLY_INTRO)).toBeNull();
     expect(screen.getByText(BRACKETS_NOTE)).toBeTruthy();
     expect(screen.getByText(MAILTO_HINT)).toBeTruthy();
@@ -236,7 +259,7 @@ describe("CancelHelper link panel", () => {
   });
 
   it("links the email app with a mailto href and no target", () => {
-    render(ui(NETFLIX));
+    renderOpen(ui(NETFLIX));
     const mail = screen.getByRole("link", { name: "Open in my email app for Netflix" });
     expect(mail.getAttribute("href")).toMatch(
       /^mailto:\?subject=Please%20cancel%20my%20Netflix%20subscription&body=/,
@@ -245,12 +268,15 @@ describe("CancelHelper link panel", () => {
   });
 
   it("names a Known service by its display name, not the statement merchant", () => {
-    render(ui({ ...NETFLIX, serviceId: "netflix", merchant: "NETFLIX.COM" }, "NETFLIX.COM"));
+    renderOpen(
+      ui({ ...NETFLIX, serviceId: "netflix", merchant: "NETFLIX.COM" }, "NETFLIX.COM"),
+      "NETFLIX.COM",
+    );
     expect(emailBlock().textContent).toContain("Please cancel my Netflix subscription");
   });
 
   it("sets the wrap, size and no-icon rules", () => {
-    const { container } = render(ui(NETFLIX));
+    const { container } = renderOpen(ui(NETFLIX));
     const section = container.querySelector("section");
     expect(section?.className).toContain("[overflow-wrap:anywhere]");
     for (const control of [...screen.getAllByRole("link"), ...screen.getAllByRole("button")]) {
@@ -285,9 +311,9 @@ describe("CancelHelper email-only panel", () => {
 
 describe("CancelHelper accessible names and tab order", () => {
   it("starts every name with its visible text and ends it with ' for <d>'", () => {
-    render(ui(NETFLIX, "Netflix (2)"));
+    renderOpen(ui(NETFLIX, "Netflix (2)"), "Netflix (2)");
     const controls = [...screen.getAllByRole("link"), ...screen.getAllByRole("button")];
-    expect(controls).toHaveLength(5);
+    expect(controls).toHaveLength(6);
     for (const control of controls) {
       const name = control.getAttribute("aria-label") ?? "";
       expect(name.startsWith((control.textContent ?? "").trim())).toBe(true);
@@ -295,14 +321,14 @@ describe("CancelHelper accessible names and tab order", () => {
     }
   });
 
-  it("tabs line → cancel link → store links → Copy → email link, with no positive tabindex", async () => {
+  it("tabs line → cancel link → store links → Write to them instead → Copy → email link, with no positive tabindex", async () => {
     const user = userEvent.setup();
-    const { container } = render(ui(NETFLIX));
+    const { container } = renderOpen(ui(NETFLIX));
     expect(
       container.querySelector("[tabindex]:not([tabindex='0']):not([tabindex^='-'])"),
     ).toBeNull();
     const names: string[] = [];
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < 6; i += 1) {
       await user.tab();
       names.push(document.activeElement?.getAttribute("aria-label") ?? "");
     }
@@ -310,6 +336,7 @@ describe("CancelHelper accessible names and tab order", () => {
       "Open the Netflix cancel page (fixture-provider.test) for Netflix",
       "Apple subscriptions for Netflix",
       "Google Play subscriptions for Netflix",
+      "Write to them instead for Netflix",
       "Copy email for Netflix",
       "Open in my email app for Netflix",
     ]);
@@ -346,7 +373,7 @@ describe("CancelHelper copy flow", () => {
     const writeText = vi.fn(() => Promise.resolve());
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const { calls, wrap } = recordingAnnounce();
-    render(wrap(ui(NETFLIX)));
+    renderOpen(wrap(ui(NETFLIX)));
     const button = screen.getByRole("button", { name: "Copy email for Netflix" });
     await user.click(button);
     expect(writeText).toHaveBeenCalledTimes(1);
@@ -365,7 +392,7 @@ describe("CancelHelper copy flow", () => {
     installFakeClock();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     vi.stubGlobal("navigator", { clipboard: { writeText: () => Promise.resolve() } });
-    render(ui(NETFLIX));
+    renderOpen(ui(NETFLIX));
     await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
     await act(() => vi.advanceTimersByTimeAsync(COPIED_MS - 500));
     await user.click(screen.getByRole("button", { name: "Copied for Netflix" }));
@@ -381,7 +408,7 @@ describe("CancelHelper copy flow", () => {
       clipboard: { writeText: () => Promise.reject(new Error("denied")) },
     });
     const { calls, wrap } = recordingAnnounce();
-    render(wrap(ui(NETFLIX)));
+    renderOpen(wrap(ui(NETFLIX)));
     const button = screen.getByRole("button", { name: "Copy email for Netflix" });
     await user.click(button);
     await vi.waitFor(() => expect(calls).toEqual([COPY_FAILED_NOTICE]));
@@ -400,7 +427,7 @@ describe("CancelHelper copy flow", () => {
       },
     });
     const { calls, wrap } = recordingAnnounce();
-    render(wrap(ui(NETFLIX)));
+    renderOpen(wrap(ui(NETFLIX)));
     await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
     expect(calls).toEqual([COPY_FAILED_NOTICE]);
     expect(selectedText()).toBe(emailBlock().textContent);
@@ -410,13 +437,13 @@ describe("CancelHelper copy flow", () => {
     const user = userEvent.setup();
     const { calls, wrap } = recordingAnnounce();
     vi.stubGlobal("navigator", {});
-    const first = render(wrap(ui(NETFLIX)));
+    const first = renderOpen(wrap(ui(NETFLIX)));
     await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
     expect(selectedText()).toBe(emailBlock().textContent);
     first.unmount();
     window.getSelection()?.removeAllRanges();
     vi.stubGlobal("navigator", { clipboard: { writeText: "nope" } });
-    render(wrap(ui(NETFLIX)));
+    renderOpen(wrap(ui(NETFLIX)));
     await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
     expect(selectedText()).toBe(emailBlock().textContent);
     expect(calls).toEqual([COPY_FAILED_NOTICE, COPY_FAILED_NOTICE]);
@@ -427,7 +454,7 @@ describe("CancelHelper copy flow", () => {
     vi.stubGlobal("navigator", {});
     vi.stubGlobal("getSelection", undefined);
     const { calls, wrap } = recordingAnnounce();
-    render(wrap(ui(NETFLIX)));
+    renderOpen(wrap(ui(NETFLIX)));
     await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
     expect(calls).toEqual([COPY_FAILED_NOTICE]);
   });
@@ -435,7 +462,7 @@ describe("CancelHelper copy flow", () => {
   it("does not copy until the button is activated", () => {
     const writeText = vi.fn(() => Promise.resolve());
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    render(ui(NETFLIX));
+    renderOpen(ui(NETFLIX));
     expect(writeText).not.toHaveBeenCalled();
   });
 
@@ -447,7 +474,7 @@ describe("CancelHelper copy flow", () => {
     });
     vi.stubGlobal("navigator", { clipboard: { writeText: () => pending } });
     const { calls, wrap } = recordingAnnounce();
-    const view = render(wrap(ui(NETFLIX)));
+    const view = renderOpen(wrap(ui(NETFLIX)));
     await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
     view.unmount();
     await act(async () => {
@@ -462,7 +489,7 @@ describe("CancelHelper copy flow", () => {
 
 describe("CancelHelper Button variants (Req 6.5)", () => {
   it("makes Copy and Open in my email app secondary", () => {
-    render(ui(NETFLIX));
+    renderOpen(ui(NETFLIX));
     expect(
       screen.getByRole("button", { name: "Copy email for Netflix" }).getAttribute("data-variant"),
     ).toBe("secondary");
@@ -471,5 +498,108 @@ describe("CancelHelper Button variants (Req 6.5)", () => {
         .getByRole("link", { name: "Open in my email app for Netflix" })
         .getAttribute("data-variant"),
     ).toBe("secondary");
+  });
+});
+
+describe("CancelHelper Email disclosure (Req 8)", () => {
+  it("orders a link entry: heading, line, cancel link, steps, store note and links, checked line, disclosure", () => {
+    const { container } = render(ui(NETFLIX));
+    const section = container.querySelector("section");
+    if (section === null) throw new Error("no section");
+    const visible = Array.from(section.children).filter(
+      (el) => !el.classList.contains("sr-only") && !el.hasAttribute("hidden"),
+    );
+    expect(visible.map((el) => el.tagName)).toEqual(["H3", "P", "A", "OL", "P", "UL", "BUTTON"]);
+    expect(visible[1]?.textContent).toBe(panelLine("Netflix"));
+    expect(visible[4]?.textContent).toMatch(/App Store or Google Play/);
+    expect(visible[6]?.textContent).toBe(WRITE_INSTEAD);
+
+    cleanup();
+    const dated = render(ui(SPOTIFY));
+    const order = Array.from(dated.container.querySelector("section")?.children ?? [])
+      .filter((el) => !el.classList.contains("sr-only") && !el.hasAttribute("hidden"))
+      .map((el) => el.tagName);
+    expect(order).toEqual(["H3", "P", "A", "OL", "P", "BUTTON"]);
+    expect(screen.getByText(/^Link checked/).nextElementSibling?.tagName).toBe("BUTTON");
+  });
+
+  it("starts 'Write to them instead for Netflix' collapsed, with hidden content", () => {
+    render(ui(NETFLIX));
+    const button = screen.getByRole("button", { name: "Write to them instead for Netflix" });
+    expect(button.textContent).toBe(WRITE_INSTEAD);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("data-variant")).toBe("secondary");
+    const body = document.getElementById(button.getAttribute("aria-controls") ?? "");
+    expect(body).not.toBeNull();
+    expect(body?.hasAttribute("hidden")).toBe(true);
+    expect(body?.contains(emailBlock())).toBe(true);
+    expect(screen.queryByRole("button", { name: "Copy email for Netflix" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open in my email app for Netflix" })).toBeNull();
+  });
+
+  it("shows the email, Copy and mailto with today's names and notice once opened", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("navigator", { clipboard: { writeText: () => Promise.resolve() } });
+    const { calls, wrap } = recordingAnnounce();
+    render(wrap(ui(NETFLIX)));
+    const button = screen.getByRole("button", { name: "Write to them instead for Netflix" });
+    await user.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    const body = document.getElementById(button.getAttribute("aria-controls") ?? "");
+    expect(body?.hasAttribute("hidden")).toBe(false);
+    expect(within(body as HTMLElement).getByText(BRACKETS_NOTE)).toBeTruthy();
+    expect(within(body as HTMLElement).getByText(MAILTO_HINT)).toBeTruthy();
+    expect(emailBlock().textContent).toBe(emailTextOf(NETFLIX));
+    expect(
+      screen.getByRole("link", { name: "Open in my email app for Netflix" }).getAttribute("href"),
+    ).toMatch(/^mailto:/);
+    await user.click(screen.getByRole("button", { name: "Copy email for Netflix" }));
+    expect(calls).toEqual([copiedNotice("Netflix")]);
+    await user.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(body?.hasAttribute("hidden")).toBe(true);
+  });
+
+  it("shows the email open after EMAIL_ONLY_INTRO for an email-only entry, with no disclosure", () => {
+    render(ui(GYM));
+    expect(screen.queryByRole("button", { name: /^Write to them instead/ })).toBeNull();
+    expect(document.querySelector("[aria-expanded]")).toBeNull();
+    expect(document.querySelector("[hidden]")).toBeNull();
+    const intro = screen.getByText(EMAIL_ONLY_INTRO);
+    expect(intro.nextElementSibling?.textContent).toBe(BRACKETS_NOTE);
+    expect(emailBlock().textContent).toBe(emailTextOf(GYM));
+    expect(
+      screen.getByRole("button", { name: "Copy email for Riverside Gym Membership" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Open in my email app for Riverside Gym Membership" }),
+    ).toBeTruthy();
+  });
+});
+
+describe("CancelHelper next slot (Req 8.4, 8.5)", () => {
+  it.each([
+    ["a link entry", NETFLIX, "Netflix"],
+    ["an email-only entry", GYM, "Riverside Gym Membership"],
+  ] as const)("renders next as the last child, in a div.mt-6, for %s", (_, record, name) => {
+    render(
+      <CancelHelper
+        record={record}
+        displayName={name}
+        reduceMotion={false}
+        next={<button type="button">Next</button>}
+      />,
+    );
+    const region = screen.getByRole("region", { name: `Seal the grave: ${name}` });
+    const last = region.lastElementChild as HTMLElement;
+    expect(last.tagName).toBe("DIV");
+    expect(last.classList.contains("mt-6")).toBe(true);
+    expect(last.firstElementChild).toBe(within(region).getByRole("button", { name: "Next" }));
+  });
+
+  it("renders no extra wrapper without next", () => {
+    render(ui(NETFLIX, "Netflix"));
+    const region = screen.getByRole("region", { name: "Seal the grave: Netflix" });
+    expect(region.querySelector(":scope > div.mt-6")).toBeNull();
   });
 });

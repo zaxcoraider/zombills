@@ -4,6 +4,8 @@ import type { MemoryEventKind, MemoryModel } from "../page-state";
 
 export const MEMORY_HEADING = "Memory";
 export const MEMORY_LABEL = "Remember my graveyard on this device";
+/** The short sentence under the Memory toggle (pro-polish Req 9.4). */
+export const MEMORY_SHORT = "Kept only in this browser, on this device.";
 export const MEMORY_HINT =
   "Only merchant text as printed on your statement (it can include reference numbers), amounts and your answers are kept, in this browser on this device. Transactions, dates and file names are not. Nothing is sent anywhere.";
 export const PRIVACY_NOTE =

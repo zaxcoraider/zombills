@@ -54,7 +54,7 @@ export function Hero({
           {working && workingSourceName !== null ? (
             <div className="sm:basis-full">
               <FadeIn key="working">
-                <div className="rounded-2xl bg-fog/95 px-4 py-3">
+                <div className="rounded-card bg-fog/95 px-4 py-3">
                   <p>Reading {workingSourceName}…</p>
                 </div>
               </FadeIn>

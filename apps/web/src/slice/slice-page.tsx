@@ -1,6 +1,6 @@
 import { useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { Dispatch } from "react";
+import type { Dispatch, ReactNode } from "react";
 import { buttonVariant } from "./button-variants";
 import { CompactHeader } from "./chrome/compact-header";
 import { LeaveQuestion } from "./chrome/leave-question";
@@ -26,7 +26,13 @@ import { LandingBanner } from "./landing/landing-banner";
 import { OwnStatement } from "./landing/own-statement";
 import { NoSubscriptionsView } from "./no-subscriptions-view";
 import { restoredLine } from "./logic/memory-text";
-import { initialPageModel, isLandingView, pageReducer, shouldAskBeforeLeaving } from "./page-state";
+import {
+  initialPageModel,
+  isLandingView,
+  isWideView,
+  pageReducer,
+  shouldAskBeforeLeaving,
+} from "./page-state";
 import type { PageAction, PageModel, StartFrom } from "./page-state";
 import { SiteFooter } from "./site-footer";
 import {
@@ -45,7 +51,7 @@ function preventDefault(event: Event) {
   event.preventDefault();
 }
 
-const PANEL_CLASS = "rounded-2xl bg-fog/95 p-6";
+const PANEL_CLASS = "rounded-card bg-fog/95 p-6";
 
 interface MainStateProps {
   model: PageModel;
@@ -55,6 +61,8 @@ interface MainStateProps {
   onStartAgain: () => void;
   /** Set when the Graveyard has records, for "Open the graveyard" in the state Card. */
   onOpenGraveyard: (() => void) | undefined;
+  /** The Statement disclosure, placed inside the Rising grid on `results` (Req 7.3) */
+  statementSlot: ReactNode;
 }
 
 /** The state content of `main` on the main screen: one view at a time. */
@@ -65,6 +73,7 @@ function MainState({
   dispatch,
   onStartAgain,
   onOpenGraveyard,
+  statementSlot,
 }: MainStateProps) {
   const { view } = model;
   switch (view.kind) {
@@ -92,6 +101,7 @@ function MainState({
             reduceMotion={reduceMotion}
             memoryOn={model.memory.on}
             dispatch={dispatch}
+            statementSlot={statementSlot}
           />
         </FadeIn>
       );
@@ -325,6 +335,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
   }, [view.kind, model.screen]);
 
   const landing = isLandingView(model);
+  const wide = isWideView(model);
   const onReadNote = useCallback(() => {
     if (privacyNoteRef.current !== null) focusAndReveal(privacyNoteRef.current);
   }, []);
@@ -340,6 +351,42 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
   // "Start again" shows wherever a statement or a state other than `idle` can be put away: on
   // `results`, and on the Graveyard view opened from `error` or `no-subscriptions` (Req 1.9, 3.7).
   const showStartAgain = hasStatement || (onGraveyard && view.kind !== "idle" && !working);
+  // On `results` on the main screen the gate sits inside the Rising grid (Req 7.3); everywhere
+  // else it follows the state content in `main`.
+  const gateInRising = hasStatement && !onGraveyard;
+
+  const gate = disclosureShown ? (
+    <StatementDisclosure open={statementOpen} onToggle={onToggleStatement}>
+      <StatementPanel
+        place="gate"
+        showHeading={false}
+        disabled={working}
+        reduceMotion={reduceMotion}
+        onFiles={onGateFiles}
+        onChooseSample={onGateSample}
+      />
+      {showStartAgain ? (
+        <div>
+          <button
+            type="button"
+            {...buttonVariant("tertiary", { bare: true })}
+            onClick={onStartAgain}
+          >
+            Start again
+          </button>
+        </div>
+      ) : null}
+    </StatementDisclosure>
+  ) : (
+    <StatementPanel
+      place="gate"
+      showHeading
+      disabled={working}
+      reduceMotion={reduceMotion}
+      onFiles={onGateFiles}
+      onChooseSample={onGateSample}
+    />
+  );
 
   return (
     <FocusRequestContext.Provider value={focusValue}>
@@ -348,7 +395,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
           fogCleared={haunt.fogCleared}
           reduceMotion={reduceMotion}
           landing={landing}
-          skyMoon={!landing}
+          skyMoon={!landing && !wide}
         >
           {landing ? (
             <>
@@ -381,6 +428,7 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
               <SiteFooter
                 noteRef={privacyNoteRef}
                 wide
+                landing
                 reduceMotion={reduceMotion}
                 onReadNote={onReadNote}
               />
@@ -390,12 +438,15 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
               <CompactHeader
                 haunt={haunt}
                 reduceMotion={reduceMotion}
-                wide={false}
+                wide={wide}
                 homeDisabled={homeDisabled}
                 homeRef={homeRef}
                 onHome={onHome}
               />
-              <main ref={mainRef} className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6">
+              <main
+                ref={mainRef}
+                className={`mx-auto flex max-w-[640px] flex-col gap-6 px-4 py-6${wide ? " w-full lg:max-w-[1184px] lg:px-8" : ""}`}
+              >
                 {leave.open ? (
                   <LeaveQuestion
                     seq={leave.seq}
@@ -422,50 +473,22 @@ export function SlicePage({ store, initialStore }: SlicePageProps) {
                       dispatch={dispatch}
                       onStartAgain={onStartAgain}
                       onOpenGraveyard={showOpenGraveyard ? onOpenGraveyard : undefined}
+                      statementSlot={gateInRising ? gate : null}
                     />
                   )}
                 </div>
-                <div key="gate" className="order-2 flex flex-col gap-4">
-                  {disclosureShown ? (
-                    <StatementDisclosure open={statementOpen} onToggle={onToggleStatement}>
-                      <StatementPanel
-                        place="gate"
-                        showHeading={false}
-                        disabled={working}
-                        reduceMotion={reduceMotion}
-                        onFiles={onGateFiles}
-                        onChooseSample={onGateSample}
-                      />
-                      {showStartAgain ? (
-                        <div>
-                          <button
-                            type="button"
-                            {...buttonVariant("tertiary", { bare: true })}
-                            onClick={onStartAgain}
-                          >
-                            Start again
-                          </button>
-                        </div>
-                      ) : null}
-                    </StatementDisclosure>
-                  ) : (
-                    <StatementPanel
-                      place="gate"
-                      showHeading
-                      disabled={working}
-                      reduceMotion={reduceMotion}
-                      onFiles={onGateFiles}
-                      onChooseSample={onGateSample}
-                    />
-                  )}
-                </div>
+                {gateInRising ? null : (
+                  <div key="gate" className="order-2 flex flex-col gap-4">
+                    {gate}
+                  </div>
+                )}
               </main>
               <div className="w-full">
                 <RidgeBand />
               </div>
               <SiteFooter
                 noteRef={privacyNoteRef}
-                wide={false}
+                wide={wide}
                 reduceMotion={reduceMotion}
                 onReadNote={onReadNote}
               />

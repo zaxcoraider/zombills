@@ -78,40 +78,62 @@ async function expectCardWhole(page: Page, name: string): Promise<void> {
   await expect(card.getByText(/^(Monthly|Yearly|Weekly)$/i)).toBeInViewport({ ratio: 1 });
 }
 
+const CARD_TITLE = "each card is whole inside the stage and the viewport, also after Next and Skip";
+
+// Wide layout (pro-polish Req 7.6): the card check also runs where the Stage shares the row with
+// the summary column; its assertions are the same at every size.
+const CARD_VIEWPORTS = [
+  ...VIEWPORTS,
+  { width: 1280, height: 800 },
+  { width: 1600, height: 900 },
+] as const;
+
+async function checkCardsWhole(page: Page): Promise<void> {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Summon the undead with a sample US bank statement" })
+    .click();
+
+  // The first card, then Skip for now: the next card in the queue rises whole too.
+  await expectCardWhole(page, "Adobe Creative Cloud");
+  await answer(page, "Skip for now");
+  await expectCardWhole(page, "Riverside Gym Membership");
+
+  // Keep it, then Next brings the card after it.
+  await answer(page, "Yes, let it rest");
+  await page.getByRole("button", { name: "Next" }).click();
+  await expectCardWhole(page, "Netflix");
+
+  // Netflix is the tallest card: its price-rise line is fully visible.
+  const netflix = page.getByRole("region", { name: "Netflix" });
+  const priceLine = netflix.getByText(/Price went up/);
+  await expect(priceLine).toBeVisible();
+  await expect(priceLine).toBeInViewport({ ratio: 1 });
+  expect(inside(await boxOf(priceLine), await boxOf(netflix))).toBe(true);
+  expect(inside(await boxOf(priceLine), await boxOf(page.locator("[data-burial-stage]")))).toBe(
+    true,
+  );
+}
+
+for (const viewport of CARD_VIEWPORTS) {
+  test.describe(`${viewport.width}x${viewport.height}`, () => {
+    test.use({ viewport });
+
+    test(CARD_TITLE, async ({ page }) => {
+      await checkCardsWhole(page);
+    });
+  });
+}
+
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport });
 
-    test("each card is whole inside the stage and the viewport, also after Next and Skip", async ({
-      page,
-    }) => {
-      await page.goto("/");
-      await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
-
-      // The first card, then Skip for now: the next card in the queue rises whole too.
-      await expectCardWhole(page, "Adobe Creative Cloud");
-      await answer(page, "Skip for now");
-      await expectCardWhole(page, "Riverside Gym Membership");
-
-      // Keep it, then Next brings the card after it.
-      await answer(page, "Yes, let it rest");
-      await page.getByRole("button", { name: "Next" }).click();
-      await expectCardWhole(page, "Netflix");
-
-      // Netflix is the tallest card: its price-rise line is fully visible.
-      const netflix = page.getByRole("region", { name: "Netflix" });
-      const priceLine = netflix.getByText(/Price went up/);
-      await expect(priceLine).toBeVisible();
-      await expect(priceLine).toBeInViewport({ ratio: 1 });
-      expect(inside(await boxOf(priceLine), await boxOf(netflix))).toBe(true);
-      expect(inside(await boxOf(priceLine), await boxOf(page.locator("[data-burial-stage]")))).toBe(
-        true,
-      );
-    });
-
     test("small tombstones hold their text and leave Unbury clear", async ({ page }) => {
       await page.goto("/");
-      await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
+      await page
+        .getByRole("button", { name: "Summon the undead with a sample US bank statement" })
+        .click();
 
       // Bury all four cards, whatever order they come in.
       for (let card = 0; card < 4; card += 1) {
@@ -172,7 +194,9 @@ async function buryNetflix(page: Page, fontSize: string | null = null): Promise<
       document.documentElement.style.fontSize = size;
     }, fontSize);
   }
-  await page.getByRole("button", { name: "Summon the undead with a sample US bank statement" }).click();
+  await page
+    .getByRole("button", { name: "Summon the undead with a sample US bank statement" })
+    .click();
   for (let card = 0; card < 4; card += 1) {
     const heading = page.locator("[data-burial-stage] section h3");
     await expect(heading).toBeVisible();
@@ -207,6 +231,10 @@ for (const panelCase of PANEL_CASES) {
     const stone = page.getByRole("region", { name: "Here lies Netflix." });
     await expect(stone).toBeVisible();
     await page.waitForTimeout(1500);
+
+    // Open the Email disclosure, so the long email lines are measured (pro-polish Req 8.8).
+    await panel.getByRole("button", { name: "Write to them instead for Netflix" }).click();
+    await expect(panel.locator("[data-email-text]")).toBeVisible();
 
     const overflow = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,

@@ -119,6 +119,11 @@ test.describe("non-landing moon", () => {
 
         const moon = await moonGeometry(page);
         const where = `${width}x${height} ${state}`;
+        // Wide-layout views draw no sky moon at any width (pro-polish decision Option A).
+        if (state === "results" || state === "graveyard") {
+          expect(moon.count, `${where}: no sky moon on a Wide-layout view`).toBe(0);
+          return;
+        }
         expect(moon.count, `${where}: exactly one moon`).toBe(1);
 
         if (width < 1024) {

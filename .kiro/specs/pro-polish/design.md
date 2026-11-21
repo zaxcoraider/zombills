@@ -401,7 +401,7 @@ A `div role="group" aria-labelledby={textId}` Card (`rounded-card bg-fog/95 p-4 
 ### Footer graveyard (`site-footer.tsx`, changed; `chrome/footer-tombstone.tsx`, new)
 
 ```ts
-export interface SiteFooterProps { noteRef: Ref<HTMLParagraphElement>; wide: boolean; reduceMotion: boolean; onReadNote: () => void }
+export interface SiteFooterProps { noteRef: Ref<HTMLParagraphElement>; wide: boolean; landing?: boolean; reduceMotion: boolean; onReadNote: () => void }
 export interface FooterTombstoneProps {
   label: string;
   reduceMotion: boolean;
@@ -502,13 +502,15 @@ The two controls are siblings in `div.grave`, so no control is nested in another
 `RisingViewProps` gains `statementSlot: ReactNode`. Root:
 
 ```tsx
-<div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,22rem)] lg:gap-x-8
-  lg:[grid-template-areas:'stage_summary''stage_statement']">
-  <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start lg:[grid-area:summary]">summary</div>
+<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,22rem)] lg:grid-rows-[auto_1fr]
+  lg:gap-6 lg:gap-x-8 lg:[grid-template-areas:'stage_summary''stage_statement']">
+  <div className="flex flex-col gap-4 lg:self-start lg:[grid-area:summary]">summary</div>
   <div className="lg:[grid-area:stage]">BurialStage and the below-stage "Next"</div>
-  <div className="lg:[grid-area:statement]">{statementSlot}</div>
+  <div className="lg:self-start lg:[grid-area:statement]">{statementSlot}</div>
 </div>
 ```
+
+At lg the first row is `auto` (as tall as the summary) and the second `1fr`, so the Stage's extra height goes to the second row and the Statement disclosure starts one row gap (24 px) under the summary instead of halfway down the page (review D #1). The summary is not sticky: R7.1 allows a sticky summary ("MAY"), but in an `auto` row it has no room to move, so `lg:sticky lg:top-4` is dropped (owner decision, review D #1). Below lg the gap stays 16 px, as before this spec (R7.4, review D #8).
 
 DOM order stays summary, stage, statement (Req 7.3). The summary panel is a Card holding "Recurring charges found", `StatementSummary` (with the footnote), "Still draining", the progress line, "Open the graveyard" (secondary) and the Memory line with "Memory settings" (secondary). `main` on wide views has `lg:max-w-[1184px] lg:px-8` (content width 1120 px). At 1024 px the left column is 1024 − 64 − 32 − 352 = 576 px, which holds the 22.5 rem (360 px) card and the Helper panel.
 
@@ -528,9 +530,9 @@ DOM order stays summary, stage, statement (Req 7.3). The summary panel is a Card
 ### Graveyard view and Memory (`graveyard-view.tsx`, `memory-panel.tsx`, changed)
 
 - The single `bg-fog/95` panel splits into Cards: the heading and totals Card; the tombstone grid (no Card: tombstones stand on the scene, each row on its ground line); "Resting" and "Already stopped" Card; the Share panel Card; "Not answered yet" Card; the Memory Card; then a closing Card (`rounded-card bg-fog/95 p-4 sm:p-6`) holding "Back to the rising" / "Back to the start" (secondary), so no secondary control sits on the bare scene (design review 1 #2).
-- Tombstone grid: `ul.grid.grid-cols-1.gap-x-4.gap-y-8.sm:grid-cols-2.lg:grid-cols-3.min-[1600px]:grid-cols-4`. Each `li` is `flex flex-col`: the `Tombstone` (list size), a `GroundLine` (`-mx-2`, so neighbouring segments meet across the 16 px gap and read as one line per row), then the actions row ("How to cancel" secondary, "Unbury" quiet danger) on its own plate, `div.flex.flex-wrap.gap-2.rounded-card.bg-fog/95.p-2`, so both controls sit on C. An open Helper panel stays a full-row `li` (`col-span-full`).
+- Tombstone grid: `ul.grid.grid-cols-1.gap-x-4.gap-y-8.sm:grid-cols-2.lg:grid-cols-3.min-[100rem]:grid-cols-4` (100 rem = 1600 px in a media query; a `px` arbitrary breakpoint is sorted before `lg` by Tailwind, so `lg:grid-cols-3` would win at 1600 px, review D #6). Each `li` is `flex flex-col`: the `Tombstone` (list size), a `GroundLine` (`-mx-2`, so neighbouring segments meet across the 16 px gap and read as one line per row), then the actions row ("How to cancel" secondary, "Unbury" quiet danger) on its own plate, `div.flex.flex-wrap.gap-2.rounded-card.bg-fog/95.p-2`, so both controls sit on C. An open Helper panel stays a full-row `li` (`col-span-full`); the panel renders after the plate, still inside the `li`, not inside the plate (review D #4).
 - Waiting chips: `ul.flex.flex-wrap.gap-2` of `button[data-exempt="waiting-chip"]` with `min-h-11 rounded-control border border-bone/50 bg-fog px-4 text-small`, visible text `` `${displayName} · ${yearlyText} a year` `` (with "about " and " (estimate)" as today), `aria-label={`Answer now ${visibleText}`}`.
-- `MemoryPanel`: `h3` "Memory"; a `label` (`flex min-h-11 items-center gap-2`, the 44 px target of R12.5; the whole label toggles the checkbox, so it is the control's target, design review 1 #20) holding the checkbox and `MEMORY_LABEL`, the checkbox drawn as a switch (`appearance-none`, 44 × 24 px `rounded-pill` track, `--bone/45` border off, `--moss` fill on, a 16 px knob placed by `checked:` classes with no transition); `p#shortId` `MEMORY_SHORT`; the "What is kept?" disclosure (tertiary button, `aria-expanded`, `aria-controls`) and `p#hintId hidden={!open}` `MEMORY_HINT`; the notes; "Forget everything" (danger) and its confirmation ("Cancel" secondary, "Forget" danger). The checkbox keeps `type="checkbox"`, no `role="switch"`, `data-focus="memory-checkbox"`, its change handler, and `aria-describedby={`${shortId} ${hintId}`}` (Req 9.5).
+- `MemoryPanel`: `h3` "Memory"; a `label` (`flex min-h-11 items-center gap-2`, the 44 px target of R12.5; the whole label toggles the checkbox, so it is the control's target, design review 1 #20) holding the checkbox and `MEMORY_LABEL`, the checkbox drawn as a switch: the native input is `peer appearance-none`, a 44 × 24 px `rounded-pill` box, followed by two `aria-hidden` sibling spans, the track (`--bone/45` border off, `--moss` fill on) and a 16 px knob, placed by `peer-checked:` classes with no transition, so the knob does not depend on a pseudo-element on an `<input>` (review D #5); `p#shortId` `MEMORY_SHORT`; the "What is kept?" disclosure (tertiary button with no inline padding, so its text starts at the left edge of `MEMORY_SHORT`, review D V1; `aria-expanded`, `aria-controls`) and `p#hintId hidden={!open}` `MEMORY_HINT`; the notes; "Forget everything" (danger) and its confirmation ("Cancel" secondary, "Forget" danger). The checkbox keeps `type="checkbox"`, no `role="switch"`, `data-focus="memory-checkbox"`, its change handler, and `aria-describedby={`${shortId} ${hintId}`}` (Req 9.5).
 
 ### Undead card sway (`undead-card.tsx`, changed)
 
@@ -753,7 +755,7 @@ The longest leg is 0.3 s (Req 2.8: at most 300 ms). The pose holds while hover o
 ---
 ## Layout
 
-Breakpoints are Tailwind's defaults (`sm` 640, `lg` 1024 px) plus `min-[1600px]` for the Graveyard grid. Lengths are CSS px at the 16 px root size.
+Breakpoints are Tailwind's defaults (`sm` 640, `lg` 1024 px) plus `min-[100rem]` (1600 px) for the Graveyard grid. Lengths are CSS px at the 16 px root size.
 
 ### Columns
 
@@ -897,7 +899,7 @@ Tab orders asserted in `pro-polish-page.test.tsx` (from `document.body`, Memory 
 | same | Stage ground *(amended 2026-11-18, visual review)*: 390 × 844, results, reduced motion: from 8 px under the ground line to 12 px past the Stage's bottom, no 16 × 8 px block across the Stage's width has a mean luma more than 6 levels (0 to 255) below the sky in the same column just under the Stage. The Stage `Ground`'s earth is a veil of `GROUND_TOP` at 30 % that fades back to transparent, not an opaque band ending in `--night` | 5.4, 5.6 |
 | same | Wide layout: 1280 × 800 and 1600 × 900, Stage box right edge < summary box left edge, no overlap; at 1280 × 800 a Graveyard of 3 buried records has 3 tombstones sharing the first row's `y` | 7.1, 7.2, 7.6 |
 | same | Sway ends: 1280 × 800, no reduced motion; record `t0` when the first card heading has focus; with the mouse away from the card, at `t0 + 2.5 s` the sway layer's computed `transform` is not identity (the sway ran); at `t0 + 5.5 s` and `t0 + 6.0 s` the sway layer's computed `transform` is `none` or identity, and `document.getAnimations()` holds no running animation targeting it | 10.4, 10.7 |
-| same | Sizes: 320 × 568 and 390 × 844 at 200 % root font, for the Landing view, `results`, the Graveyard view, `error` and `no-subscriptions`: `scrollWidth ≤ innerWidth`, and no text range outside its nearest clipping ancestor (the landing-polish helper in `content-boxes.ts`) | 12.9 |
+| same | Sizes: 320 × 568 and 390 × 844 at 200 % root font, for the Landing view, `results`, the Graveyard view, `error` and `no-subscriptions`: `scrollWidth ≤ innerWidth`, and no text range outside its nearest clipping ancestor, sideways (`overflow-x`) and, since review D #3, at the top and bottom (`overflow-y`) (the landing-polish helper in `content-boxes.ts`); in the Graveyard view every text range of a list tombstone lies inside its `section` box | 12.9 |
 | same | Header: at 640 × 800 with two currencies saved, header box ≤ 88 px tall; at 360 × 740 the Home control and counter share one `y` row | 1.1 |
 | `e2e/share-preview.spec.ts` | `request.get("/")` text: each tag and value of Req 4.1 by attribute; the CSP `meta` is the element right after `<meta charset>` and before the first new tag; `request.get("/og-image.png")`: `content-type` `image/png`, body ≤ 300 KB, IHDR width 1200 and height 630 (bytes 16 to 23) | 4.1, 4.2, 4.7 |
 | `e2e/demo-path.spec.ts` (extended) | The existing CSP, request, console and storage checks run unchanged while the test also uses the Home control (Leave, then back via the Primary action), opens and closes the Statement disclosure, and hovers and focuses each Footer tombstone without following its link | 12.1 |
@@ -939,7 +941,8 @@ Each row changes how a control is found (name, role, place), opens a disclosure 
 | `e2e/layout.spec.ts` line 197 "Helper panel fits and clears the stone and mound …" | Measures the panel as shown | Clicks "Write to them instead for Netflix" before measuring, so the long email lines are measured | 8.8 |
 | `e2e/layout.spec.ts` line 85 "each card is whole inside the stage and the viewport, also after Next and Skip" | Runs at its current sizes | Also runs at 1280 × 800 and 1600 × 900; its assertions are unchanged. After a burial, "Next" is found inside the region "Seal the grave: <name>" | 7.6, 8.4 |
 | `e2e/landing.spec.ts` line 1213 "results view keeps the fixed fence and has no ridge band" | No `[data-ridge-band]`, a fixed fence | Renamed "results view has the ridge band in the flow and no fixed fence": exactly one `[data-ridge-band]` with computed `position` other than `fixed`, before the `footer` in DOM order; no fixed-position element contains the fence. Line 1217 "Read another statement" becomes the `h2` "Try another statement" | 5.1, 5.6, 3.1 |
-| `e2e/landing.spec.ts` lines 107–160 "non-landing moon" | At ≥ 1024 px, `shown` and the geometry checks for every state | For `results` and `graveyard` (Wide-layout views) at ≥ 1024 px: `count === 1` and `shown === false`. `error`, `no-subscriptions` and `working-other` keep every check | Decision "Moon on Wide-layout views", 7.1 |
+| `e2e/landing.spec.ts` lines 107–160 "non-landing moon" | At ≥ 1024 px, `shown` and the geometry checks for every state | For `results` and `graveyard` (Wide-layout views) at every width: `count === 0` (no sky moon is drawn, owner decision Option A). `error`, `no-subscriptions` and `working-other` keep every check | Decision "Moon on Wide-layout views", 7.1 |
+| `landing-page.test.tsx` "draw no Hills, Fence or Ground in a fixed layer" (Non-landing views) | Fixed layers hold exactly `SVG_COUNT` = 11 svgs on `results` | On `results` (a Wide-layout view, no sky moon) fixed layers hold exactly 10 svgs: Stars, three fog bands of one filter svg and two tiles. The Hills, Fence and Ground checks stay | Decision "Moon on Wide-layout views", 5.3, 7.1 |
 | `e2e/landing.spec.ts` lines 715, 736–750 "footer reaper description on its own line" | Link "The Reaper on GitHub"; description on its own line under the link | Link "The Reaper"; renamed "footer reaper description spans the row under the stones": the description `p` starts below every stone's bottom edge and its width is the list's width ± 1 px | 2.3 |
 | `landing-page.test.tsx` line 150 (outline) | `[2, "Or read your own statement"]` | `[2, "Or use your own statement"]` | 11.5 |
 | `landing-page.test.tsx` lines 419–448 (Footer) | "Built with Kiro." text; links "Zombills on GitHub", "The Reaper on GitHub" | No element with the text "Built with Kiro."; the four Footer tombstones of Req 2.2 with names, `href`s and descriptions as in `chrome.test.tsx`. `STATEMENT_TIP` is still not in the Footer (line 434 unchanged) | 2.2, 2.13 |
@@ -952,6 +955,12 @@ Each row changes how a control is found (name, role, place), opens a disclosure 
 | `graveyard-flow.test.tsx` lines ~193–195 | answer buttons present and `aria-disabled` during `burying` | answer buttons absent during `burying` (each queried by exact name is null) | 6.3, 6.5 |
 | `graveyard/cancel-helper.test.tsx` line ~155 | cancel link `class` contains `underline` | cancel link has `data-variant="secondary"` exactly | 6.5 |
 | `graveyard/rising-view.test.tsx` cases that find "Next" below the Stage while `buried` | "Next" after the Stage | "Next" is the last control inside the region "Seal the grave: <name>" | 8.4 |
+| `graveyard/graveyard-view.test.tsx` line ~134 "lists the tombstones in Graveyard order, each with an Unbury button" | `querySelectorAll("ul > li > div > section")` has length 2 | `querySelectorAll("ul > li > div:first-child > section")` has length 2: the Helper panel now sits after the plate as a direct `div` of the `li`, so the locator names the stone's wrapper (the `li`'s first child); the count stays exact | 8.6 (review D #4) |
+| `graveyard/graveyard-view.test.tsx` lines ~326–337 (How to cancel spans the row) | `not.toContain("col-span-2")` on closed items; `toContain("min-[641px]:col-span-2")` on the open item | `not.toContain("col-span")` on closed items (stricter: no span class at all); `toContain("col-span-full")` on the open item | 9.1 (review D #2) |
+| `graveyard/graveyard-view.test.tsx` lines ~402–411 (two Helper panels mounted) | Queries "Copy email for …" in both panels straight away | Clicks "Write to them instead for Netflix" and "… for Spotify" in their panels first; the Copy and name assertions stay | 8.2 (review D #2) |
+| `graveyard/graveyard-view.test.tsx` line ~570 (button variants) | `variantOf("Answer now Riverside Gym Membership")` is `"secondary"` | The button named `` `Answer now Riverside Gym Membership · ${formatMoney(34800, "USD")} a year` `` has `data-exempt="waiting-chip"` (the Waiting chip is its own style, not a variant). Owner approved 2026-11-21 | 9.3 (review D #2) |
+| `graveyard/memory-panel.test.tsx` line ~129 "shows no note when there is none" | `querySelectorAll("p")` has length 1 | The `p` texts equal exactly `[MEMORY_SHORT, MEMORY_HINT]` | 9.4 (review D #2) |
+| `graveyard/rising-view.test.tsx` "gives the root the grid and the summary the sticky Card classes" | Root has `gap-6`; summary has `lg:sticky`, `lg:top-4`, `lg:self-start` | Renamed "… the summary the Card classes, with no sticky summary": root has `gap-4`, `lg:gap-6`, `lg:grid-rows-[auto_1fr]` and not `gap-6`; summary has `lg:self-start` and neither `lg:sticky` nor `lg:top-4`; the statement area has `lg:self-start`. Every other class stays | 7.1, 7.3, 7.4 (review D #1, #8) |
 
 Expected to pass unchanged: every `@zombills/core` test, the `page-state` property tests other than the new file, `haunt-view.test.ts`, the share-card suites, `csp-plugin.test.ts`, `netlify-config.test.ts`, `storage-lint.test.ts`, `landing-motion.spec.ts`, `app.test.tsx` (it checks the Landing `h1`, which keeps the name "Zombills"), the Fold checks and the R8.5 Footer font check of `landing.spec.ts` (the font check now also covers the stone labels), and the Primary action locators in `demo-path.spec.ts` and `layout.spec.ts`.
 
@@ -984,7 +993,8 @@ Each note is appended to the named criterion in its existing style, "(Changed by
 | graveyard-memory R1.1, R1.5 | The hint sits behind "What is kept?", stays in the DOM and still describes the checkbox, after `MEMORY_SHORT`. |
 | graveyard-memory R1.6 | The sentence is shown as the Privacy note plus the Tip; the Tip's wording changed. |
 | cancel-helper R7, R7.5 | For Cancel entries the email part is behind "Write to them instead" and starts collapsed; the "Or ask them in writing:" intro is removed. On the Rising, "Next" sits inside the Helper panel. |
-| cancel-helper R8.1, R8.2 | The tab order passes the Email disclosure button, and on the Rising "Next" is the Helper panel's last control. |
+| cancel-helper R8.1 | The tab order passes the Email disclosure button, and on the Rising "Next" is the Helper panel's last control. |
+| cancel-helper R8.2 | On the Rising "Next" is the Helper panel's last control, inside the panel, so the panel no longer sits between the tombstone and "Next". |
 | cancel-helper R10.4 | The demo-path mailto check opens "Write to them instead" before finding "Open in my email app". |
 | cancel-helper R10.5 | The Helper panel overflow test opens "Write to them instead" before measuring. |
 | vertical-slice R2.2 | The Sample labels are "US bank statement", "UK bank statement", "European bank statement" and "Statement with extra top lines". |

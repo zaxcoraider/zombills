@@ -13,7 +13,12 @@ import { PRIVACY_NOTE } from "./logic/memory-text";
 
 export interface SiteFooterProps {
   noteRef: Ref<HTMLParagraphElement>;
+  /**
+   * The Footer takes the column of `main` (design "Columns"): the Landing column when
+   * `landing`, else 640 px, widened at `lg` on Wide-layout views when `wide`.
+   */
   wide: boolean;
+  landing?: boolean;
   reduceMotion: boolean;
   onReadNote: () => void;
 }
@@ -69,7 +74,13 @@ const FOOTER_PAD_TOP = 2;
  */
 const EARTH_TOP = `calc(${FOOTER_PAD_TOP}rem + ${GHOST_HEADROOM}px + ${Math.max(...FOOTER_STONE_HEIGHTS)}rem - 24px)`;
 
-export function SiteFooter({ noteRef, wide, reduceMotion, onReadNote }: SiteFooterProps) {
+export function SiteFooter({
+  noteRef,
+  wide,
+  landing = false,
+  reduceMotion,
+  onReadNote,
+}: SiteFooterProps) {
   const newTabId = useId();
   const reaperDescId = useId();
   const stones: FooterStone[] = [
@@ -78,7 +89,9 @@ export function SiteFooter({ noteRef, wide, reduceMotion, onReadNote }: SiteFoot
     { label: PRIVACY_TOMBSTONE, onActivate: onReadNote },
     { label: KIRO_LINK.text, href: KIRO_LINK.href, describedBy: newTabId },
   ];
-  const column = wide ? "mx-auto w-full max-w-[1184px] px-4 sm:px-8" : "mx-auto max-w-[640px] px-4";
+  const column = landing
+    ? "mx-auto w-full max-w-[1184px] px-4 sm:px-8"
+    : `mx-auto max-w-[640px] px-4${wide ? " w-full lg:max-w-[1184px] lg:px-8" : ""}`;
   return (
     <footer className={`${column} relative pb-8 pt-8`}>
       <div

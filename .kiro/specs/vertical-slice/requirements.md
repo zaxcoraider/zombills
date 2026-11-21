@@ -67,6 +67,7 @@ Out of scope for this spec:
 1. THE Page SHALL show a drop area that accepts one file dropped on it, and a button inside or next to it that opens the browser's file picker for one file. The file input SHALL have `accept=".csv,text/csv"`.
 2. THE Page SHALL show one button per Sample, each labelled with a short human description of its layout (for example "US bank, signed amounts", "UK bank, debit and credit columns", "EU bank, semicolons", "Statement with a header block").
 (Changed by landing-polish: On the Landing view the US Sample is offered by the Primary action "Summon the undead with a sample US bank statement" and the other three Samples as Secondary samples; the Non-landing gate keeps four Sample buttons.)
+(Changed by pro-polish: The Sample labels are "US bank statement", "UK bank statement", "European bank statement" and "Statement with extra top lines".)
 3. THE Samples SHALL be bundled into the site at build time from the files in `samples/`. Choosing a Sample SHALL NOT make a network request.
 4. WHEN the user drops a file on the drop area, picks a file, or chooses a Sample, THE Page SHALL start the analysis of that Statement source (Requirement 3) and enter the `working` state (Requirement 4).
 5. WHEN a file is dragged over the drop area, THE Page SHALL show that the drop area will accept it, with a text change as well as a colour change.
@@ -127,6 +128,7 @@ Out of scope for this spec:
 9. IF reading a file with the `File` API fails, THEN THE Page SHALL enter the `error` state with the message that the file could not be opened.
 10. WHILE the Page is in the `results`, `no-subscriptions` or `error` state, THE Page SHALL show a "Start again" button. WHEN it is activated, THE Page SHALL discard the statement text and the Analysis outcome, return to `idle`, and move keyboard focus to the drop area.
 11. WHILE the Page is in the `results`, `no-subscriptions` or `error` state, THE Page SHALL still accept a new drop, file or Sample, which replaces the current result.
+(Changed by pro-polish: On `results` and the Graveyard view, a window `dragenter` with Files opens the Statement disclosure so a new drop can replace the result.)
 12. Error messages SHALL quote only the file name, the parser's `reason` and column names; they SHALL NOT show transaction rows or amounts. A column name is shaped like a date WHEN, trimmed, it matches one of the parser's five date formats (statement-parser Requirement 3.1), and shaped like an amount WHEN, trimmed, it consists only of digits, at most one leading or trailing sign or pair of brackets, currency symbols, spaces and the separators `.`, `,` and `'`, with at least one digit.
 
 ### Requirement 5: The subscription list

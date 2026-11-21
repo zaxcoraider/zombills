@@ -369,15 +369,15 @@ Task 24 defines the variants and their contrast; tasks 25 to 27 apply them, one 
 
 Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; tasks 39 to 41 the Graveyard view and Memory; task 42 adds the Page-level tab-order and outline tests; task 43 the size and radius checks; task 44 the notes in earlier specs; task 45 is the final checkpoint.
 
-- [ ] 35. Wide views, the column and the moon (`slice/page-state.ts`, `slice/slice-page.tsx`, `chrome/compact-header.tsx`, `slice/site-footer.tsx`)
+- [x] 35. Wide views, the column and the moon (`slice/page-state.ts`, `slice/slice-page.tsx`, `chrome/compact-header.tsx`, `slice/site-footer.tsx`)
   - In `page-state.ts`, export `isWideView(model)` as in design "Page model".
   - In `slice-page.tsx`: `wide = isWideView(model)`; Non-landing `main` keeps `max-w-[640px] px-4` and adds `lg:max-w-[1184px] lg:px-8` when `wide`; `CompactHeader` and `SiteFooter` get `wide` and take the same column; `NightScene` gets `skyMoon={!landing && !wide}`.
   - Unit tests `slice/page-state.test.ts`: `isWideView` for every view kind × both screens (`working` on `main` false; the Landing view false; `results` either screen and the Graveyard screen true; `error` and `no-subscriptions` on `main` false).
-  - Existing tests, per "Existing tests that change": `landing-page.test.tsx` "Non-landing views" also expects `lg:max-w-[1184px]` on `main` for `results` and the Graveyard view (the rest of the row was done in task 19); `e2e/landing.spec.ts` lines 107–160 "non-landing moon": for `results` and `graveyard` at 1024 px and wider, `count === 1` and `shown === false`; `error`, `no-subscriptions` and `working-other` keep every check.
+  - Existing tests, per "Existing tests that change": `landing-page.test.tsx` "Non-landing views" also expects `lg:max-w-[1184px]` on `main` for `results` and the Graveyard view (the rest of the row was done in task 19); `e2e/landing.spec.ts` lines 107–160 "non-landing moon": for `results` and `graveyard` (Wide-layout views) at every width, `count === 0` (design "Existing tests that change", owner decision Option A); `error`, `no-subscriptions` and `working-other` keep every check.
   - Run in `apps/web`: `npx vitest run src/slice/page-state.test.ts src/slice/landing-page.test.tsx src/slice/chrome src/slice/graveyard/night-scene.test.tsx`; then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web -- e2e/landing.spec.ts`, then the whole run.
   - _Requirements: 5.3, 7.1, 7.2, 7.4, 7.5_
 
-- [ ] 36. Rising grid with the statement slot (`graveyard/rising-view.tsx`, `slice/slice-page.tsx`, `e2e/pro-polish.spec.ts`, `e2e/layout.spec.ts`)
+- [x] 36. Rising grid with the statement slot (`graveyard/rising-view.tsx`, `slice/slice-page.tsx`, `e2e/pro-polish.spec.ts`, `e2e/layout.spec.ts`)
   - `RisingViewProps` gains `statementSlot: ReactNode`. The root becomes the grid of design "Rising and Wide layout" (`grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,22rem)] lg:gap-x-8`, areas `stage summary` / `stage statement`); the summary panel is a Card (`rounded-card bg-fog/95 p-4 sm:p-6`) with `lg:sticky lg:top-4 lg:self-start`; DOM order stays summary, stage, statement. In `slice-page.tsx`, the `results` case of `MainState` passes the Statement disclosure as `statementSlot` and renders no separate gate on the main screen.
   - Component tests in `graveyard/rising-view.test.tsx`: the slot renders after the Stage in DOM order; the summary panel comes first.
   - Browser tests in `e2e/pro-polish.spec.ts`, Wide layout: at 1280 × 800 and 1600 × 900, the Stage box's right edge is left of the summary box's left edge and they do not overlap. The Graveyard grid check comes with the grid in task 39.
@@ -385,21 +385,21 @@ Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; 
   - Run in `apps/web`: `npx vitest run src/slice/graveyard/rising-view.test.tsx src/slice/graveyard-flow.test.tsx src/slice/slice-page.test.tsx`; then the whole web suite `npx vitest run`; then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web -- e2e/pro-polish.spec.ts e2e/layout.spec.ts`, then the whole run.
   - _Requirements: 7.1, 7.3, 7.4, 7.6, 12.6_
 
-- [ ] 37. Email disclosure in "Seal the grave" (`graveyard/cancel-helper.tsx`)
+- [x] 37. Email disclosure in "Seal the grave" (`graveyard/cancel-helper.tsx`)
   - For `help.kind === "link"`, as in design "Seal the grave": the order heading, `panelLine`, cancel link, steps, App-store note and links, checked line, then the Email disclosure: a secondary `button` with `aria-expanded`, `aria-controls`, `aria-label={withFor(WRITE_INSTEAD, displayName)}`, and a `div hidden={!emailOpen}` holding `BRACKETS_NOTE`, the email text (`data-email-text`), Copy, "Open in my email app" and `MAILTO_HINT`. `emailOpen` is component state, `false` on mount. `LINK_INTRO` is no longer rendered (the constant stays exported). For `email-only` the email part shows open after `EMAIL_ONLY_INTRO`, with no disclosure. The panel keeps its `section`, `aria-labelledby`, heading name, `NEW_TAB_TEXT` descriptions, `helperPanelMotion` and the `rounded-card` `bg-fog` Card.
   - Component tests in `graveyard/cancel-helper.test.tsx`: link-entry order; "Write to them instead for Netflix" collapsed with `hidden` content; opening it shows the email, Copy and mailto with today's names and notices; email-only shows the email with no disclosure.
   - Existing tests, per "Existing tests that change": `cancel-helper.test.tsx` line 137 helper and lines 238, 312 click "Write to them instead for Netflix" first, and the tab-order list gains it before the email controls; line 220 expects `queryByText(LINK_INTRO)` to be `null` for a link entry and the disclosure button to be the element after the checked line; `graveyard-flow.test.tsx` lines 655, 683 open the disclosure in the Graveyard Helper panel first; `e2e/demo-path.spec.ts` lines 142–146 click `panel.getByRole("button", { name: "Write to them instead for Netflix" })` first; `e2e/layout.spec.ts` line 197 "Helper panel fits …" clicks it before measuring.
   - Run in `apps/web`: `npx vitest run src/slice/graveyard/cancel-helper.test.tsx src/slice/graveyard-flow.test.tsx src/slice/graveyard/graveyard-view.test.tsx`; then the whole web suite `npx vitest run`; then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web -- e2e/layout.spec.ts e2e/demo-path.spec.ts`, then the whole run.
   - _Requirements: 8.1, 8.2, 8.3, 8.5, 8.6, 8.8, 13.3_
 
-- [ ] 38. "Next" inside the Helper panel (`graveyard/cancel-helper.tsx`, `graveyard/burial-stage.tsx`, `graveyard/rising-view.tsx`)
+- [x] 38. "Next" inside the Helper panel (`graveyard/cancel-helper.tsx`, `graveyard/burial-stage.tsx`, `graveyard/rising-view.tsx`)
   - `CancelHelperProps` gains `next?: ReactNode`, rendered last in a `div.mt-6`. `BurialStage` passes it through. `RisingView` passes the primary "Next" / "Visit the graveyard" button as `next` when the stage is `buried` and does not render it below the Stage then; in `rested` and `burying` it stays below the Stage as today (design "Next" placement table). The Graveyard view passes no `next`.
   - Component tests: `graveyard/cancel-helper.test.tsx` checks `next` renders as the last child; `graveyard/rising-view.test.tsx` checks the placement per stage; a case in `graveyard-flow.test.tsx` checks that from the stage tombstone, which has focus after the rise, "Next" is reached in 3 Tab presses when `appStoreMayApply` is false and 5 when it is true.
   - Existing tests, per "Existing tests that change": `rising-view.test.tsx` cases that find "Next" below the Stage while `buried` find it as the last control inside the region "Seal the grave: <name>"; `e2e/layout.spec.ts` line 85 finds "Next" inside that region after a burial.
   - Run in `apps/web`: `npx vitest run src/slice/graveyard src/slice/graveyard-flow.test.tsx src/slice/one-primary.test.tsx`; then the whole web suite `npx vitest run`; then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web -- e2e/layout.spec.ts e2e/demo-path.spec.ts`, then the whole run.
   - _Requirements: 6.5, 8.4, 8.5, 8.7_
 
-- [ ] 39. Tombstone grid on ground lines and the view's Cards (`graveyard/graveyard-view.tsx`)
+- [x] 39. Tombstone grid on ground lines and the view's Cards (`graveyard/graveyard-view.tsx`)
   - As in design "Graveyard view and Memory": split the single `bg-fog/95` panel into Cards (heading and totals; "Resting" and "Already stopped"; Share; "Not answered yet"; Memory; a closing Card with "Back to the rising" / "Back to the start"). The tombstone list becomes `ul.grid.grid-cols-1.gap-x-4.gap-y-8.sm:grid-cols-2.lg:grid-cols-3.min-[1600px]:grid-cols-4` with no Card; each `li` is `flex flex-col` holding the `Tombstone`, a `GroundLine` (`-mx-2`), and the actions plate (`flex flex-wrap gap-2 rounded-card bg-fog/95 p-2`) with "How to cancel" then "Unbury". Ended subscriptions show no "How to cancel". An open Helper panel is a `col-span-full` `li`. The heading and "You buried … a year." lines stay first with their text and `Money` figures.
   - Component tests in `graveyard/graveyard-view.test.tsx`: in each item "How to cancel" comes before "Unbury" (named "Unbury <Display name>"); each item has one `aria-hidden` ground line; the heading keeps `font-display` and its focus target; "Back to the rising" is the last control of the view.
   - Browser test in `e2e/pro-polish.spec.ts`: at 1280 × 800, a Graveyard of 3 buried records has 3 tombstones sharing the first row's `y`.
@@ -407,7 +407,7 @@ Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; 
   - Existing tests: none change; tests that find a tombstone's actions by name pass as written.
   - _Requirements: 7.2, 9.1, 9.2, 9.7, 9.8, 12.11_
 
-- [ ] 40. Waiting chips (`graveyard/graveyard-view.tsx`)
+- [x] 40. Waiting chips (`graveyard/graveyard-view.tsx`)
   - "Not answered yet" keeps its `h3`; each queued subscription becomes `button type="button" data-exempt="waiting-chip"` (`min-h-11 rounded-control border border-bone/50 bg-fog px-4 text-small`) in `ul.flex.flex-wrap.gap-2`, with visible text `` `${displayName} · ${yearlyText} a year` `` ("about " and " (estimate)" as today when `cadenceAssumed`) and `aria-label={`Answer now ${visibleText}`}`. Activating it dispatches `answer-now`.
   - Add the Waiting chip text and outline contrast rows to `src/contrast.test.ts`.
   - Component tests in `graveyard/graveyard-view.test.tsx`: visible text and exact name for a fixture with and without `cadenceAssumed`; activation dispatches `answer-now` with the id.
@@ -415,7 +415,7 @@ Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; 
   - Run in `apps/web`: `npx vitest run src/slice/graveyard/graveyard-view.test.tsx src/slice/graveyard-flow.test.tsx src/slice/slice-page.test.tsx src/slice/one-primary.test.tsx src/contrast.test.ts src/static-checks.test.ts`; then root `npm test`, `npm run typecheck`, `npm run lint`.
   - _Requirements: 9.3, 12.4, 13.3_
 
-- [ ] 41. Memory toggle, short sentence and "What is kept?" (`graveyard/memory-panel.tsx`, `logic/memory-text.ts`)
+- [x] 41. Memory toggle, short sentence and "What is kept?" (`graveyard/memory-panel.tsx`, `logic/memory-text.ts`)
   - In `memory-text.ts`, add `MEMORY_SHORT` = "Kept only in this browser, on this device.".
   - In `memory-panel.tsx`, the order of Req 9.4: `h3` "Memory"; a `label` (`flex min-h-11 items-center gap-2`) holding the checkbox drawn as a switch (`appearance-none`, 44 × 24 px `rounded-pill` track, `--bone/45` border off, `--moss` fill on, a 16 px knob placed by `checked:` classes, no transition) and `MEMORY_LABEL`; `p#shortId` `MEMORY_SHORT`; the "What is kept?" tertiary disclosure button and `p#hintId hidden={!open}` `MEMORY_HINT`; the notes; "Forget everything" and its confirmation, unchanged. The checkbox keeps `type="checkbox"` (no `role="switch"`), `data-focus="memory-checkbox"`, its change handler, and `aria-describedby={`${shortId} ${hintId}`}`.
   - Add the toggle off and on contrast rows and `MEMORY_SHORT` to `src/contrast.test.ts`; add `MEMORY_SHORT` to the banned-word check of `logic/chrome-text.test.ts` or `logic/memory-text.test.ts`.
@@ -424,7 +424,7 @@ Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; 
   - Run in `apps/web`: `npx vitest run src/slice/graveyard/memory-panel.test.tsx src/slice/graveyard-memory-flow.test.tsx src/slice/logic src/contrast.test.ts`; then the whole web suite `npx vitest run`; then root `npm test`, `npm run typecheck`, `npm run lint`.
   - _Requirements: 9.4, 9.5, 9.6, 9.9, 12.4_
 
-- [ ] 42. Page tab orders, outlines and Live region silence (`slice/pro-polish-page.test.tsx`)
+- [x] 42. Page tab orders, outlines and Live region silence (`slice/pro-polish-page.test.tsx`)
   - Tests only. Create `slice/pro-polish-page.test.tsx` with the tab orders of design "Component tests" by accessible name from `document.body`, Memory off, disclosure collapsed: `results` `ask`; the same with the disclosure open; `results` `buried` (the stage tombstone, the cancel link, any App-store links, "Write to them instead for …", "Next"); the Graveyard view; `error`; `error` and `no-subscriptions` with a restored Graveyard; the Landing view (with "Open the graveyard" of the Return notes when a Graveyard is restored).
   - Heading outlines of `results` and the Graveyard view: one `h1` named `HOME_CONTROL_NAME`, no skipped level (P5).
   - Req 12.10: the Live region text is the same before and after using the Home control, the Leave question, "Try another statement", "Write to them instead", "What is kept?" and each Footer tombstone.
@@ -434,18 +434,18 @@ Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; 
   - Existing tests: none change.
   - _Requirements: 1.2, 12.5, 12.6, 12.10, 13.4_
 
-- [ ] 43. Size checks and the radius static check (`e2e/pro-polish.spec.ts`, `src/static-checks.test.ts`)
+- [x] 43. Size checks and the radius static check (`e2e/pro-polish.spec.ts`, `src/static-checks.test.ts`)
   - Browser test in `e2e/pro-polish.spec.ts`, Sizes: at 320 × 568 and at 390 × 844 with 200 % root font size, for the Landing view, `results` (disclosure open), the Graveyard view (with a restored Graveyard, Helper panel and Email disclosure open), `error` and `no-subscriptions`: `scrollWidth <= innerWidth`, and no text range outside its nearest clipping ancestor (the helpers in `e2e/content-boxes.ts`). The existing 320 × 568 Fold check passes unchanged.
   - Static check "Radius (design tokens)" in `src/static-checks.test.ts`: in the files this spec creates or restyles (a constant list in the test, without `undead-card.tsx`), no `rounded`, `rounded-sm`, `rounded-lg`, `rounded-xl` or `rounded-2xl` remains. Replace any found with `rounded-control` or `rounded-card` in the owning file.
   - Run in `apps/web`: `npx vitest run src/static-checks.test.ts`; then root `npm test`, `npm run typecheck`, `npm run lint`; then `npm run test:e2e --workspace @zombills/web -- e2e/pro-polish.spec.ts`, then the whole run.
   - Existing tests: none change.
   - _Requirements: 2.10, 12.9, 13.6_
 
-- [ ] 44. Notes in earlier specs (`.kiro/specs/landing-polish/requirements.md`, `.kiro/specs/graveyard-ui/requirements.md`, `.kiro/specs/graveyard-memory/requirements.md`, `.kiro/specs/cancel-helper/requirements.md`, `.kiro/specs/vertical-slice/requirements.md`, `.kiro/specs/landing-nits/requirements.md`, `.kiro/specs/share-card/requirements.md`)
+- [x] 44. Notes in earlier specs (`.kiro/specs/landing-polish/requirements.md`, `.kiro/specs/graveyard-ui/requirements.md`, `.kiro/specs/graveyard-memory/requirements.md`, `.kiro/specs/cancel-helper/requirements.md`, `.kiro/specs/vertical-slice/requirements.md`, `.kiro/specs/landing-nits/bugfix.md`, `.kiro/specs/share-card/requirements.md`)
   - Append each note of design "Notes to add to earlier specs" to the named criterion or decision, in the existing style "(Changed by pro-polish: …)". Change no other text in those files. The notes are checked by reading.
   - _Requirements: 13.1_
 
-- [ ] 45. Batch D checkpoint, full verification and traceability review
+- [x] 45. Batch D checkpoint, full verification and traceability review
   - Run from the repo root: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`; then `npm run test:e2e --workspace @zombills/web`. All must pass.
   - Searches that must find nothing in the new and changed non-test files under `src/slice/chrome`, `src/slice/statement`, `button-variants.ts`, `logic/chrome-text.ts`, `logic/progress-dots.ts`, `logic/design-tokens.ts`, `site-footer.tsx`, `drop-zone.tsx`, `slice-page.tsx` and the changed `graveyard/` files: `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon`, `localStorage`, `sessionStorage`, `indexedDB`, `document.cookie`, `history.`, `location.`, `eval`, `new Function`, a hex colour literal, a `disabled` attribute, a positive `tabindex`, `<link`, `<image`, `<foreignObject`, `<text`, `Infinity`, and any import from `packages/core/src`.
   - Check that `git diff` shows no change to the files listed in task 16; that `public/` holds only `favicon.svg`, `og-image.svg` and `og-image.png`; that the `privacy-guard` hook and the Playwright request checks pass with no new exception; and that each changed existing test matches a row of "Existing tests that change" or a task note, and removes or widens no assertion (Req 13.2).
@@ -453,6 +453,13 @@ Tasks 35 and 36 build the Wide layout; tasks 37 and 38 change "Seal the grave"; 
   - Req 13.8 is manual: screenshots of the built site at 1280 × 800 and 390 × 844 (results after Summon, after one Bury with "Seal the grave", the Graveyard view) are taken by hand before release; no baseline is committed. Record it as a release step, not done by this task.
   - Report any gap as a finding instead of fixing it here, unless the fix is a one-line test or text change.
   - _Requirements: all; in particular 12.1, 12.2, 13.2, 13.7, 13.8_
+
+- [x] 45.1. Batch D fix round (`review-batch-D.md`)
+  - Apply every finding in `review-batch-D.md`: reviewer findings 1 to 8 as each "Fix:" says, with the owner decisions listed there (#1: `lg:grid-rows-[auto_1fr]`, `lg:self-start` on the statement area, drop the sticky summary and record it in design "Rising and Wide layout", e2e gap check ≤ 32 px at 1280 × 800 and 1600 × 900; #2: rows in "Existing tests that change", the waiting-chip row marked "owner approved 2026-11-21", plus the task 35 moon-count row if needed; #3: `clippedText` also checks top and bottom against `overflow-y`, and the tombstone text-inside-section assertion; #5: check the knob in Firefox and WebKit only if installed, else or if missing use a sibling `span` with `peer-checked:`; #7: one R7 note in cancel-helper and the `landing-nits/bugfix.md` path in task 44; #8: `gap-4 lg:gap-6`), and owner finding V1 ("What is kept?" text aligned with the Memory short sentence, target at least 44 × 44 px, focus outline fully visible).
+  - Replace a pinned value only with the new exact value; never weaken or delete a test.
+  - Append a `## Resolution` table to `review-batch-D.md` (finding, what changed, files, tests).
+  - Rerun the task 45 checkpoint commands including the whole e2e run; all must pass.
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 8.6, 9.4, 12.9, 13.1, 13.2, 13.6_
 
 ### Traceability
 

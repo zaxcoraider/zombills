@@ -148,6 +148,95 @@
         "chatSessionId": "sess_8619e3f4-0568-4e94-87ee-ec2058d7ce3d",
         "timestamp": 1795084137117
       }
+    ],
+    "35. Wide views, the column and the moon (`slice/page-state.ts`, `slice/slice-page.tsx`, `chrome/compact-header.tsx`, `slice/site-footer.tsx`)": [
+      {
+        "executionId": "f33078ff-1c4e-4058-a3a7-ea5d5fb2ecb0",
+        "chatSessionId": "sess_f6523ada-cd71-4388-9c55-f9fc0e45850f",
+        "timestamp": 1795085666381
+      },
+      {
+        "executionId": "2098fc06-dff2-4c66-ba59-3422220e5347",
+        "chatSessionId": "sess_0f4db366-f603-4ce6-9437-662e75517d8f",
+        "timestamp": 1795086221095
+      }
+    ],
+    "36. Rising grid with the statement slot (`graveyard/rising-view.tsx`, `slice/slice-page.tsx`, `e2e/pro-polish.spec.ts`, `e2e/layout.spec.ts`)": [
+      {
+        "executionId": "f41c8ae6-a49b-465b-9833-3d4b2df1e642",
+        "chatSessionId": "sess_d54fb042-30b5-47ec-b936-102f8079c8a0",
+        "timestamp": 1795086276301
+      }
+    ],
+    "37. Email disclosure in \"Seal the grave\" (`graveyard/cancel-helper.tsx`)": [
+      {
+        "executionId": "90db4dbd-35cc-48b9-851e-8ac30f1a45f3",
+        "chatSessionId": "sess_0b907712-0679-4ab1-b783-96f8104c8464",
+        "timestamp": 1795086707600
+      }
+    ],
+    "38. \"Next\" inside the Helper panel (`graveyard/cancel-helper.tsx`, `graveyard/burial-stage.tsx`, `graveyard/rising-view.tsx`)": [
+      {
+        "executionId": "1c55615c-efba-4e8f-925a-ae64b1c5b167",
+        "chatSessionId": "sess_8ced22bb-fee9-45da-bf58-da73064155ce",
+        "timestamp": 1795242180508
+      }
+    ],
+    "39. Tombstone grid on ground lines and the view's Cards (`graveyard/graveyard-view.tsx`)": [
+      {
+        "executionId": "2ba50a1c-c977-4c74-9b2b-8adb4058118d",
+        "chatSessionId": "sess_602225a2-03d3-4931-882e-62df5b71b6f2",
+        "timestamp": 1795242642790
+      }
+    ],
+    "40. Waiting chips (`graveyard/graveyard-view.tsx`)": [
+      {
+        "executionId": "aaf7bb59-af43-47fd-a984-39749d9432bf",
+        "chatSessionId": "sess_bf3ced89-85d5-430f-a994-9ed1f8a85d4c",
+        "timestamp": 1795243122356
+      }
+    ],
+    "41. Memory toggle, short sentence and \"What is kept?\" (`graveyard/memory-panel.tsx`, `logic/memory-text.ts`)": [
+      {
+        "executionId": "7d027457-67fc-4f86-a6c9-e2ed65b4b484",
+        "chatSessionId": "sess_316e318f-0102-4a5a-9958-a0a7cf8fc2b0",
+        "timestamp": 1795244541318
+      }
+    ],
+    "42. Page tab orders, outlines and Live region silence (`slice/pro-polish-page.test.tsx`)": [
+      {
+        "executionId": "29313020-c8bd-4738-bfb5-8d4532502779",
+        "chatSessionId": "sess_239fb9d5-57dc-4e8f-a3be-38f42e5a8e66",
+        "timestamp": 1795244869173
+      }
+    ],
+    "43. Size checks and the radius static check (`e2e/pro-polish.spec.ts`, `src/static-checks.test.ts`)": [
+      {
+        "executionId": "14927484-a92a-4716-9106-8c8215c2e032",
+        "chatSessionId": "sess_16208960-a649-40bd-863e-fdbe5b3d1377",
+        "timestamp": 1795245237718
+      }
+    ],
+    "44. Notes in earlier specs (`.kiro/specs/landing-polish/requirements.md`, `.kiro/specs/graveyard-ui/requirements.md`, `.kiro/specs/graveyard-memory/requirements.md`, `.kiro/specs/cancel-helper/requirements.md`, `.kiro/specs/vertical-slice/requirements.md`, `.kiro/specs/landing-nits/requirements.md`, `.kiro/specs/share-card/requirements.md`)": [
+      {
+        "executionId": "3accafa9-7af5-456e-9ce2-9f00516c51a3",
+        "chatSessionId": "sess_3511cd4e-2973-4f0a-b6d9-fd2d652c3f8a",
+        "timestamp": 1795245936773
+      }
+    ],
+    "45. Batch D checkpoint, full verification and traceability review": [
+      {
+        "executionId": "aeea6652-2c74-4d94-acb1-f2475aaafcab",
+        "chatSessionId": "sess_fb08ccaa-b2f3-4fd0-b1d6-1d90720721d1",
+        "timestamp": 1795246236028
+      }
+    ],
+    "45.1. Batch D fix round (`review-batch-D.md`)": [
+      {
+        "executionId": "c712c154-444c-49c4-a4df-ddabb02e8f98",
+        "chatSessionId": "sess_2b7b363c-604a-46cb-bfcd-c7bb9fa9e777",
+        "timestamp": 1795247446469
+      }
     ]
   }
 }

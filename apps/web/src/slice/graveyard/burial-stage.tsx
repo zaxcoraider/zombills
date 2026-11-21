@@ -3,7 +3,7 @@
 
 import type { ClassifiedSubscription } from "@zombills/core";
 import { motion } from "framer-motion";
-import type { CSSProperties, Dispatch } from "react";
+import type { CSSProperties, Dispatch, ReactNode } from "react";
 import type { PageAction, RisingStage } from "../page-state";
 import type { AnswerRecord } from "../logic/graveyard";
 import { BurialMound, SinkCrumbs } from "./burial-earth";
@@ -25,6 +25,8 @@ export interface BurialStageProps {
   canSkip: boolean;
   reduceMotion: boolean;
   dispatch: Dispatch<PageAction>;
+  /** Rendered last inside the Helper panel while buried (Req 8.4) */
+  next?: ReactNode;
 }
 
 // The stage's own earth band: whatever is below the ground line is underground. It holds only
@@ -64,6 +66,7 @@ export function BurialStage({
   canSkip,
   reduceMotion,
   dispatch,
+  next,
 }: BurialStageProps) {
   const { id } = subscription;
   const stageRef = useFocusRequest(`stage:${id}`);
@@ -137,7 +140,12 @@ export function BurialStage({
 
       {buried && record !== null && (
         <motion.div className="mt-6 flex justify-center px-3" {...helperPanelMotion(reduceMotion)}>
-          <CancelHelper record={record} displayName={displayName} reduceMotion={reduceMotion} />
+          <CancelHelper
+            record={record}
+            displayName={displayName}
+            reduceMotion={reduceMotion}
+            next={next}
+          />
         </motion.div>
       )}
     </div>

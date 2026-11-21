@@ -24,6 +24,7 @@ import {
   INITIAL_PAGE_MODEL,
   initialPageModel,
   isLandingView,
+  isWideView,
   pageReducer,
   shouldAskBeforeLeaving,
 } from "./page-state";
@@ -187,6 +188,27 @@ describe("isLandingView", () => {
           (view.kind === "idle" || (view.kind === "working" && view.origin === "landing"));
         expect(isLandingView({ view, screen })).toBe(expected);
       }
+    }
+  });
+});
+
+describe("isWideView (pro-polish Req 7.1, 7.2, 7.5)", () => {
+  const cases: [PageModel["view"], "main" | "graveyard", boolean][] = [
+    [{ kind: "idle" }, "main", false],
+    [{ kind: "idle" }, "graveyard", true],
+    [{ kind: "working", sourceName: "a.csv", origin: "landing" }, "main", false],
+    [{ kind: "working", sourceName: "a.csv", origin: "other" }, "main", false],
+    [RESULTS_MODEL.view, "main", true],
+    [RESULTS_MODEL.view, "graveyard", true],
+    [NO_SUBS_MODEL.view, "main", false],
+    [NO_SUBS_MODEL.view, "graveyard", true],
+    [ERROR_MODEL.view, "main", false],
+    [ERROR_MODEL.view, "graveyard", true],
+  ];
+
+  it("is true for results on either screen and for the Graveyard screen, else false", () => {
+    for (const [view, screen, expected] of cases) {
+      expect(isWideView({ view, screen }), `${view.kind} on ${screen}`).toBe(expected);
     }
   });
 });

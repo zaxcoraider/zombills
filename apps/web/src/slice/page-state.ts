@@ -213,6 +213,11 @@ export function isLandingView(model: Pick<PageModel, "view" | "screen">): boolea
   );
 }
 
+/** The Wide layout (Req 7.1, 7.2, 7.5): `results` on either screen, and the Graveyard view. */
+export function isWideView(model: Pick<PageModel, "view" | "screen">): boolean {
+  return !isLandingView(model) && (model.view.kind === "results" || model.screen === "graveyard");
+}
+
 /** Req 1.10: the Home control asks first exactly when there are results to put away. */
 export function shouldAskBeforeLeaving(model: Pick<PageModel, "view">): boolean {
   return model.view.kind === "results";

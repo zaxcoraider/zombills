@@ -172,3 +172,67 @@ export function circleHitsRect(cx: number, cy: number, r: number, rect: DocRect)
 export function inViewport(rect: DocRect, scrollY: number, width: number, height: number): boolean {
   return rect.x1 > 0 && rect.x0 < width && rect.y1 > scrollY && rect.y0 < scrollY + height;
 }
+
+/**
+ * Every visible text range outside its nearest clipping ancestor (sideways: the first ancestor
+ * whose `overflow-x` is not `visible`, or the viewport width when there is none; top and bottom:
+ * the first ancestor below `body` whose `overflow-y` is not `visible`, if any). Text inside
+ * an `aria-hidden="true"` or visually-hidden (`sr-only`) ancestor is skipped. Returns one line
+ * per offending range; an empty list means no text is clipped (landing-polish and pro-polish
+ * Req 12.9).
+ */
+export function clippedText(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const hidden = (start: Element | null): boolean => {
+      for (let el = start; el !== null; el = el.parentElement) {
+        if (el.getAttribute("aria-hidden") === "true") return true;
+        const s = getComputedStyle(el);
+        if (s.clipPath === "inset(50%)" || s.clip === "rect(0px, 0px, 0px, 0px)") return true;
+      }
+      return false;
+    };
+    const bad: string[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+      const text = (n.textContent ?? "").trim();
+      const parent = n.parentElement;
+      if (text === "" || parent === null || hidden(parent)) continue;
+      if (["SCRIPT", "STYLE"].includes(parent.tagName)) continue;
+      let bounds = { left: 0, right: window.innerWidth };
+      for (let el: Element | null = parent; el !== null; el = el.parentElement) {
+        if (getComputedStyle(el).overflowX !== "visible") {
+          const r = el.getBoundingClientRect();
+          bounds = { left: r.left, right: r.right };
+          break;
+        }
+      }
+      // Top and bottom: the nearest ancestor below `body` whose overflow-y is not visible; none
+      // means only the document scrolls, so nothing is cut vertically (Batch D #3).
+      let yBounds: { top: number; bottom: number } | null = null;
+      for (let el: Element | null = parent; el !== null; el = el.parentElement) {
+        if (el === document.documentElement || el === document.body) break;
+        if (getComputedStyle(el).overflowY !== "visible") {
+          const r = el.getBoundingClientRect();
+          yBounds = { top: r.top, bottom: r.bottom };
+          break;
+        }
+      }
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of Array.from(range.getClientRects())) {
+        if (r.width === 0) continue;
+        if (r.left < bounds.left - 0.5 || r.right > bounds.right + 0.5) {
+          bad.push(
+            `"${text.slice(0, 40)}" x ${r.left}–${r.right} outside ${bounds.left}–${bounds.right}`,
+          );
+        }
+        if (yBounds !== null && (r.top < yBounds.top - 0.5 || r.bottom > yBounds.bottom + 0.5)) {
+          bad.push(
+            `"${text.slice(0, 40)}" y ${r.top}–${r.bottom} outside ${yBounds.top}–${yBounds.bottom}`,
+          );
+        }
+      }
+    }
+    return bad;
+  });
+}

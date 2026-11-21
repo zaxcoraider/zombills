@@ -431,11 +431,15 @@ describe("graveyard flow: Graveyard view", () => {
     ).toBeTruthy();
     expect(
       within(section("Not answered yet")).getByRole("button", {
-        name: "Answer now Riverside Gym Membership",
+        name: `Answer now Riverside Gym Membership · ${formatMoney(34800, "USD")} a year`,
       }),
     ).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Answer now Riverside Gym Membership" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Answer now Riverside Gym Membership · ${formatMoney(34800, "USD")} a year`,
+      }),
+    );
     const gym = cardHeading("Riverside Gym Membership");
     await waitFor(() => expect(document.activeElement).toBe(gym));
     expect(screen.queryByRole("heading", { level: 2, name: "Your graveyard" })).toBeNull();
@@ -650,6 +654,13 @@ function panel(name: string): HTMLElement {
   return screen.getByRole("region", { name: `Seal the grave: ${name}` });
 }
 
+/** Opens the Email disclosure of a Helper panel (pro-polish Req 8.2); a click event keeps focus. */
+function openEmail(name: string): void {
+  fireEvent.click(
+    within(panel(name)).getByRole("button", { name: `Write to them instead for ${name}` }),
+  );
+}
+
 async function buryNetflix() {
   await summon();
   reachNetflix();
@@ -700,6 +711,9 @@ describe("graveyard flow: Helper panel on the Burial stage", () => {
       expect(a.getAttribute("rel")).toBe("noopener noreferrer");
     }
 
+    // Open the Email disclosure first (pro-polish Req 8.5, 8.8); a click event keeps focus on the
+    // tombstone, so the Tab walk below still starts there.
+    openEmail("Netflix");
     const email = netflix.querySelector("[data-email-text]") as HTMLElement;
     expect(email.textContent).toContain("Please cancel my Netflix subscription");
     expect(email.textContent).toContain(formatMoney(1799, "USD"));
@@ -717,6 +731,34 @@ describe("graveyard flow: Helper panel on the Burial stage", () => {
     for (const el of reached) expect(netflix.contains(el)).toBe(true);
     expectUnique();
   });
+
+  it.each([
+    { name: "Adobe Creative Cloud", serviceId: "adobe", appStore: false, presses: 3 },
+    { name: "Netflix", serviceId: "netflix", appStore: true, presses: 5 },
+  ])(
+    "reaches Next, the panel's last control, in $presses Tab presses from the $name tombstone",
+    async ({ name, serviceId, appStore, presses }) => {
+      const help = getCancelHelp(serviceId, "USD");
+      if (help.kind !== "link") throw new Error(`${serviceId} has a cancel page`);
+      expect(help.appStoreMayApply).toBe(appStore);
+      const user = userEvent.setup();
+      render(<App />);
+      await summon();
+      if (name === "Netflix") reachNetflix();
+      await buryCurrent(name);
+
+      const tombstone = screen.getByRole("region", { name: `Here lies ${name}.` });
+      await waitFor(() => expect(document.activeElement).toBe(tombstone));
+      const sealed = panel(name);
+      const next = within(sealed).getByRole("button", { name: "Next" });
+      for (let i = 1; i < presses; i += 1) {
+        await user.tab();
+        expect(document.activeElement).not.toBe(next);
+      }
+      await user.tab();
+      expect(document.activeElement).toBe(next);
+    },
+  );
 
   it("shows the email-only panel for Riverside Gym Membership", async () => {
     render(<App />);
@@ -743,6 +785,7 @@ describe("graveyard flow: Copy notice in the live region", () => {
     await buryNetflix();
     stubClipboard(writeText);
 
+    openEmail("Netflix");
     const copy = () =>
       fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
     copy();
@@ -766,6 +809,7 @@ describe("graveyard flow: Copy notice in the live region", () => {
     await buryNetflix();
     stubClipboard(() => Promise.reject(new Error("denied")));
 
+    openEmail("Netflix");
     fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
 
     await waitFor(() => expect(liveRegion().textContent).toBe(COPY_FAILED_NOTICE));
@@ -778,6 +822,7 @@ describe("graveyard flow: Copy notice in the live region", () => {
     await buryNetflix();
     stubClipboard(undefined);
 
+    openEmail("Netflix");
     fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
 
     await waitFor(() => expect(liveRegion().textContent).toBe(COPY_FAILED_NOTICE));
@@ -790,6 +835,7 @@ describe("graveyard flow: Copy notice in the live region", () => {
     stubClipboard(() => Promise.resolve());
     // Fix the sentence at the burial sentence, so the next model changes leave it unchanged.
     sentenceLock.text = liveRegion().textContent;
+    openEmail("Netflix");
     fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
     await waitFor(() => expect(liveRegion().textContent).toBe(copiedNotice("Netflix")));
 
@@ -808,6 +854,7 @@ describe("graveyard flow: Copy notice in the live region", () => {
     render(<App />);
     await buryNetflix();
     stubClipboard(() => Promise.resolve());
+    openEmail("Netflix");
     fireEvent.click(within(panel("Netflix")).getByRole("button", { name: /^Copy email/ }));
     await waitFor(() => expect(liveRegion().textContent).toBe(copiedNotice("Netflix")));
 

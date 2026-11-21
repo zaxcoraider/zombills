@@ -96,6 +96,7 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 
 1. THE Page SHALL be shown at the site root on the Spike's night scene: the sky, moon and fog layers (`BackdropLayers`, `ForegroundFog`) and the `Ground`, with the main heading "Zombills" in IM Fell English and the line "Your bank statement is haunted." in every Page state.
 (Changed by landing-polish: The `h1` and tagline stay in every Page state; on the Landing view they sit in the Hero on the night scene, not on a Card.)
+(Changed by pro-polish: On Non-landing views the `h1` holds the Home control and the tagline is not shown.)
 2. THE Page SHALL keep, unchanged in behaviour, vertical-slice Requirements 2 (drop area, file button, Samples, drag-over text, drops outside the drop area, keyboard-operable drop area), 3 (Analyzer, byte decoding, the paint before analysis), 4 (Page states, file checks, every error message, "Start again", a new statement replacing the current one), 6 (Money formatter) and 9 (static build, except 9.5's "including `#spike`", which Requirement 1.8 replaces). Their existing tests SHALL keep passing, changed only where this spec changes the `results` and `no-subscriptions` content.
 3. WHILE the Page is in the `idle` state, THE Page SHALL show the drop area, the file button, the Sample buttons and the vertical-slice sentence that the statement stays on the device and that 2 to 3 months give the best results.
 (Changed by landing-polish: The `idle` content is the Landing view; the sentence is split into the Privacy note in the Footer and the Tip in the Own-statement section.)
@@ -130,6 +131,7 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 3. THE Rising order SHALL be: Risen subscriptions grouped by currency in the order of `StatementInfo.currencies`, and within each currency the order of vertical-slice Requirement 5.2 (Counted subscriptions first, then guessed ones; by `yearlyCostCents` descending, then `merchant` in code-unit order, then `id`). Example (`us-signed.csv`): Adobe Creative Cloud, Riverside Gym Membership, Netflix, Spotify.
 4. THE card SHALL show the control "Skip for now". WHEN it is activated, THE Page SHALL move that subscription to the end of the Queue without recording an answer and show the next card. WHEN the Queue holds only that subscription, "Skip for now" SHALL NOT be shown.
 5. WHEN the user has answered a card and its outcome is shown (Requirement 4.3, 5.5), THE Page SHALL show a "Next" button. WHEN it is activated, THE Page SHALL show the first subscription of the Queue. WHEN the Queue is empty, the button SHALL read "Visit the graveyard" and open the Graveyard view.
+(Changed by pro-polish: In the `buried` stage "Next" sits inside the Helper panel.)
 6. THE Page SHALL show an "Open the graveyard" control in the Rising at all times, which opens the Graveyard view (Requirement 7) without answering the current card. Returning to the Rising (Requirement 7.8) SHALL show the first subscription of the Queue, or the "all answered" state of Criterion 7.
 7. WHEN the Queue is empty and no Burial sequence is running, THE Rising SHALL show "Every undead has an answer." with the "Visit the graveyard" button.
 8. WHEN a new Analysis outcome replaces the current one, THE Queue SHALL be rebuilt from the new outcome after the refresh of Requirement 9.5: subscriptions that already have a Current record SHALL NOT rise again.
@@ -151,6 +153,8 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 8. THE card SHALL show the line "Seen since <date>", with `<date>` the first Series charge date (`charges[0].date`, by `formatDisplayDate`) and, WHEN `evidence.startedInStatement` is `false`, the words "at least": "Seen since at least 2 Jan 2026". The card copy SHALL state only facts from the statement and SHALL NOT claim usage ("unopened", "forgotten", "last used").
 9. THE card SHALL NOT show logos or brand assets; service names are text only.
 10. THE card SHALL fit a single column at widths up to 640 px with no horizontal scrolling at 320 px, and every new text and background pair (including `--ember`, `--spectre` and `--blood` on the card surface, with `--blood` tested at the large-text threshold of 3:1 since it is only used as large text) SHALL meet WCAG AA and be added to `apps/web/src/contrast.test.ts`.
+
+(Changed by pro-polish: The sway is finite (ends by 4.4 s) and settles on hover and focus; the answer block is shown only while the card is undead.)
 
 ### Requirement 4: "Yes, let it rest" (keep)
 
@@ -175,6 +179,7 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 3. THE Burial sequence SHALL follow the Spike: the state label changes to "Zombie"; the card shudders, sinks below the ground line (ease-in, about 600 ms) while earth crumbs fall; the burial mound closes; the tombstone rises in the card's place (Requirement 6). WHILE it runs, the answer buttons, "Skip for now" and "Next" SHALL be `aria-disabled` and ignore activation. WHEN it starts, focus SHALL move to the stage container, an element that stays mounted for the whole sequence, with `tabIndex={-1}` and the accessible name "Burying <Display name>".
 4. THE answer SHALL be recorded when the button is activated, not when the animation ends. WHEN the Page leaves the Rising during the Burial sequence (a new statement, "Start again", or "Open the graveyard"), the Answer record SHALL stay.
 5. WHEN the tombstone has risen, THE Page SHALL move focus from the stage container to the tombstone and show "Next" (Requirement 2.5), and the savings counter SHALL count up to the new total (Requirement 6.4).
+(Changed by pro-polish: In the `buried` stage "Next" sits inside the Helper panel.)
 6. WHEN "No, bury it" is activated on a guessed subscription (`evidence.cadenceAssumed: true`), THE Page SHALL bury it like any other (Criterion 2 to 5) with `yearlySavingCents: null`. Its tombstone SHALL say "Saving unknown: guessed from one charge" in place of "Saves <amount>/year.", and it SHALL add nothing to the Savings totals or the counter (subscription-detector Requirement 9.8). The Page SHALL NOT ask for the cadence and SHALL NOT change the Subscription or its `evidence`.
 7. THE burial copy SHALL NOT say the subscription was cancelled. Until the cancel-helper spec exists, the tombstone SHALL carry the line "Cancel it with the provider to stop the charges." *(Note, cancel-helper: the tombstone's last line is now the one in cancel-helper Req 7.1.)*
 8. Examples (`us-signed.csv`, en-US):
@@ -216,6 +221,8 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 8. THE Graveyard view SHALL have a "Back to the rising" button WHEN a statement has been analysed.
 9. WHEN the Graveyard view opens, focus SHALL move to its heading.
 10. THE Graveyard view SHALL stack to a single column at widths up to 640 px with no horizontal scrolling at 320 px.
+
+(Changed by pro-polish: Tombstones stand on ground lines in a wider grid; "Not answered yet" uses Waiting chips named "Answer now <Display name> · <yearly cost> a year".)
 
 ### Requirement 8: Changing an answer
 
@@ -279,6 +286,8 @@ The deadline is 4 Dec. This spec is sized for about 20 to 24 tasks: the pure Gra
 
 1. Every control (answer buttons, "Skip for now", "Next", "Open the graveyard", "Visit the graveyard", "Back to the rising", "Unbury", "Bury after all", "Answer now", and every vertical-slice control) SHALL be reachable and operable with the keyboard alone in a logical Tab order, with the `--moss` focus ring at a 2px offset, and SHALL have an accessible name. "Unbury", "Bury after all" and "Answer now" SHALL include the Display name in their accessible name (for example "Unbury Netflix", or "Unbury Apple payment (merchant not shown), $0.99 a month" WHEN two Apple subscriptions are shown). No two controls shown at the same time SHALL have the same accessible name.
 2. WHEN a card appears, focus SHALL move to its heading WHEN the user caused it ("Next", "Skip for now", "Answer now", entering `results`); after an answer, focus SHALL move to the outcome (Requirement 4.3), or during a burial to the stage container and then the tombstone (Requirement 5.3, 5.5). Focus SHALL never be left on a removed element. WHILE the Page is `working`, the file button and the Sample buttons SHALL be `aria-disabled="true"` and ignore activation, not carry the HTML `disabled` attribute, so the Sample button the user clicked keeps focus. *(Note, cancel-helper Req 8.2: the Helper panel sits between the stage tombstone and "Next" in DOM and tab order on purpose.)*
+(Changed by pro-polish: In the `buried` stage "Next" sits inside the Helper panel.)
+(Changed by pro-polish: When another statement is read from the Statement panel of `results` or the Graveyard view, the panel remounts as the open working panel and focus moves to the same-named control there (a `sample-chip` or `drop-zone` focus request), so focus is never left on a removed element.)
 3. THE Page SHALL keep one polite live region and announce, in addition to vertical-slice Requirement 8.3 (whose Currency totals are replaced by the Still-draining figures of Requirement 1.6a): a new card ("<Display name>. <cadence>, <amount>. <yearly> a year. Still using this?", followed by each label sentence); a keep ("<Display name> rests. Kept."); a burial ("<Display name> is buried. Saves <saving> a year. Saved per year: <totals>.", or "<Display name> is buried. Saving unknown: guessed from one charge." WHEN `yearlySavingCents` is `null`); and an unbury ("<Display name> is unburied and rests."). Example (`us-signed.csv`, en-US): "Netflix is buried. Saves $215.88 a year. Saved per year: $215.88.", after which the vertical-slice totals announcement says "Still draining $1,139.76 a year".
 4. Decorative art (sky, moon, fog, ground, mound, crumbs, stone drawing) SHALL be `aria-hidden`. All meaning SHALL be in text: state labels, data labels, tombstone text and money figures.
 5. Labels SHALL never be colour-only: "Undead", "Zombie", "Resting", "Possessed" and "Trial trap" each have an icon and a word.

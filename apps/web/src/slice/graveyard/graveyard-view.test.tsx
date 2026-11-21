@@ -13,8 +13,11 @@ import { formatMoney } from "../logic/money";
 import { INITIAL_PAGE_MODEL, pageReducer } from "../page-state";
 import type { PageAction, PageModel } from "../page-state";
 import { GraveyardView } from "./graveyard-view";
-import { APPLE_99, APPLE_299, APPLE_PAIR } from "./test-fixtures";
+import { APPLE_99, APPLE_299, APPLE_PAIR, GUESSED_AMAZON_PRIME } from "./test-fixtures";
 import { expectUniqueButtonNames } from "./test-a11y";
+
+/** The Waiting chip of the US sample's gym: Display name and yearly cost through `Money`'s formatting. */
+const GYM_CHIP_NAME = `Answer now Riverside Gym Membership · ${formatMoney(34800, "USD")} a year`;
 
 beforeAll(() => {
   MotionGlobalConfig.skipAnimations = true;
@@ -128,7 +131,8 @@ describe("GraveyardView", () => {
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Unbury Netflix" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Unbury Spotify" })).toBeTruthy();
-    expect(container.querySelectorAll("ul > li > div > section").length).toBe(2);
+    // The li's first child wraps the stone; the Helper panel after the plate is not counted.
+    expect(container.querySelectorAll("ul > li > div:first-child > section").length).toBe(2);
   });
 
   it("shows Resting, Not answered yet and no Already stopped for the US sample", () => {
@@ -138,9 +142,7 @@ describe("GraveyardView", () => {
       screen.getByRole("button", { name: "Bury after all Adobe Creative Cloud" }),
     ).toBeTruthy();
     expect(screen.getByRole("heading", { level: 3, name: "Not answered yet" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Answer now Riverside Gym Membership" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: GYM_CHIP_NAME })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Already stopped" })).toBeNull();
     expect(screen.getByRole("button", { name: "Back to the rising" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Back to the start" })).toBeNull();
@@ -162,7 +164,7 @@ describe("GraveyardView", () => {
     const adobe = haunt.kept[0];
     fireEvent.click(screen.getByRole("button", { name: "Unbury Netflix" }));
     fireEvent.click(screen.getByRole("button", { name: "Bury after all Adobe Creative Cloud" }));
-    fireEvent.click(screen.getByRole("button", { name: "Answer now Riverside Gym Membership" }));
+    fireEvent.click(screen.getByRole("button", { name: GYM_CHIP_NAME }));
     fireEvent.click(screen.getByRole("button", { name: "Back to the rising" }));
     expect(dispatch.mock.calls.map(([action]) => action.type)).toEqual([
       "unbury",
@@ -324,16 +326,16 @@ describe("GraveyardView: How to cancel", () => {
     const spotify = screen.getByRole("button", { name: "How to cancel Spotify" });
     const netflixItem = netflix.closest("li");
     const spotifyItem = spotify.closest("li");
-    expect(netflixItem?.className).not.toContain("col-span-2");
-    expect(spotifyItem?.className).not.toContain("col-span-2");
+    expect(netflixItem?.className).not.toContain("col-span");
+    expect(spotifyItem?.className).not.toContain("col-span");
 
     await user.click(netflix);
-    expect(netflixItem?.className).toContain("min-[641px]:col-span-2");
-    expect(spotifyItem?.className).not.toContain("col-span-2");
+    expect(netflixItem?.className).toContain("col-span-full");
+    expect(spotifyItem?.className).not.toContain("col-span");
     expect(document.activeElement).toBe(netflix);
 
     await user.click(netflix);
-    expect(netflixItem?.className).not.toContain("col-span-2");
+    expect(netflixItem?.className).not.toContain("col-span");
   });
 
   it("puts the disclosure next to Unbury and keeps the Unbury dispatch", () => {
@@ -401,6 +403,13 @@ describe("GraveyardView: How to cancel", () => {
     await user.click(screen.getByRole("button", { name: "How to cancel Netflix" }));
     await user.click(screen.getByRole("button", { name: "How to cancel Spotify" }));
     const netflix = screen.getByRole("region", { name: "Seal the grave: Netflix" });
+    const spotify = screen.getByRole("region", { name: "Seal the grave: Spotify" });
+    await user.click(
+      within(netflix).getByRole("button", { name: "Write to them instead for Netflix" }),
+    );
+    await user.click(
+      within(spotify).getByRole("button", { name: "Write to them instead for Spotify" }),
+    );
     expect(within(netflix).getByRole("button", { name: "Copy email for Netflix" })).toBeTruthy();
     expectUniqueButtonNames(container);
   });
@@ -560,7 +569,13 @@ describe("GraveyardView: button variants (Req 6.5)", () => {
       "border-blood/85",
     );
     expect(variantOf("Bury after all Adobe Creative Cloud")).toBe("secondary");
-    expect(variantOf("Answer now Riverside Gym Membership")).toBe("secondary");
+    expect(
+      screen
+        .getByRole("button", {
+          name: `Answer now Riverside Gym Membership · ${formatMoney(34800, "USD")} a year`,
+        })
+        .getAttribute("data-exempt"),
+    ).toBe("waiting-chip");
     expect(variantOf("Back to the rising")).toBe("secondary");
   });
 
@@ -569,5 +584,97 @@ describe("GraveyardView: button variants (Req 6.5)", () => {
       hasStatement: false,
     });
     expect(variantOf("Back to the start")).toBe("secondary");
+  });
+});
+
+describe("GraveyardView: tombstone grid and Cards (pro-polish Req 9.1, 9.2)", () => {
+  it("puts How to cancel before Unbury in each item", () => {
+    renderView(usGraveyardModel());
+    for (const name of ["Netflix", "Spotify"]) {
+      const unbury = screen.getByRole("button", { name: `Unbury ${name}` });
+      const item = unbury.closest("li") as HTMLElement;
+      const names = within(item)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label"));
+      expect(names.slice(0, 2)).toEqual([`How to cancel ${name}`, `Unbury ${name}`]);
+    }
+  });
+
+  it("gives each item one aria-hidden ground line", () => {
+    const { container } = renderView(usGraveyardModel());
+    const items = [...container.querySelectorAll("ul.grid > li")];
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      const lines = item.querySelectorAll("[data-ground-line]");
+      expect(lines).toHaveLength(1);
+      expect(lines[0]?.getAttribute("aria-hidden")).toBe("true");
+    }
+  });
+
+  it("keeps the heading in the display face with its focus target", () => {
+    renderView(usGraveyardModel());
+    const heading = screen.getByRole("heading", { level: 2, name: "Your graveyard" });
+    expect(heading.className).toContain("font-display");
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("makes Back to the rising the last control of the view", () => {
+    const { container } = renderView(usGraveyardModel());
+    const controls = [...container.querySelectorAll("button, a[href], input")].filter(
+      (control) => control.closest("[hidden]") === null,
+    );
+    expect(controls.at(-1)?.textContent).toBe("Back to the rising");
+  });
+});
+
+describe("GraveyardView: Waiting chips (pro-polish Req 9.3)", () => {
+  /** Amazon Prime (cadence assumed) and one Apple subscription, both unanswered. */
+  function waitingModel(): PageModel {
+    const outcome = resultsOf(usSigned);
+    const waiting: ResultsOutcome = {
+      ...outcome,
+      subscriptions: [GUESSED_AMAZON_PRIME, APPLE_99],
+    };
+    return pageReducer(load(INITIAL_PAGE_MODEL, waiting, 1), { type: "open-graveyard" });
+  }
+
+  function chips(): HTMLElement[] {
+    const section = screen
+      .getByRole("heading", { level: 3, name: "Not answered yet" })
+      .closest("section") as HTMLElement;
+    return within(section).getAllByRole("button");
+  }
+
+  it("names each chip Answer now plus its visible text, with and without cadenceAssumed", () => {
+    const { haunt } = renderView(waitingModel());
+    const apple = haunt.names.get(APPLE_99.id) ?? APPLE_99.merchant;
+    const appleText = `${apple} · ${formatMoney(APPLE_99.yearlyCostCents, "USD")} a year`;
+    const primeText = `Amazon Prime · about ${formatMoney(166_800, "USD")} a year (estimate)`;
+    const prime = screen.getByRole("button", { name: `Answer now ${primeText}` });
+    const appleChip = screen.getByRole("button", { name: `Answer now ${appleText}` });
+    expect(prime.textContent).toBe(primeText);
+    expect(appleChip.textContent).toBe(appleText);
+    const all = chips();
+    expect(all).toHaveLength(2);
+    for (const chip of all) {
+      expect(chip.getAttribute("type")).toBe("button");
+      expect(chip.getAttribute("data-exempt")).toBe("waiting-chip");
+      expect(chip.closest("ul")?.className).toBe("flex flex-wrap gap-2");
+      for (const cls of ["min-h-11", "rounded-control", "border-bone/50", "bg-fog", "text-small"]) {
+        expect(chip.className.split(" ")).toContain(cls);
+      }
+    }
+  });
+
+  it("dispatches answer-now with the subscription id", () => {
+    const { dispatch } = renderView(waitingModel());
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Answer now Amazon Prime · about ${formatMoney(166_800, "USD")} a year (estimate)`,
+      }),
+    );
+    expect(dispatch.mock.calls.map(([action]) => action)).toEqual([
+      { type: "answer-now", id: GUESSED_AMAZON_PRIME.id },
+    ]);
   });
 });

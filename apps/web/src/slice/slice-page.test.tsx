@@ -267,7 +267,11 @@ describe("SlicePage: Results from a Sample", () => {
     expect(spotify.textContent).not.toContain("Price went up");
 
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
-    fireEvent.click(screen.getByRole("button", { name: "Answer now Netflix" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Answer now Netflix · ${formatMoney(21588, "USD")} a year`,
+      }),
+    );
     const netflix = screen.getByRole("region", { name: "Netflix" });
     const history = within(netflix).getByRole("list", { name: "Price history" });
     const entries = Array.from(history.children).map((child) => child.textContent);

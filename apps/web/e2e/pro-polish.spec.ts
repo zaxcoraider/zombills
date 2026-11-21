@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { clippedText } from "./content-boxes";
 
 // pro-polish browser tests (design "Browser tests"). Boxes and computed styles are real, so this
 // runs in Chromium. Box checks wait for `document.fonts.ready` and emulate reduced motion, except
@@ -892,7 +893,12 @@ test.describe("grave drag-over", () => {
       return {
         insets:
           box && pit
-            ? [pit.left - box.left, pit.top - box.top, box.right - pit.right, box.bottom - pit.bottom]
+            ? [
+                pit.left - box.left,
+                pit.top - box.top,
+                box.right - pit.right,
+                box.bottom - pit.bottom,
+              ]
             : [],
         rings: ringed.map((el) => ({
           name: Object.keys(el.dataset).join(","),
@@ -997,5 +1003,352 @@ test.describe("batch C fixes", () => {
     expect(box.width).toBeGreaterThanOrEqual(44);
     // The 5 px focus band stays inside the viewport.
     expect(box.x).toBeGreaterThanOrEqual(5);
+  });
+});
+
+test.describe("wide layout", () => {
+  for (const viewport of [
+    { width: 1280, height: 800 },
+    { width: 1600, height: 900 },
+  ] as const) {
+    test(`the Stage sits left of the summary Card at ${viewport.width}x${viewport.height}`, async ({
+      page,
+    }) => {
+      // Req 7.1, 7.3: at lg the Stage takes the left column and the summary the right one.
+      await page.setViewportSize(viewport);
+      await openLanding(page, "reduce");
+      await page.getByRole("button", { name: PRIMARY_NAME }).click();
+      const heading = page.getByRole("heading", { level: 2, name: "Recurring charges found" });
+      await expect(heading).toBeVisible();
+      await expect(page.getByRole("region", { name: "Adobe Creative Cloud" })).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const summary = await boxOf(page.locator("[data-rising-summary]"));
+      const stage = await boxOf(page.locator("[data-burial-stage]"));
+      expect(stage.x + stage.width).toBeLessThan(summary.x);
+      const overlap =
+        stage.x < summary.x + summary.width &&
+        summary.x < stage.x + stage.width &&
+        stage.y < summary.y + summary.height &&
+        summary.y < stage.y + stage.height;
+      expect(overlap).toBe(false);
+    });
+
+    test(`Try another statement sits right under the summary Card at ${viewport.width}x${viewport.height}`, async ({
+      page,
+    }) => {
+      // Review D #1, Req 7.1, 7.3: the statement row does not share the Stage's extra height.
+      await page.setViewportSize(viewport);
+      await openLanding(page, "reduce");
+      await page.getByRole("button", { name: PRIMARY_NAME }).click();
+      await expect(page.getByRole("region", { name: "Adobe Creative Cloud" })).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const summary = await boxOf(page.locator("[data-rising-summary]"));
+      const statement = await boxOf(page.locator("[data-rising-statement]"));
+      const gap = statement.y - (summary.y + summary.height);
+      expect(gap).toBeGreaterThanOrEqual(0);
+      expect(gap).toBeLessThanOrEqual(32);
+    });
+  }
+});
+
+test.describe("graveyard grid", () => {
+  const STORE_KEY = "zombills.graveyard.v1";
+  /** Three Valid buried records, each a different monthly USD merchant. */
+  const THREE_RECORDS = Array.from({ length: 3 }, (_, i) => ({
+    id: `sub:USD:monthly:*:service-${i + 1}`,
+    merchant: `Service ${i + 1}`,
+    serviceId: null,
+    currentAmountCents: 999 + i * 100,
+    answer: "not-using",
+    cadenceAssumed: false,
+    carriedOver: false,
+  }));
+  /** Four Valid buried records, for the 1600 px row of four (Review D #6). */
+  const FOUR_RECORDS = Array.from({ length: 4 }, (_, i) => ({
+    id: `sub:USD:monthly:*:service-${i + 1}`,
+    merchant: `Service ${i + 1}`,
+    serviceId: null,
+    currentAmountCents: 999 + i * 100,
+    answer: "not-using",
+    cadenceAssumed: false,
+    carriedOver: false,
+  }));
+
+  test("four tombstones share the first row at 1600x900", async ({ page }) => {
+    // Review D #6, Req 7.2: from 1600 px the tombstone grid has four columns.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.addInitScript(
+      ([key, list]) => {
+        localStorage.setItem(key, JSON.stringify({ version: 1, records: list }));
+      },
+      [STORE_KEY, FOUR_RECORDS] as const,
+    );
+    await openLanding(page, "reduce");
+    await page.getByRole("button", { name: "Open the graveyard" }).click();
+    await expect(page.getByRole("heading", { name: "Your graveyard", exact: true })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const stones = page.getByRole("region", { name: /^Here lies Service \d\.$/ });
+    await expect(stones).toHaveCount(4);
+    const ys = await stones.evaluateAll((els) =>
+      els.map((el) => Math.round(el.getBoundingClientRect().top)),
+    );
+    expect(ys[1], "second tombstone on the first row").toBe(ys[0]);
+    expect(ys[2], "third tombstone on the first row").toBe(ys[0]);
+    expect(ys[3], "fourth tombstone on the first row").toBe(ys[0]);
+  });
+
+  test("three tombstones share the first row at 1280x800", async ({ page }) => {
+    // Req 9.1, 7.2: at lg the tombstone grid has three columns.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.addInitScript(
+      ([key, list]) => {
+        localStorage.setItem(key, JSON.stringify({ version: 1, records: list }));
+      },
+      [STORE_KEY, THREE_RECORDS] as const,
+    );
+    await openLanding(page, "reduce");
+    await page.getByRole("button", { name: "Open the graveyard" }).click();
+    await expect(page.getByRole("heading", { name: "Your graveyard", exact: true })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const stones = page.getByRole("region", { name: /^Here lies Service \d\.$/ });
+    await expect(stones).toHaveCount(3);
+    const ys = await stones.evaluateAll((els) =>
+      els.map((el) => Math.round(el.getBoundingClientRect().top)),
+    );
+    expect(ys[1], "second tombstone on the first row").toBe(ys[0]);
+    expect(ys[2], "third tombstone on the first row").toBe(ys[0]);
+  });
+});
+
+test.describe("sizes", () => {
+  // Req 2.10, 12.9: no sideways scroll and no clipped text on every view, at 320x568 and at
+  // 390x844 with 200% root font size.
+  test.describe.configure({ mode: "parallel" });
+
+  const STORE_KEY = "zombills.graveyard.v1";
+  const NETFLIX_RECORD = {
+    id: "sub:USD:monthly:*:netflix",
+    merchant: "Netflix",
+    serviceId: "netflix",
+    currentAmountCents: 1799,
+    answer: "not-using",
+    cadenceAssumed: false,
+    carriedOver: false,
+  };
+  const ONE_OFF_CSV =
+    "Date,Description,Amount\n2026-01-03,CORNER BAKERY,-4.50\n2026-01-09,HARDWARE DEPOT,-23.10\n2026-01-20,BOOK NOOK,-12.00\n";
+  const VIEWS = ["landing", "results", "graveyard", "error", "no-subscriptions"] as const;
+  type SizedView = (typeof VIEWS)[number];
+
+  /** Opens a view with every disclosure the size check measures open. */
+  async function openSized(page: Page, view: SizedView): Promise<void> {
+    if (view === "graveyard") {
+      await page.addInitScript(
+        ([key, record]) => {
+          localStorage.setItem(key, JSON.stringify({ version: 1, records: [record] }));
+        },
+        [STORE_KEY, NETFLIX_RECORD] as const,
+      );
+    }
+    await openLanding(page, "reduce");
+    const main = page.getByRole("main");
+    const file = page.locator('input[type="file"]');
+    switch (view) {
+      case "landing":
+        break;
+      case "results": {
+        await page.getByRole("button", { name: PRIMARY_NAME }).click();
+        await expect(page.getByText("Recurring charges found")).toBeVisible();
+        const disclosure = page.getByRole("button", { name: "Try another statement" });
+        await disclosure.click();
+        await expect(disclosure).toHaveAttribute("aria-expanded", "true");
+        break;
+      }
+      case "graveyard": {
+        await page.getByRole("button", { name: "Open the graveyard" }).click();
+        await expect(
+          page.getByRole("heading", { name: "Your graveyard", exact: true }),
+        ).toBeVisible();
+        const helper = page.getByRole("button", { name: "How to cancel Netflix" });
+        await helper.click();
+        await expect(helper).toHaveAttribute("aria-expanded", "true");
+        const email = page.getByRole("button", { name: "Write to them instead for Netflix" });
+        await email.click();
+        await expect(email).toHaveAttribute("aria-expanded", "true");
+        await expect(page.locator("[data-email-text]")).toBeVisible();
+        break;
+      }
+      case "error":
+        await file.setInputFiles({
+          name: "notes.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("hello"),
+        });
+        await expect(main.getByText("This file is not a CSV statement.")).toBeVisible();
+        break;
+      case "no-subscriptions":
+        await file.setInputFiles({
+          name: "one.csv",
+          mimeType: "text/csv",
+          buffer: Buffer.from(ONE_OFF_CSV),
+        });
+        await expect(main.getByText("No undead here.")).toBeVisible();
+        break;
+    }
+    await page.evaluate(() => document.fonts.ready);
+    // Reduced-motion fades last at most 150 ms; let them end before measuring.
+    await page.waitForTimeout(300);
+  }
+
+  for (const { width, height, zoom } of [
+    { width: 320, height: 568, zoom: false },
+    { width: 390, height: 844, zoom: true },
+  ]) {
+    for (const view of VIEWS) {
+      test(`${view} has no sideways scroll or clipped text at ${width}x${height}${zoom ? " with 200% text" : ""}`, async ({
+        page,
+      }) => {
+        const where = `${view} ${width}x${height}${zoom ? " 200%" : ""}`;
+        await page.setViewportSize({ width, height });
+        if (zoom) {
+          await page.addInitScript(() => {
+            document.documentElement.style.fontSize = "200%";
+          });
+        }
+        await openSized(page, view);
+        const metrics = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+        expect(metrics.scrollWidth, `${where}: sideways scroll`).toBeLessThanOrEqual(
+          metrics.innerWidth,
+        );
+        expect(await clippedText(page), `${where}: clipped text`).toEqual([]);
+        if (view === "graveyard") {
+          // Review D #3: every engraved line stays inside its list tombstone's section box.
+          const listStones = page
+            .getByRole("main")
+            .locator("li")
+            .getByRole("region", { name: /^Here lies / });
+          const outside = await listStones.evaluateAll((sections) =>
+            sections.flatMap((section) => {
+              const box = section.getBoundingClientRect();
+              const out: string[] = [];
+              const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+              for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+                const text = (n.textContent ?? "").trim();
+                if (text === "") continue;
+                const range = document.createRange();
+                range.selectNodeContents(n);
+                for (const r of Array.from(range.getClientRects())) {
+                  if (r.width === 0) continue;
+                  if (
+                    r.left < box.left - 0.5 ||
+                    r.right > box.right + 0.5 ||
+                    r.top < box.top - 0.5 ||
+                    r.bottom > box.bottom + 0.5
+                  ) {
+                    out.push(
+                      `"${text.slice(0, 40)}" ${r.left},${r.top}–${r.right},${r.bottom} outside ${box.left},${box.top}–${box.right},${box.bottom}`,
+                    );
+                  }
+                }
+              }
+              return out;
+            }),
+          );
+          expect(await listStones.count(), `${where}: list tombstones`).toBeGreaterThan(0);
+          expect(outside, `${where}: text outside its tombstone`).toEqual([]);
+        }
+      });
+    }
+  }
+});
+
+test.describe("batch D fixes", () => {
+  const STORE_KEY = "zombills.graveyard.v1";
+  const RECORD = {
+    id: "sub:USD:monthly:*:service-1",
+    merchant: "Service 1",
+    serviceId: null,
+    currentAmountCents: 999,
+    answer: "not-using",
+    cadenceAssumed: false,
+    carriedOver: false,
+  };
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+    { width: 1600, height: 900 },
+  ] as const) {
+    test(`What is kept? lines up with the Memory short sentence at ${viewport.width}x${viewport.height}`, async ({
+      page,
+    }) => {
+      // Review D V1: the visible text starts at MEMORY_SHORT's left edge, within 1 px.
+      await page.setViewportSize(viewport);
+      await page.addInitScript(
+        ([key, record]) => {
+          localStorage.setItem(key, JSON.stringify({ version: 1, records: [record] }));
+        },
+        [STORE_KEY, RECORD] as const,
+      );
+      await openLanding(page, "reduce");
+      await page.getByRole("button", { name: "Open the graveyard" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Your graveyard", exact: true }),
+      ).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const short = page.getByText("Kept only in this browser, on this device.", { exact: true });
+      const button = page.getByRole("button", { name: "What is kept?" });
+      const textLeft = (el: Element) => {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        const node = walker.nextNode();
+        if (node === null) throw new Error("no text");
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return range.getBoundingClientRect().left;
+      };
+      const shortLeft = await short.evaluate(textLeft);
+      const buttonLeft = await button.evaluate(textLeft);
+      expect(Math.abs(buttonLeft - shortLeft)).toBeLessThanOrEqual(1);
+      const box = await boxOf(button);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      // The 5 px focus band stays inside the Memory Card and the viewport.
+      const card = await boxOf(page.getByRole("region", { name: "Memory", exact: true }));
+      expect(box.x - card.x).toBeGreaterThanOrEqual(5);
+      expect(box.x).toBeGreaterThanOrEqual(5);
+    });
+  }
+
+  test("the Memory switch knob moves when the checkbox is checked, at 390x844", async ({
+    page,
+  }) => {
+    // Review D #5: the knob is a sibling span, drawn in every engine.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(
+      ([key, record]) => {
+        localStorage.setItem(key, JSON.stringify({ version: 1, records: [record] }));
+      },
+      [STORE_KEY, RECORD] as const,
+    );
+    await openLanding(page, "reduce");
+    await page.getByRole("button", { name: "Open the graveyard" }).click();
+    const checkbox = page.getByRole("checkbox", { name: "Remember my graveyard on this device" });
+    const knob = page.locator("[data-switch-knob]");
+    const track = page.locator("[data-switch-track]");
+    // A restored Graveyard means Memory is on; turn it off first to measure the off position.
+    await expect(checkbox).toBeChecked();
+    await checkbox.uncheck();
+    await expect(checkbox).not.toBeChecked();
+    const off = await boxOf(knob);
+    const trackBox = await boxOf(track);
+    expect(off.width).toBeCloseTo(16, 0);
+    expect(off.x - trackBox.x).toBeCloseTo(4, 0);
+    await checkbox.check();
+    await expect(checkbox).toBeChecked();
+    const on = await boxOf(knob);
+    expect(on.x - off.x).toBeCloseTo(20, 0);
   });
 });

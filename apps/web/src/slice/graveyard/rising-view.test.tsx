@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MotionGlobalConfig } from "framer-motion";
 import { useReducer } from "react";
+import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import usSigned from "../../../../../samples/us-signed.csv?raw";
 import { analyzeStatement } from "../logic/analyze-statement";
@@ -40,10 +41,12 @@ function Harness({
   initial,
   actions,
   carriedOver = 0,
+  statementSlot = null,
 }: {
   initial: PageModel;
   actions: PageAction[];
   carriedOver?: number;
+  statementSlot?: ReactNode;
 }) {
   const [model, dispatch] = useReducer((m: PageModel, a: PageAction) => {
     actions.push(a);
@@ -61,6 +64,7 @@ function Harness({
       reduceMotion={false}
       memoryOn={model.memory.on}
       dispatch={dispatch}
+      statementSlot={statementSlot}
     />
   );
 }
@@ -130,7 +134,10 @@ describe("RisingView", () => {
       "sinking",
       "closing",
     ]);
-    expect(screen.getByRole("button", { name: "Next" })).toBeTruthy();
+    const sealed = screen.getByRole("region", { name: `Seal the grave: ${name}` });
+    const next = within(sealed).getByRole("button", { name: "Next" });
+    const controls = sealed.querySelectorAll("a[href], button");
+    expect(controls[controls.length - 1]).toBe(next);
   });
 
   it("names the stage group while burying", () => {
@@ -274,9 +281,60 @@ describe("RisingView: Button variants (Req 6.5, 6.6)", () => {
     const visit = screen.getByRole("button", { name: "Visit the graveyard" });
     expect(visit.getAttribute("data-variant")).toBe("primary");
     expect(visit.hasAttribute("aria-disabled")).toBe(false);
-    expect(
-      screen.getByRole("button", { name: MEMORY_SETTINGS }).getAttribute("data-variant"),
-    ).toBe("secondary");
+    expect(screen.getByRole("button", { name: MEMORY_SETTINGS }).getAttribute("data-variant")).toBe(
+      "secondary",
+    );
+  });
+});
+
+describe("RisingView: Next placement (Req 8.4)", () => {
+  function stageModel(kind: "ask" | "rested" | "burying" | "buried"): {
+    model: PageModel;
+    name: string;
+  } {
+    const first = modelFor(resultsOf(usSigned));
+    if (first.view.kind !== "results") throw new Error("expected results");
+    const id = first.view.rising.order[0] as string;
+    const name = deriveHaunt(first).names.get(id) as string;
+    if (kind === "ask") return { model: first, name };
+    if (kind === "rested") return { model: pageReducer(first, { type: "keep", id }), name };
+    let model = pageReducer(first, { type: "bury", id, reducedMotion: false });
+    if (kind === "burying") return { model, name };
+    for (const from of ["condemned", "sinking", "closing"] as const) {
+      model = pageReducer(model, { type: "burial-step", id, from });
+    }
+    return { model, name };
+  }
+
+  function belowStage(): HTMLElement | null {
+    const stage = document.querySelector("[data-burial-stage]");
+    const after = stage?.nextElementSibling ?? null;
+    return after?.querySelector<HTMLElement>("button") ?? null;
+  }
+
+  it("shows no Next while asking", () => {
+    render(<Harness initial={stageModel("ask").model} actions={[]} />);
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+  });
+
+  it.each(["rested", "burying"] as const)("puts Next below the Stage while %s", (kind) => {
+    render(<Harness initial={stageModel(kind).model} actions={[]} />);
+    const next = screen.getByRole("button", { name: "Next" });
+    expect(belowStage()).toBe(next);
+    expect(next.getAttribute("data-variant")).toBe("primary");
+    expect(screen.queryByRole("region", { name: /^Seal the grave/ })).toBeNull();
+  });
+
+  it("puts Next inside the Helper panel as its last control while buried, not below the Stage", () => {
+    const { model, name } = stageModel("buried");
+    render(<Harness initial={model} actions={[]} />);
+    const next = screen.getByRole("button", { name: "Next" });
+    const sealed = screen.getByRole("region", { name: `Seal the grave: ${name}` });
+    expect(sealed.contains(next)).toBe(true);
+    expect(sealed.lastElementChild?.contains(next)).toBe(true);
+    expect(next.getAttribute("data-variant")).toBe("primary");
+    expect(belowStage()).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Next" })).toHaveLength(1);
   });
 });
 
@@ -322,7 +380,9 @@ describe("RisingView: Progress dots (Req 10.2)", () => {
     expect(row?.classList.contains("gap-[8px]")).toBe(true);
     expect(dotStates()).toEqual([false, false, false, false]);
     const text = screen.getByText("0 of 4 answered");
-    expect(text.compareDocumentPosition(row as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      text.compareDocumentPosition(row as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     for (const dot of Array.from(row?.children ?? [])) {
       expect(dot.classList.contains("rounded-pill")).toBe(true);
       expect(dot.classList.contains("border-bone/45")).toBe(true);
@@ -388,5 +448,59 @@ describe("RisingView: Progress dots (Req 10.2)", () => {
     await waitFor(() => expect(dotStates().filter(Boolean)).toHaveLength(1));
     // Exactly the Keep sentence: the dots add nothing to what is announced.
     expect(screen.getByRole("status").textContent).toBe(`${name} rests. Kept.`);
+  });
+});
+
+describe("RisingView: Wide layout grid (Req 7.1, 7.3)", () => {
+  function follows(a: Node, b: Node): boolean {
+    return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  }
+
+  it("renders the summary panel first, then the Stage, then the statement slot", () => {
+    const model = modelFor(resultsOf(usSigned));
+    render(
+      <Harness
+        initial={model}
+        actions={[]}
+        statementSlot={<p data-testid="slot">Statement slot</p>}
+      />,
+    );
+    const summary = screen.getByRole("heading", { level: 2, name: "Recurring charges found" });
+    const card = screen.getByRole("heading", { level: 3, name: "Adobe Creative Cloud" });
+    const slot = screen.getByTestId("slot");
+    const root = summary.closest("[data-rising-summary]")?.parentElement;
+    expect(root).toBeTruthy();
+    // The summary panel is the grid's first child, so it comes first in DOM order.
+    expect(root?.firstElementChild?.contains(summary)).toBe(true);
+    expect(follows(summary, card)).toBe(true);
+    expect(follows(card, slot)).toBe(true);
+    expect(root?.lastElementChild?.contains(slot)).toBe(true);
+  });
+
+  it("gives the root the grid and the summary the Card classes, with no sticky summary", () => {
+    renderRising(usSigned);
+    const summary = screen
+      .getByRole("heading", { level: 2, name: "Recurring charges found" })
+      .closest<HTMLElement>("[data-rising-summary]");
+    const root = summary?.parentElement;
+    for (const name of [
+      "grid",
+      "gap-4",
+      "lg:gap-6",
+      "lg:grid-cols-[minmax(0,1fr)_minmax(20rem,22rem)]",
+      "lg:grid-rows-[auto_1fr]",
+      "lg:gap-x-8",
+    ]) {
+      expect(root?.classList.contains(name)).toBe(true);
+    }
+    expect(root?.classList.contains("gap-6")).toBe(false);
+    for (const name of ["rounded-card", "bg-fog/95", "p-4", "sm:p-6", "lg:self-start"]) {
+      expect(summary?.classList.contains(name)).toBe(true);
+    }
+    // Batch D #1: the sticky summary is dropped (R7.1 "MAY stick").
+    expect(summary?.classList.contains("lg:sticky")).toBe(false);
+    expect(summary?.classList.contains("lg:top-4")).toBe(false);
+    const statement = root?.querySelector<HTMLElement>("[data-rising-statement]");
+    expect(statement?.classList.contains("lg:self-start")).toBe(true);
   });
 });

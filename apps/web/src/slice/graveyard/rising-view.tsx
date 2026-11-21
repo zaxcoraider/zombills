@@ -1,7 +1,7 @@
 // The Rising: the summary, the progress line and the stage where each undead card is asked.
 
 import type { ClassifiedSubscription } from "@zombills/core";
-import type { Dispatch } from "react";
+import type { Dispatch, ReactNode } from "react";
 import type { ResultsOutcome } from "../logic/analyze-statement";
 import { assumedValueNotes } from "../logic/assumed-values";
 import { formatDisplayDate } from "../logic/display-date";
@@ -25,7 +25,21 @@ export interface RisingViewProps {
   /** true while Memory is on: shows the reminder and the Memory settings button */
   memoryOn: boolean;
   dispatch: Dispatch<PageAction>;
+  /** The Statement disclosure, rendered after the Stage (Req 7.3) */
+  statementSlot: ReactNode;
 }
+
+/**
+ * Req 7.1, 7.3: one column below lg; at lg the Stage left, the summary and the slot right.
+ * The first row is as tall as the summary and the second takes the rest of the Stage's height,
+ * so the Statement disclosure sits right under the summary (Batch D #1). Phones keep the
+ * 16 px gap (Req 7.4).
+ */
+const RISING_GRID =
+  "grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,22rem)] lg:grid-rows-[auto_1fr] lg:gap-6 lg:gap-x-8 lg:[grid-template-areas:'stage_summary''stage_statement']";
+const SUMMARY_CARD =
+  "flex flex-col gap-4 rounded-card bg-fog/95 p-4 sm:p-6 lg:self-start lg:[grid-area:summary]";
+const STATEMENT_AREA = "min-w-0 lg:self-start lg:[grid-area:statement]";
 
 const NOT_INCLUDED_NOTE = "Ended subscriptions and guessed ones are not included in the total.";
 
@@ -88,7 +102,7 @@ export function EndedList({
 function NoRisen({ haunt }: { haunt: HauntView }) {
   const headingRef = useFocusRequest("state-heading");
   return (
-    <div className="flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+    <div className="flex flex-col gap-4 rounded-card bg-fog/95 p-6">
       <h3 ref={headingRef} tabIndex={-1} className="font-display text-3xl">
         No undead here.
       </h3>
@@ -101,7 +115,7 @@ function NoRisen({ haunt }: { haunt: HauntView }) {
 function AllAnswered({ dispatch }: { dispatch: Dispatch<PageAction> }) {
   const noteRef = useFocusRequest("all-answered");
   return (
-    <div className="flex flex-col items-start gap-4 rounded-2xl bg-fog/95 p-6">
+    <div className="flex flex-col items-start gap-4 rounded-card bg-fog/95 p-6">
       <p ref={noteRef} tabIndex={-1} className="font-display text-3xl">
         Every undead has an answer.
       </p>
@@ -171,6 +185,7 @@ export function RisingView({
   reduceMotion,
   memoryOn,
   dispatch,
+  statementSlot,
 }: RisingViewProps) {
   const { stage } = rising;
   const head = haunt.queue[0] ?? null;
@@ -189,10 +204,23 @@ export function RisingView({
     if (burying) return;
     dispatch(queueEmpty ? { type: "open-graveyard" } : { type: "next" });
   };
+  // Inside the Helper panel (a fog Card) while buried; below the Stage, on the bare scene,
+  // while rested or burying (Req 8.4).
+  const nextInPanel = stage.kind === "buried";
+  const nextButton = (
+    <button
+      type="button"
+      {...buttonVariant("primary", { bare: !nextInPanel })}
+      aria-disabled={burying || undefined}
+      onClick={onNext}
+    >
+      {queueEmpty ? "Visit the graveyard" : "Next"}
+    </button>
+  );
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 rounded-2xl bg-fog/95 p-6">
+    <div className={RISING_GRID}>
+      <div data-rising-summary="" className={SUMMARY_CARD}>
         <h2 className="text-xl font-bold">Recurring charges found</h2>
         <StatementSummary sourceName={sourceName} outcome={outcome} />
         {haunt.stillDraining.map((entry) => (
@@ -243,34 +271,29 @@ export function RisingView({
           </div>
         ) : null}
       </div>
-      {noRisen ? (
-        <NoRisen haunt={haunt} />
-      ) : stage.kind === "ask" && queueEmpty ? (
-        <AllAnswered dispatch={dispatch} />
-      ) : subscription !== undefined ? (
-        <BurialStage
-          key={subscription.id}
-          subscription={subscription}
-          record={record}
-          displayName={haunt.names.get(subscription.id) ?? subscription.merchant}
-          stage={stage}
-          canSkip={haunt.queue.length > 1}
-          reduceMotion={reduceMotion}
-          dispatch={dispatch}
-        />
-      ) : null}
-      {showNext && !noRisen ? (
-        <div>
-          <button
-            type="button"
-            {...buttonVariant("primary", { bare: true })}
-            aria-disabled={burying || undefined}
-            onClick={onNext}
-          >
-            {queueEmpty ? "Visit the graveyard" : "Next"}
-          </button>
-        </div>
-      ) : null}
+      <div data-rising-stage="" className="flex min-w-0 flex-col gap-4 lg:[grid-area:stage]">
+        {noRisen ? (
+          <NoRisen haunt={haunt} />
+        ) : stage.kind === "ask" && queueEmpty ? (
+          <AllAnswered dispatch={dispatch} />
+        ) : subscription !== undefined ? (
+          <BurialStage
+            key={subscription.id}
+            subscription={subscription}
+            record={record}
+            displayName={haunt.names.get(subscription.id) ?? subscription.merchant}
+            stage={stage}
+            canSkip={haunt.queue.length > 1}
+            reduceMotion={reduceMotion}
+            dispatch={dispatch}
+            {...(nextInPanel ? { next: nextButton } : {})}
+          />
+        ) : null}
+        {showNext && !nextInPanel && !noRisen ? <div>{nextButton}</div> : null}
+      </div>
+      <div data-rising-statement="" className={STATEMENT_AREA}>
+        {statementSlot}
+      </div>
     </div>
   );
 }

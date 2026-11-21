@@ -33,7 +33,8 @@ const DROP_AREA_NAME = "Drop area: choose or drop a CSV statement";
 const THREE_ROW_FILE =
   "Date,Description,Amount\n2026-01-03,CORNER BAKERY,-4.50\n2026-01-09,HARDWARE DEPOT,-23.10\n2026-01-20,BOOK NOOK,-12.00\n";
 
-const SVG_COUNT = 11;
+/** Fixed-layer svgs on `results`, a Wide-layout view with no sky moon (pro-polish 7.1). */
+const SVG_COUNT = 10;
 
 /** The NightScene root (the element holding --ground-h) and its first fixed layer. */
 function sceneParts(container: HTMLElement) {
@@ -578,7 +579,7 @@ describe("Non-landing views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try another statement" }));
   }
 
-  function expectNonLanding(container: HTMLElement) {
+  function expectNonLanding(container: HTMLElement, wide = false) {
     expect(within(screen.getByRole("contentinfo")).getByText(PRIVACY_NOTE)).toBeTruthy();
     expect(screen.queryByRole("button", { name: PRIMARY_ACTION_NAME })).toBeNull();
     expect(screen.queryByText(HERO_LINE)).toBeNull();
@@ -600,13 +601,15 @@ describe("Non-landing views", () => {
       screen.getAllByRole("heading", { level: 2, name: "Try another statement" }),
     ).toHaveLength(1);
     expect(mainElement().className).toContain("max-w-[640px]");
+    // The Wide layout widens `main` at `lg` on `results` and the Graveyard view (Req 7.1, 7.2).
+    if (wide) expect(mainElement().className).toContain("lg:max-w-[1184px]");
   }
 
   it("results", async () => {
     const { container } = renderFirstVisit();
     await summon();
     openStatement();
-    expectNonLanding(container);
+    expectNonLanding(container, true);
   });
 
   it("have exactly one ridge band, in the flow before the footer", async () => {
@@ -636,8 +639,8 @@ describe("Non-landing views", () => {
       );
       expect(heights).not.toContain("var(--ground-h)");
     }
-    // Fixed layers hold SVG_COUNT svg elements: Stars, the sky moon, and three fog bands of one
-    // filter svg and two tiles each.
+    // On `results` (a Wide-layout view, so no sky moon) fixed layers hold SVG_COUNT svg
+    // elements: Stars and three fog bands of one filter svg and two tiles each.
     const count = fixed.reduce((n, layer) => n + layer.querySelectorAll("svg").length, 0);
     expect(count).toBe(SVG_COUNT);
   });
@@ -669,7 +672,7 @@ describe("Non-landing views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
     expect(screen.getByRole("heading", { name: "Your graveyard" })).toBeTruthy();
     openStatement();
-    expectNonLanding(container);
+    expectNonLanding(container, true);
   });
 
   it("working with origin other", async () => {

@@ -183,6 +183,8 @@ test("demo path: sample statement to burial, graveyard and back, with no stray r
       (domain) => cancelUrl.hostname === domain || cancelUrl.hostname.endsWith(`.${domain}`),
     ),
   ).toBe(true);
+  // The email is behind the Email disclosure for a Cancel entry (pro-polish Req 8.2, 8.8).
+  await panel.getByRole("button", { name: "Write to them instead for Netflix" }).click();
   await expect(panel.getByRole("link", { name: /^Open in my email app/ })).toHaveAttribute(
     "href",
     /^mailto:\?subject=Please%20cancel%20my%20Netflix%20subscription/,

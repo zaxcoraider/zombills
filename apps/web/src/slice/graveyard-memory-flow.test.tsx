@@ -23,6 +23,7 @@ import {
   MEMORY_NOT_KEPT,
   MEMORY_NOT_KEPT_REMOVE_FAILED,
   MEMORY_ON_LINE,
+  MEMORY_SHORT,
   NEWER_NOTE,
   REMOVE_FAILED_NOTE,
   UNREADABLE_NOTE,
@@ -33,6 +34,7 @@ import {
   droppedNote,
   restoredLine,
 } from "./logic/memory-text";
+import { WHAT_IS_KEPT } from "./logic/chrome-text";
 import { EMPTY_STORE_LOAD, STORE_KEY, createGraveyardStore } from "./storage/graveyard-store";
 import type { StoreLoad } from "./storage/graveyard-store";
 import { fakeStorage, fakeStoreTarget, storeLoadOf } from "./storage/test-store";
@@ -245,8 +247,10 @@ describe("graveyard memory flow: first visit", () => {
     await openGraveyard();
 
     expect(checkbox().checked).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: WHAT_IS_KEPT }));
     const hint = screen.getByText(MEMORY_HINT);
-    expect(checkbox().getAttribute("aria-describedby")).toBe(hint.id);
+    const short = screen.getByText(MEMORY_SHORT);
+    expect(checkbox().getAttribute("aria-describedby")).toBe(`${short.id} ${hint.id}`);
     fireEvent.click(screen.getByRole("button", { name: "Back to the rising" }));
     await openGraveyard();
     expect(storage.calls).toEqual([]);
@@ -305,6 +309,7 @@ describe("graveyard memory flow: an unidentified Apple record", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open the graveyard" }));
 
+    fireEvent.click(screen.getByRole("button", { name: WHAT_IS_KEPT }));
     expect(screen.getByText(MEMORY_HINT)).toBeTruthy();
     expect(screen.getAllByRole("region", { name: /^Here lies / })).toHaveLength(1);
     const records = storedRecords(storage);

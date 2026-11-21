@@ -1,7 +1,13 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { shareCardLayout, type DrawOp, type MeasureFn, type PathCommand, type ShareCardContent } from "./slice/logic/share-card";
+import {
+  shareCardLayout,
+  type DrawOp,
+  type MeasureFn,
+  type PathCommand,
+  type ShareCardContent,
+} from "./slice/logic/share-card";
 import { GROUND_ALPHA, STONE_WASH_ALPHA } from "./slice/logic/share-card-art";
 import {
   CANDLE_BAND_ALPHA,
@@ -106,7 +112,8 @@ function mixOklab(a: string, b: string, t: number): string {
 
 /** `colour` laid over `background` at `alpha`, mixed per sRGB channel as canvas `globalAlpha` does. */
 function over(background: string, colour: string, alpha: number): string {
-  const channelAt = (hex: string, start: number): number => parseInt(hex.slice(start, start + 2), 16);
+  const channelAt = (hex: string, start: number): number =>
+    parseInt(hex.slice(start, start + 2), 16);
   return `#${[1, 3, 5]
     .map((start) =>
       Math.round(channelAt(background, start) * (1 - alpha) + channelAt(colour, start) * alpha)
@@ -225,7 +232,8 @@ function distanceToSegment(x: number, y: number, a: Point, b: Point): number {
 
 /** Channel-wise linear interpolation of two hex colours, on the gamma-encoded 8-bit values. */
 function lerpHex(a: string, b: string, t: number): string {
-  const channelAt = (hex: string, start: number): number => parseInt(hex.slice(start, start + 2), 16);
+  const channelAt = (hex: string, start: number): number =>
+    parseInt(hex.slice(start, start + 2), 16);
   return `#${[1, 3, 5]
     .map((start) =>
       Math.round(channelAt(a, start) * (1 - t) + channelAt(b, start) * t)
@@ -251,7 +259,11 @@ function compositeAt(ops: readonly DrawOp[], x: number, y: number): string {
         const hi = stops[i];
         if (lo && hi && offset >= lo.offset && offset <= hi.offset) {
           const span = hi.offset - lo.offset;
-          sky = lerpHex(tokenHex(lo.paint.token), tokenHex(hi.paint.token), span === 0 ? 1 : (offset - lo.offset) / span);
+          sky = lerpHex(
+            tokenHex(lo.paint.token),
+            tokenHex(hi.paint.token),
+            span === 0 ? 1 : (offset - lo.offset) / span,
+          );
           break;
         }
       }
@@ -261,9 +273,11 @@ function compositeAt(ops: readonly DrawOp[], x: number, y: number): string {
         colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
       }
     } else if (op.kind === "circle") {
-      if (Math.hypot(x - op.cx, y - op.cy) <= op.r) colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
+      if (Math.hypot(x - op.cx, y - op.cy) <= op.r)
+        colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
     } else if (op.kind === "path") {
-      if (insidePath(op.commands, x, y)) colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
+      if (insidePath(op.commands, x, y))
+        colour = over(colour, tokenHex(op.fill.token), op.fill.alpha);
     } else if (op.kind === "radial-gradient") {
       const fraction = Math.hypot(x - op.cx, y - op.cy) / op.r;
       if (fraction >= 1) continue;
@@ -278,7 +292,9 @@ function compositeAt(ops: readonly DrawOp[], x: number, y: number): string {
         }
       }
     } else {
-      const points: Point[] = op.commands.flatMap((c) => (c.op === "close" ? [] : [{ x: c.x, y: c.y }]));
+      const points: Point[] = op.commands.flatMap((c) =>
+        c.op === "close" ? [] : [{ x: c.x, y: c.y }],
+      );
       const touches = points.some((a, i) => {
         const b = points[i + 1];
         return b !== undefined && distanceToSegment(x, y, a, b) <= op.lineWidth / 2;
@@ -297,7 +313,11 @@ describe("share card contrast per operation (R11.8)", () => {
   };
   const contents: readonly ShareCardContent[] = [
     ...BLOCK_SHAPES,
-    { totalLines: ["I buried $215.88 a year."], moreCurrencies: 0, countLine: "1 subscription buried." },
+    {
+      totalLines: ["I buried $215.88 a year."],
+      moreCurrencies: 0,
+      countLine: "1 subscription buried.",
+    },
     { totalLines: [], moreCurrencies: 0, countLine: "I buried 2 subscriptions. Saving unknown." },
   ];
 
@@ -305,7 +325,9 @@ describe("share card contrast per operation (R11.8)", () => {
     const ops = shareCardLayout(contents[0] as ShareCardContent, fakeMeasure);
     expect(compositeAt(ops, 5, 0)).toBe(tokenHex("night").toLowerCase());
     expect(compositeAt(ops, 5, 432)).toBe(tokenHex("night").toLowerCase());
-    expect(compositeAt(ops, 5, 864)).toBe(lerpHex(tokenHex("night"), tokenHex("fog"), (0.8 - 0.4) / 0.6));
+    expect(compositeAt(ops, 5, 864)).toBe(
+      lerpHex(tokenHex("night"), tokenHex("fog"), (0.8 - 0.4) / 0.6),
+    );
     const skyAt1000 = lerpHex(tokenHex("night"), tokenHex("fog"), (1000 / 1080 - 0.4) / 0.6);
     expect(compositeAt(ops, 5, 1000)).toBe(over(skyAt1000, tokenHex("night"), GROUND_ALPHA));
   });
@@ -531,6 +553,12 @@ describe("pro-polish contrast (Req 12.4)", () => {
     );
   });
 
+  it("a Waiting chip on its Card: text bone on fog at least 4.5:1, outline bone 50 % over fog against C and fog at least 3:1 (Req 9.3)", () => {
+    expect(contrast(bone(), fog())).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(over(fog(), bone(), OUTLINE_ALPHA), card())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(fog(), bone(), OUTLINE_ALPHA), fog())).toBeGreaterThanOrEqual(3);
+  });
+
   /** E: the grave's earth ring, GRAVE_EARTH = `color-mix(in oklab, var(--night) 85%, var(--ember))`. */
   const earth = () => mixOklab(night(), tokenHex("ember"), 0.15);
 
@@ -580,7 +608,9 @@ describe("pro-polish contrast (Req 12.4)", () => {
     expect(OUTLINE_ALPHA).toBe(0.5);
     expect(OUTLINE_DISABLED_ALPHA).toBe(0.45);
     expect(contrast(over(card(), bone(), OUTLINE_ALPHA), card())).toBeGreaterThanOrEqual(3);
-    expect(contrast(over(card(), bone(), OUTLINE_DISABLED_ALPHA), card())).toBeGreaterThanOrEqual(3);
+    expect(contrast(over(card(), bone(), OUTLINE_DISABLED_ALPHA), card())).toBeGreaterThanOrEqual(
+      3,
+    );
   });
 
   it("primary text at rest, on hover and while aria-disabled is at least 4.5:1", () => {
@@ -654,5 +684,20 @@ describe("pro-polish contrast (Req 12.4)", () => {
 
   it("the Progress bar fill, moss against the bone 20 % track over C, is at least 3:1", () => {
     expect(contrast(moss(), over(card(), bone(), 0.2))).toBeGreaterThanOrEqual(3);
+  });
+
+  it("MEMORY_SHORT and the Memory hint, bone on C, are at least 4.5:1 (Req 9.4)", () => {
+    expect(contrast(bone(), card())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the Memory toggle off, its track border bone 45 % over C, against C is at least 3:1", () => {
+    expect(OUTLINE_DISABLED_ALPHA).toBe(0.45);
+    expect(contrast(over(card(), bone(), OUTLINE_DISABLED_ALPHA), card())).toBeGreaterThanOrEqual(
+      3,
+    );
+  });
+
+  it("the Memory toggle on, its moss track fill against C, is at least 3:1", () => {
+    expect(contrast(moss(), card())).toBeGreaterThanOrEqual(3);
   });
 });

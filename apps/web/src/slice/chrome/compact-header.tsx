@@ -8,7 +8,7 @@ import type { HauntView } from "../logic/haunt-view";
 export interface CompactHeaderProps {
   haunt: HauntView;
   reduceMotion: boolean;
-  /** Widens the column at `lg` on Wide-layout views; passed `false` until task 35. */
+  /** Widens the column at `lg` on Wide-layout views (`isWideView`). */
   wide: boolean;
   homeDisabled: boolean;
   homeRef: Ref<HTMLButtonElement>;

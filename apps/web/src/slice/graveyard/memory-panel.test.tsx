@@ -11,6 +11,7 @@ import {
   MEMORY_HEADING,
   MEMORY_HINT,
   MEMORY_LABEL,
+  MEMORY_SHORT,
   NEWER_NOTE,
   REMOVE_FAILED_NOTE,
   UNREADABLE_NOTE,
@@ -18,8 +19,10 @@ import {
   droppedNote,
   leftOutNote,
 } from "../logic/memory-text";
+import { WHAT_IS_KEPT } from "../logic/chrome-text";
 import type { MemoryModel, PageAction } from "../page-state";
 import { MemoryPanel } from "./memory-panel";
+import { FocusRequestContext } from "./use-focus-request";
 import { expectUniqueButtonNames } from "./test-a11y";
 
 const OFF: MemoryModel = {
@@ -79,14 +82,18 @@ describe("MemoryPanel: checkbox, hint and notes", () => {
     expect(region.querySelector("h3")?.textContent).toBe("Memory");
   });
 
-  it("shows an unticked checkbox with its label and a hint linked by aria-describedby", () => {
+  it("shows an unticked checkbox with its label, described by the short sentence and the hint", async () => {
+    const user = userEvent.setup();
     renderPanel();
     const box = screen.getByRole("checkbox", { name: MEMORY_LABEL });
     expect((box as HTMLInputElement).checked).toBe(false);
     expect(MEMORY_LABEL).toBe("Remember my graveyard on this device");
+    await user.click(screen.getByRole("button", { name: WHAT_IS_KEPT }));
     const hint = screen.getByText(MEMORY_HINT);
+    const short = screen.getByText(MEMORY_SHORT);
     expect(hint.id).not.toBe("");
-    expect(box.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(short.id).not.toBe("");
+    expect(box.getAttribute("aria-describedby")).toBe(`${short.id} ${hint.id}`);
     expect(MEMORY_HINT).toBe(
       "Only merchant text as printed on your statement (it can include reference numbers), amounts and your answers are kept, in this browser on this device. Transactions, dates and file names are not. Nothing is sent anywhere.",
     );
@@ -119,7 +126,10 @@ describe("MemoryPanel: checkbox, hint and notes", () => {
 
   it("shows no note when there is none", () => {
     const { container } = renderPanel();
-    expect(container.querySelectorAll("p")).toHaveLength(1);
+    expect([...container.querySelectorAll("p")].map((p) => p.textContent)).toEqual([
+      MEMORY_SHORT,
+      MEMORY_HINT,
+    ]);
   });
 
   it.each([
@@ -142,7 +152,13 @@ describe("MemoryPanel: checkbox, hint and notes", () => {
       leftOut: 2,
     });
     const texts = [...container.querySelectorAll("p")].map((p) => p.textContent);
-    expect(texts).toEqual([MEMORY_HINT, NEWER_NOTE, WRITE_FAILED_NOTE, leftOutNote(2)]);
+    expect(texts).toEqual([
+      MEMORY_SHORT,
+      MEMORY_HINT,
+      NEWER_NOTE,
+      WRITE_FAILED_NOTE,
+      leftOutNote(2),
+    ]);
   });
 
   it("announces nothing by itself", () => {
@@ -250,6 +266,8 @@ describe("MemoryPanel: keyboard and names", () => {
     await user.keyboard(" ");
     expect(dispatch).toHaveBeenLastCalledWith({ type: "set-memory", on: true });
     await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: WHAT_IS_KEPT }));
+    await user.tab();
     expect(document.activeElement).toBe(forgetButton());
     await user.keyboard("{Enter}");
     expect(document.activeElement).toBe(screen.getByRole("button", { name: FORGET_CANCEL }));
@@ -292,5 +310,139 @@ describe("MemoryPanel: button variants (Req 6.5)", () => {
     expect(cancel.getAttribute("data-variant")).toBe("secondary");
     expect(confirm.getAttribute("data-variant")).toBe("danger");
     for (const button of [cancel, confirm]) expect(button.className).not.toContain("opacity-60");
+  });
+});
+
+describe("MemoryPanel: toggle, short sentence and What is kept? (pro-polish Req 9.4 to 9.6)", () => {
+  const whatIsKept = () => screen.getByRole("button", { name: WHAT_IS_KEPT });
+
+  it("shows, in order: heading, toggle label, short sentence, What is kept?, hint, notes, Forget everything", () => {
+    const { container } = renderPanel({ ...ON, storageNote: "write-failed" }, { hasRecords: true });
+    const section = container.querySelector("section");
+    if (section === null) throw new Error("no section");
+    const parts = [
+      section.querySelector("h3"),
+      screen.getByRole("checkbox", { name: MEMORY_LABEL }),
+      screen.getByText(MEMORY_SHORT),
+      whatIsKept(),
+      screen.getByText(MEMORY_HINT),
+      screen.getByText(WRITE_FAILED_NOTE),
+      forgetButton(),
+    ];
+    for (let i = 1; i < parts.length; i += 1) {
+      const before = parts[i - 1];
+      const after = parts[i];
+      if (before == null || after == null) throw new Error(`missing part ${i}`);
+      expect(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    }
+    expect(MEMORY_SHORT).toBe("Kept only in this browser, on this device.");
+    expect(WHAT_IS_KEPT).toBe("What is kept?");
+  });
+
+  it("keeps a native checkbox with no switch role, inside a 44 px label", () => {
+    renderPanel();
+    const box = screen.getByRole("checkbox", { name: MEMORY_LABEL });
+    expect(box.getAttribute("type")).toBe("checkbox");
+    expect(box.hasAttribute("role")).toBe(false);
+    expect(box.getAttribute("data-focus")).toBe("memory-checkbox");
+    expect(box.className).toContain("appearance-none");
+    expect(box.className).toContain("rounded-pill");
+    expect(box.className).not.toContain("transition");
+    const label = box.closest("label");
+    expect(label?.className.split(" ")).toEqual(
+      expect.arrayContaining(["flex", "min-h-11", "items-center", "gap-2"]),
+    );
+  });
+
+  it("draws the track and knob as hidden sibling spans placed by peer-checked classes (Batch D #5)", () => {
+    renderPanel();
+    const box = screen.getByRole("checkbox", { name: MEMORY_LABEL });
+    expect(box.className.split(" ")).toContain("peer");
+    expect(box.className).not.toContain("before:");
+    const track = box.parentElement?.querySelector<HTMLElement>("[data-switch-track]");
+    const knob = box.parentElement?.querySelector<HTMLElement>("[data-switch-knob]");
+    if (track == null || knob == null) throw new Error("no track or knob");
+    for (const el of [track, knob]) {
+      expect(el.tagName).toBe("SPAN");
+      expect(el.getAttribute("aria-hidden")).toBe("true");
+      expect(box.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+      expect(el.className).not.toContain("transition");
+    }
+    expect(track.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "border-bone/45",
+        "peer-checked:border-moss",
+        "peer-checked:bg-moss",
+      ]),
+    );
+    expect(knob.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "size-4",
+        "bg-bone",
+        "peer-checked:translate-x-5",
+        "peer-checked:bg-night",
+      ]),
+    );
+  });
+
+  it("removes the inline padding of What is kept? so its text starts at the short sentence (Batch D V1)", () => {
+    renderPanel();
+    const button = whatIsKept();
+    expect(button.parentElement?.className.split(" ")).toContain("[&>button]:px-0");
+    expect(button.className.split(" ")).toEqual(expect.arrayContaining(["min-h-11", "min-w-11"]));
+  });
+
+  it("lists the short id then the hint id in aria-describedby, and both resolve to their texts", () => {
+    renderPanel();
+    const box = screen.getByRole("checkbox", { name: MEMORY_LABEL });
+    const ids = (box.getAttribute("aria-describedby") ?? "").split(" ");
+    expect(ids).toHaveLength(2);
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toEqual([
+      MEMORY_SHORT,
+      MEMORY_HINT,
+    ]);
+  });
+
+  it("keeps the hint in the DOM and hidden until What is kept? is opened", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    const button = whatIsKept();
+    const box = screen.getByRole("checkbox", { name: MEMORY_LABEL });
+    const hintId = (box.getAttribute("aria-describedby") ?? "").split(" ")[1] ?? "";
+    const hint = document.getElementById(hintId);
+    expect(hint?.textContent).toBe(MEMORY_HINT);
+    expect(hint?.hidden).toBe(true);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("aria-controls")).toBe(hintId);
+    expect(button.getAttribute("data-variant")).toBe("tertiary");
+    expect(button.className).toContain("min-h-11");
+    await user.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(hint?.hidden).toBe(false);
+    await user.click(button);
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(hint?.hidden).toBe(true);
+  });
+
+  it("dispatches set-memory when the toggle label is clicked", async () => {
+    const user = userEvent.setup();
+    const { dispatch } = renderPanel(OFF);
+    await user.click(screen.getByText(MEMORY_LABEL));
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith({ type: "set-memory", on: true });
+  });
+});
+
+describe("MemoryPanel: the memory-checkbox focus request (Req 9.5)", () => {
+  it("focuses the toggle when the page requests memory-checkbox, as Memory settings does", () => {
+    const dispatch = vi.fn<(action: PageAction) => void>();
+    render(
+      <FocusRequestContext.Provider
+        value={{ focus: { target: "memory-checkbox", id: null, seq: 1 }, claim: () => true }}
+      >
+        <MemoryPanel memory={ON} hasRecords busy={false} dispatch={dispatch} />
+      </FocusRequestContext.Provider>,
+    );
+    expect(document.activeElement).toBe(screen.getByRole("checkbox", { name: MEMORY_LABEL }));
   });
 });
